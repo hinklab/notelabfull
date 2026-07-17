@@ -1,0 +1,87 @@
+{
+  "name": "notelab",
+  "version": "1.0.0",
+  "description": "AI-powered personal workspace",
+  "main": "electron/main.js",
+  "author": "hinklab",
+  "license": "ISC",
+  "scripts": {
+    "start": "node scripts/dev-with-api.js",
+    "dev:noapi": "node scripts/dev.js",
+    "dev:api": "node scripts/dev-with-api.js",
+    "api": "cd notelab-api && npm start",
+    "api:dev": "cd notelab-api && npm run dev",
+    "bot": "cd telegram-bot && npm start",
+    "bot:dev": "cd telegram-bot && npm run dev",
+    "build:renderer": "vite build",
+    "build:api": "cd notelab-api && npm ci",
+    "build:bot": "cd telegram-bot && npm ci",
+    "build:win": "npm run build:renderer && npm run build:api && electron-builder --win --x64",
+    "build:win:portable": "npm run build:renderer && npm run build:api && electron-builder --win portable --x64"
+  },
+  "keywords": [],
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@vitejs/plugin-react": "^6.0.2",
+    "electron": "^42.1.0",
+    "electron-builder": "^26.8.1",
+    "tailwindcss": "^4.3.0",
+    "vite": "^8.0.14"
+  },
+  "build": {
+    "appId": "com.hinklab.notelab",
+    "productName": "notelab",
+    "copyright": "Copyright © 2025 hinklab",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "renderer/dist/**/*",
+      "notelab-api/src/**/*",
+      "notelab-api/package.json",
+      "notelab-api/.env",
+      "notelab-api/railway.toml",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "notelab-api/node_modules",
+        "to": "notelab-api/node_modules",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "notelab"
+    },
+    "portable": {
+      "artifactName": "notelab-portable-${version}.exe"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "notelab-api/**/*"
+    ]
+  }
+}

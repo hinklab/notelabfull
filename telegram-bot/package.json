@@ -1,0 +1,17 @@
+{
+  "name": "notelab-telegram-bot",
+  "version": "1.0.0",
+  "description": "Notelab Telegram Bot with Mini App",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "nodemon bot.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "node-telegram-bot-api": "^0.64.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
