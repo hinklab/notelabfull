@@ -2,13 +2,14 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-// Get database path (same as Electron)
 function getDbPath() {
-  const userDataPath = path.join(os.homedir(), 'AppData', 'Roaming', 'notelab');
-  if (!fs.existsSync(userDataPath)) {
-    fs.mkdirSync(userDataPath, { recursive: true });
+  // Agar Windows'da (Electron) ishlasa - eski joyni ishlatadi
+  const localPath = path.join(os.homedir(), 'AppData', 'Roaming', 'notelab', 'notelab.json');
+  if (fs.existsSync(localPath)) {
+    return localPath;
   }
-  return path.join(userDataPath, 'notelab.json');
+  // Aks holda (server/Render) - repo ichidagi data papkasini ishlatadi
+  return path.join(__dirname, '../../data/notelab.json');
 }
 
 function readDB() {
