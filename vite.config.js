@@ -10,5 +10,5 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, 'renderer/src') }
   },
   server: { port: 5173 },
-  build: { outDir: 'dist', emptyOutDir: true }
+  build: { outDir: '../dist', emptyOutDir: true }
 })
