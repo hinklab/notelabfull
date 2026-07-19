@@ -26,6 +26,12 @@ const GROUP_COLORS = [
   '#f472b6', '#fb923c', '#4ade80', '#38bdf8',
 ]
 
+function normalizeNoteIcon(icon, fallback = '📝') {
+  if (typeof icon === 'string' && icon.trim()) return icon
+  if (icon && typeof icon === 'object' && typeof icon.icon === 'string' && icon.icon.trim()) return icon.icon
+  return fallback
+}
+
 function readDB() {
   try {
     const raw = fs.readFileSync(getDbPath(), 'utf-8')
@@ -39,6 +45,11 @@ function readDB() {
     let changed = false
     for (const n of (db.notes || [])) {
       if (!n.type) { n.type = 'custom'; changed = true }
+      const safeIcon = normalizeNoteIcon(n.icon, n.is_movie ? '🎬' : '📝')
+      if (n.icon !== safeIcon) {
+        n.icon = safeIcon
+        changed = true
+      }
     }
     for (const m of db.movies) {
       const norm = normalizeSection(m.section)
@@ -299,7 +310,7 @@ function createNote(data) {
   const note = {
     id: db.notes.length ? Math.max(...db.notes.map(n => n.id)) + 1 : 1,
     name: data.name || 'Note',
-    icon: data.icon || '📝',
+    icon: normalizeNoteIcon(data.icon),
     type: data.type || 'custom',
     created_at: new Date().toISOString(),
   }
@@ -312,7 +323,11 @@ function updateNote(id, data) {
   const db = readDB()
   const idx = (db.notes || []).findIndex(n => n.id === id)
   if (idx === -1) return null
-  db.notes[idx] = { ...db.notes[idx], ...data }
+  const safe = { ...data }
+  if (safe.icon !== undefined) {
+    safe.icon = normalizeNoteIcon(safe.icon, db.notes[idx]?.is_movie ? '🎬' : '📝')
+  }
+  db.notes[idx] = { ...db.notes[idx], ...safe }
   writeDB(db)
   return db.notes[idx]
 }

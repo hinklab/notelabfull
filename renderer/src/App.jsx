@@ -9,6 +9,17 @@ import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import { Pencil, X, Scissors, Copy, Clipboard, Plus, ArrowRight, BookOpen, Gamepad2, BookMarked, Plane, Lightbulb, Music, Dumbbell, Target, Moon, Star } from 'lucide-react'
 
+function normalizeNoteIcon(icon, fallback = '📝') {
+  if (typeof icon === 'string' && icon.trim()) return icon
+  if (icon && typeof icon === 'object' && typeof icon.icon === 'string' && icon.icon.trim()) return icon.icon
+  return fallback
+}
+
+function sanitizeNote(note) {
+  if (!note || typeof note !== 'object') return note
+  return { ...note, icon: normalizeNoteIcon(note.icon, note.is_movie ? '🎬' : '📝') }
+}
+
 export default function App() {
   const { user, loading: authLoading, logout } = useAuth()
   const [authPage, setAuthPage] = useState('login') // 'login' | 'register'
@@ -48,7 +59,7 @@ function MainApp({ user, onLogout }) {
 
   const loadNotes = useCallback(async () => {
     const data = await window.api.getNotes()
-    setNotes(data)
+    setNotes((Array.isArray(data) ? data : []).map(sanitizeNote))
   }, [])
 
   useEffect(() => { loadNotes() }, [loadNotes])
@@ -60,8 +71,9 @@ function MainApp({ user, onLogout }) {
   }, [])
 
   const openNote = (note) => {
-    activeNoteRef.current = note
-    setActiveNote(note)
+    const safeNote = sanitizeNote(note)
+    activeNoteRef.current = safeNote
+    setActiveNote(safeNote)
   }
 
   const goHome = () => {
@@ -72,7 +84,8 @@ function MainApp({ user, onLogout }) {
   }
 
   const handleCreateNote = async ({ name, icon, type }) => {
-    const note = await window.api.createNote({ name, icon, type: type || 'custom' })
+    const safeIcon = normalizeNoteIcon(icon)
+    const note = await window.api.createNote({ name, icon: safeIcon, type: type || 'custom' })
     await loadNotes()
     setShowCreateNote(false)
     openNote(note)
@@ -96,7 +109,7 @@ function MainApp({ user, onLogout }) {
 
   const handleNotePaste = async () => {
     if (!noteClipboard) return
-    await window.api.createNote({ name: noteClipboard.name, icon: noteClipboard.icon })
+    await window.api.createNote({ name: noteClipboard.name, icon: normalizeNoteIcon(noteClipboard.icon) })
     if (noteClipboard._cut) await window.api.deleteNote(noteClipboard.id)
     setNoteClipboard(null)
     setNoteCtxMenu(null)
@@ -135,7 +148,7 @@ function MainApp({ user, onLogout }) {
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
                     <div>
                       <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
-                        {note.icon || '📝'} {note.name}
+                        {normalizeNoteIcon(note.icon, note.is_movie ? '🎬' : '📝')} {note.name}
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 600, color: tm.color, background: tm.bg, border: `1px solid ${tm.color}33`, borderRadius: 20, padding: '2px 10px' }}>
                         {tm.label}
@@ -184,7 +197,7 @@ function MainApp({ user, onLogout }) {
     finally { setRefreshing(false); setTimeout(() => setRefreshToast(null), 3000) }
   }
 
-  const noteLabel = activeNote ? `${activeNote.icon || '📝'} ${activeNote.name}` : ''
+  const noteLabel = activeNote ? `${normalizeNoteIcon(activeNote.icon, activeNote.is_movie ? '🎬' : '📝')} ${activeNote.name}` : ''
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg-base)' }}>
@@ -242,7 +255,7 @@ function MainApp({ user, onLogout }) {
           note={editNote}
           onClose={() => setEditNote(null)}
           onSave={async ({ name, icon }) => {
-            await window.api.updateNote(editNote.id, { name, icon })
+            await window.api.updateNote(editNote.id, { name, icon: normalizeNoteIcon(icon) })
             setEditNote(null)
             await loadNotes()
           }}
@@ -327,7 +340,7 @@ function NoteCtxMenu({ x, y, note, clipboard, onEdit, onDelete, onCut, onCopy, o
 
 function EditNoteModal({ note, onClose, onSave }) {
   const [name, setName] = useState(note.name || '')
-  const [icon, setIcon] = useState(note.icon || '📝')
+  const [icon, setIcon] = useState(normalizeNoteIcon(note.icon, note.is_movie ? '🎬' : '📝'))
   const ICONS = ['📝', '📚', '🎮', '🎵', '✈️', '💡', '🏋️', '🎯', '🌙', '⭐']
 
   return (

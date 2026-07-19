@@ -12,6 +12,12 @@ function getDbPath() {
   return path.join(__dirname, '../../data/notelab.json');
 }
 
+function normalizeNoteIcon(icon, fallback = '📝') {
+  if (typeof icon === 'string' && icon.trim()) return icon;
+  if (icon && typeof icon === 'object' && typeof icon.icon === 'string' && icon.icon.trim()) return icon.icon;
+  return fallback;
+}
+
 function readDB() {
   try {
     const raw = fs.readFileSync(getDbPath(), 'utf-8');
@@ -22,6 +28,15 @@ function readDB() {
     if (!db.movies) db.movies = [];
     if (!db.settings) db.settings = {};
     if (!db.agent_memory) db.agent_memory = [];
+    let changed = false;
+    for (const note of db.notes) {
+      const safeIcon = normalizeNoteIcon(note.icon, note.is_movie ? '🎬' : '📝');
+      if (note.icon !== safeIcon) {
+        note.icon = safeIcon;
+        changed = true;
+      }
+    }
+    if (changed) writeDB(db);
     return db;
   } catch (e) {
     console.log('Database file not found, creating new one');
@@ -40,4 +55,4 @@ function writeDB(db) {
   fs.writeFileSync(getDbPath(), JSON.stringify(db, null, 2), 'utf-8');
 }
 
-module.exports = { readDB, writeDB, getDbPath };
+module.exports = { readDB, writeDB, getDbPath, normalizeNoteIcon };

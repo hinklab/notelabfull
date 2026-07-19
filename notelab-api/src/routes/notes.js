@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { readDB, writeDB } = require('../services/database');
+const { readDB, writeDB, normalizeNoteIcon } = require('../services/database');
 
 // GET /api/notes - with groups summary
 router.get('/', async (req, res) => {
@@ -48,7 +48,7 @@ router.post('/', async (req, res) => {
     const note = {
       id: db.notes.length ? Math.max(...db.notes.map(n => n.id)) + 1 : 1,
       name: req.body.name || 'Note',
-      icon: req.body.icon || '📝',
+      icon: normalizeNoteIcon(req.body.icon),
       type: req.body.type || 'custom',
       created_at: new Date().toISOString(),
     };
@@ -68,7 +68,11 @@ router.put('/:id', async (req, res) => {
     const idx = (db.notes || []).findIndex(n => n.id === parseInt(req.params.id));
     if (idx === -1) return res.status(404).json({ error: 'Note not found' });
     
-    db.notes[idx] = { ...db.notes[idx], ...req.body };
+    const safeBody = { ...req.body };
+    if (safeBody.icon !== undefined) {
+      safeBody.icon = normalizeNoteIcon(safeBody.icon, db.notes[idx]?.is_movie ? '🎬' : '📝');
+    }
+    db.notes[idx] = { ...db.notes[idx], ...safeBody };
     writeDB(db);
     res.json(db.notes[idx]);
   } catch (err) {
