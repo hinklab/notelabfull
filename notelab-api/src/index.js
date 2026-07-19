@@ -37,6 +37,7 @@ app.use('/api/movies', require('./routes/movies'));
 app.use('/api/agent', require('./routes/agent'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/content', require('./routes/content'));
+app.use('/api/auth', require('./routes/auth'));
 
 // Error handler
 app.use((err, req, res, next) => {
