@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom'
+import { Star, Calendar, Clapperboard, X } from 'lucide-react'
 
 function formatVotes(n) {
   if (!n) return null
@@ -105,14 +106,14 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) 
 
         {isFuture && movie.release_date ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-            <span style={{ fontSize: 11 }}>🗓</span>
+            <Calendar size={11} color="#a78bfa" />
             <span style={{ color: '#a78bfa', fontSize: 12, fontWeight: 500 }}>
               {formatReleaseDate(movie.release_date)}
             </span>
           </div>
         ) : isFuture && movie.release_year && movie.release_year !== '—' ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-            <span style={{ fontSize: 11 }}>🗓</span>
+            <Calendar size={11} color="#a78bfa" />
             <span style={{ color: '#a78bfa', fontSize: 12, fontWeight: 500 }}>
               {movie.release_year}
             </span>
@@ -121,7 +122,7 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) 
 
         {!isFuture && movie.rating && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <span style={{ color: '#fbbf24', fontSize: 11 }}>★</span>
+            <Star size={11} color="#fbbf24" fill="#fbbf24" />
             <span style={{ color: '#fbbf24', fontSize: 12, fontWeight: 600 }}>{movie.rating}</span>
             {movie.vote_count && (
               <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
@@ -246,7 +247,7 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) 
                     cursor: 'pointer', fontSize: 16, flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
-                >✕</button>
+                ><X size={15} /></button>
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--text-muted)', fontSize: 12 }}>
@@ -257,11 +258,11 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) 
                   <span style={{ background: '#222', borderRadius: 6, padding: '3px 8px' }}>{movie.genre}</span>
                 )}
                 {movie.director && movie.director !== '—' && (
-                  <span style={{ background: '#222', borderRadius: 6, padding: '3px 8px' }}>🎬 {movie.director}</span>
+                  <span style={{ background: '#222', borderRadius: 6, padding: '3px 8px' }}><><Clapperboard size={11} style={{marginRight: 4}} />{movie.director}</></span>
                 )}
                 {!isFuture && movie.rating && (
-                  <span style={{ background: '#2a1f00', color: '#fbbf24', borderRadius: 6, padding: '3px 8px', fontWeight: 600 }}>
-                    ★ {movie.rating}
+                  <span style={{ background: '#2a1f00', color: '#fbbf24', borderRadius: 6, padding: '3px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Star size={11} fill="#fbbf24" color="#fbbf24" /> {movie.rating}
                   </span>
                 )}
               </div>

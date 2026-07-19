@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { List, Trash2, X, Send, Loader2 } from 'lucide-react'
 
 const UI_SNAPSHOT_KEY = 'agelab_ui_snapshot'
 
@@ -268,7 +269,7 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
         onMouseLeave={e => { e.currentTarget.style.background = open ? '#6d28d9' : '#7c3aed' }}
       >
         {open ? (
-          <span style={{ color: '#fff', fontSize: 18, lineHeight: 1 }}>×</span>
+          <X size={18} color="#fff" />
         ) : (
           <span style={{
             color: '#e9d5ff', fontSize: 9, fontWeight: 800, letterSpacing: 1.5,
@@ -305,7 +306,7 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
               onMouseEnter={e => { if (!uiSnapshot) e.currentTarget.style.color = '#888' }}
               onMouseLeave={e => { if (!uiSnapshot) e.currentTarget.style.color = '#555' }}
             >
-              ☰
+              <List size={14} />
             </button>
             <button
               onClick={clearChat}
@@ -313,13 +314,13 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
               style={headerBtnStyle(false)}
               onMouseEnter={e => e.currentTarget.style.color = '#888'}
               onMouseLeave={e => e.currentTarget.style.color = '#555'}
-            >🗑</button>
+            ><Trash2 size={14} /></button>
             <button
               onClick={closePanel}
               style={headerBtnStyle(false)}
               onMouseEnter={e => e.currentTarget.style.color = '#888'}
               onMouseLeave={e => e.currentTarget.style.color = '#555'}
-            >×</button>
+            ><X size={14} /></button>
           </div>
 
           <div style={{
@@ -356,7 +357,7 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
                 color: '#555',
                 fontSize: 12,
               }}>
-                <span style={{ animation: 'pulse 1.2s ease-in-out infinite' }}>⏳</span>
+                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
               </div>
             )}
             <div ref={bottomRef} />
@@ -397,7 +398,7 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
                 fontSize: 13,
                 lineHeight: 1.45,
                 outline: 'none',
-                fontFamily: 'Space Grotesk',
+                fontFamily: 'inherit',
                 transition: 'border-color 0.15s',
                 resize: 'none',
                 overflow: 'hidden',
@@ -425,7 +426,7 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
               }}
               onMouseEnter={e => { if (!loading && input.trim()) e.currentTarget.style.background = '#6d28d9' }}
               onMouseLeave={e => e.currentTarget.style.background = '#7c3aed'}
-            >→</button>
+            ><Send size={14} /></button>
           </div>
         </div>
       )}

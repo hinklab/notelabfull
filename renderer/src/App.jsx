@@ -7,6 +7,7 @@ import { Modal } from './components/modals/SettingsModal.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
+import { Pencil, X, Scissors, Copy, Clipboard, Plus, ArrowRight, BookOpen, Gamepad2, BookMarked, Plane, Lightbulb, Music, Dumbbell, Target, Moon, Star } from 'lucide-react'
 
 export default function App() {
   const { user, loading: authLoading, logout } = useAuth()
@@ -117,7 +118,7 @@ function MainApp({ user, onLogout }) {
         {notes.length === 0 ? (
           <HomeCard onClick={() => setShowCreateNote(true)} dashed>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '32px 0' }}>
-              <span style={{ fontSize: 28, color: 'var(--text-muted)' }}>+</span>
+              <span style={{ fontSize: 28, color: 'var(--text-muted)' }}><Plus size={22} color="var(--text-muted)" /></span>
               <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-muted)' }}>Create New Note Group</span>
             </div>
           </HomeCard>
@@ -140,7 +141,7 @@ function MainApp({ user, onLogout }) {
                         {tm.label}
                       </span>
                     </div>
-                    <div style={{ fontSize: 36, color: 'var(--text-muted)', lineHeight: 1, flexShrink: 0 }}>→</div>
+                    <div style={{ fontSize: 36, color: 'var(--text-muted)', lineHeight: 1, flexShrink: 0 }}><ArrowRight size={22} color="var(--text-muted)" /></div>
                   </div>
                   <div style={{ marginTop: 16, color: 'var(--text-secondary)', display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13 }}>
                     <span>Jami: <strong style={{ color: 'var(--text-primary)' }}>{note.item_count ?? 0}</strong></span>
@@ -160,7 +161,7 @@ function MainApp({ user, onLogout }) {
             })}
             <HomeCard onClick={() => setShowCreateNote(true)} dashed>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '8px 0' }}>
-                <span style={{ fontSize: 22, color: 'var(--text-muted)' }}>+</span>
+                <span style={{ fontSize: 22, color: 'var(--text-muted)' }}><Plus size={18} color="var(--text-muted)" /></span>
                 <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-muted)' }}>Create New Note</span>
               </div>
             </HomeCard>
@@ -286,11 +287,11 @@ function HomeCard({ onClick, onContextMenu, children, dashed }) {
 
 function NoteCtxMenu({ x, y, note, clipboard, onEdit, onDelete, onCut, onCopy, onPaste, onClose }) {
   const items = [
-    { label: 'Tahrirlash', icon: '✎', action: onEdit },
-    { label: 'Kesib olish', icon: '✂', action: onCut },
-    { label: 'Nusxa olish', icon: '⎘', action: onCopy },
-    onPaste && { label: 'Joylashtirish', icon: '⎗', action: onPaste },
-    { label: "O'chirish", icon: '✕', action: onDelete, color: '#ef4444' },
+    { label: 'Tahrirlash', icon: <Pencil size={12} />, action: onEdit },
+    { label: 'Kesib olish', icon: <Scissors size={12} />, action: onCut },
+    { label: 'Nusxa olish', icon: <Copy size={12} />, action: onCopy },
+    onPaste && { label: 'Joylashtirish', icon: <Clipboard size={12} />, action: onPaste },
+    { label: "O'chirish", icon: <X size={12} />, action: onDelete, color: '#ef4444' },
   ].filter(Boolean)
 
   return (
@@ -314,7 +315,7 @@ function NoteCtxMenu({ x, y, note, clipboard, onEdit, onDelete, onCut, onCopy, o
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           onClick={() => { item.action(); onClose() }}
         >
-          <span style={{ opacity: 0.6, fontSize: 12 }}>{item.icon}</span>
+          <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>{item.icon}</span>
           {item.label}
         </div>
       ))}
@@ -328,7 +329,7 @@ function EditNoteModal({ note, onClose, onSave }) {
   const ICONS = ['📝', '📚', '🎮', '🎵', '✈️', '💡', '🏋️', '🎯', '🌙', '⭐']
 
   return (
-    <Modal title="✎ Noteni tahrirlash" onClose={onClose}>
+    <Modal title="Noteni tahrirlash" onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
           <div style={{ fontSize: 11, color: '#555', marginBottom: 6 }}>Nomi</div>
@@ -340,7 +341,7 @@ function EditNoteModal({ note, onClose, onSave }) {
             style={{
               width: '100%', background: '#1e1e1e', border: '1px solid #2a2a2a',
               borderRadius: 7, padding: '8px 12px', color: '#efefef', fontSize: 13,
-              outline: 'none', fontFamily: 'Space Grotesk',
+              outline: 'none', fontFamily: 'inherit',
             }}
           />
         </div>
@@ -369,10 +370,10 @@ function EditNoteModal({ note, onClose, onSave }) {
 }
 
 const NOTE_TYPES = [
-  { type: 'books',  icon: '📚', label: 'Kitoblar',  desc: 'Google Books API' },
-  { type: 'travel', icon: '✈️', label: 'Sayohat',   desc: 'Wikipedia rasmlari' },
-  { type: 'games',  icon: '🎮', label: 'O\'yinlar',  desc: 'RAWG API (key kerak)' },
-  { type: 'custom', icon: '📝', label: 'Erkin',     desc: 'Qo\'lda to\'ldirish' },
+  { type: 'books',  lucideIcon: <BookMarked size={20} color="#60a5fa" />, icon: '📚', label: 'Kitoblar',  desc: 'Google Books API' },
+  { type: 'travel', lucideIcon: <Plane size={20} color="#34d399" />,      icon: '✈️', label: 'Sayohat',   desc: 'Wikipedia rasmlari' },
+  { type: 'games',  lucideIcon: <Gamepad2 size={20} color="#f472b6" />,   icon: '🎮', label: "O'yinlar",  desc: 'RAWG API (key kerak)' },
+  { type: 'custom', lucideIcon: <Pencil size={20} color="#a78bfa" />,     icon: '📝', label: 'Erkin',     desc: "Qo'lda to'ldirish" },
 ]
 
 function CreateNoteModal({ onClose, onCreate }) {
@@ -400,7 +401,7 @@ function CreateNoteModal({ onClose, onCreate }) {
             style={{
               width: '100%', background: '#1e1e1e', border: '1px solid #2a2a2a',
               borderRadius: 7, padding: '8px 12px', color: '#efefef', fontSize: 13,
-              outline: 'none', fontFamily: 'Space Grotesk',
+              outline: 'none', fontFamily: 'inherit',
             }}
           />
         </div>
@@ -415,10 +416,10 @@ function CreateNoteModal({ onClose, onCreate }) {
                   background: type === t.type ? 'rgba(124,58,237,0.18)' : '#1a1a1a',
                   border: type === t.type ? '1.5px solid #7c3aed' : '1px solid #2a2a2a',
                   borderRadius: 10, padding: '10px 12px', cursor: 'pointer',
-                  textAlign: 'left', transition: 'all 0.12s', fontFamily: 'Space Grotesk',
+                  textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit',
                 }}
               >
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{t.icon}</div>
+                <div style={{ fontSize: 20, marginBottom: 4 }}>{t.lucideIcon}</div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: type === t.type ? '#a78bfa' : '#efefef' }}>{t.label}</div>
                 <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>{t.desc}</div>
               </button>
@@ -440,7 +441,7 @@ function btnStyle(bg, color, disabled) {
   return {
     background: bg, color, border: 'none', borderRadius: 7,
     padding: '8px 18px', cursor: disabled ? 'not-allowed' : 'pointer',
-    fontSize: 13, fontWeight: 500, fontFamily: 'Space Grotesk',
+    fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
     opacity: disabled ? 0.4 : 1,
   }
 }

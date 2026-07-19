@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Modal } from './SettingsModal.jsx'
+import { Pencil, Plus } from 'lucide-react'
 
 const SECTIONS = {
   futured: 'Chiqadigan',
@@ -48,7 +49,7 @@ function MovieForm({ initial, onSave, onClose, title }) {
             style={{
               width: '100%', background: '#1e1e1e', border: '1px solid #2a2a2a',
               borderRadius: 7, padding: '7px 10px', color: '#efefef', fontSize: 13,
-              outline: 'none', resize: 'vertical', fontFamily: 'Space Grotesk',
+              outline: 'none', resize: 'vertical', fontFamily: 'inherit',
             }}
           />
         </Row>
@@ -65,7 +66,7 @@ function MovieForm({ initial, onSave, onClose, title }) {
 }
 
 export default function EditModal({ movie, onSave, onClose }) {
-  return <MovieForm title="✎ Tahrirlash" initial={movie} onSave={onSave} onClose={onClose} />
+  return <MovieForm title="Tahrirlash" initial={movie} onSave={onSave} onClose={onClose} />
 }
 
 export function AddModal({ section, onSave, onClose }) {
@@ -90,7 +91,7 @@ function Input({ value, onChange, placeholder }) {
       style={{
         width: '100%', background: '#1e1e1e', border: '1px solid #2a2a2a',
         borderRadius: 7, padding: '7px 10px', color: '#efefef', fontSize: 13,
-        outline: 'none', fontFamily: 'Space Grotesk',
+        outline: 'none', fontFamily: 'inherit',
       }}
     />
   )
@@ -100,6 +101,6 @@ function btn(bg, color) {
   return {
     background: bg, color, border: 'none', borderRadius: 7,
     padding: '8px 18px', cursor: 'pointer', fontSize: 13,
-    fontFamily: 'Space Grotesk',
+    fontFamily: 'inherit',
   }
 }

@@ -30,7 +30,7 @@
 html, body {
   background: var(--bg-base);
   color: var(--text-primary);
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'DM Sans', sans-serif;
   font-size: 14px;
 }
 
@@ -38,8 +38,13 @@ html, body {
   min-height: 100vh;
   background: var(--bg-base);
   color: var(--text-primary);
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: 'DM Sans', sans-serif;
   font-size: 14px;
+}
+
+/* Logo uchun Space Grotesk saqlanadi */
+.font-logo {
+  font-family: 'Space Grotesk', sans-serif;
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }

@@ -1,5 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react'
 import MovieCard from '../cards/MovieCard.jsx'
+import { Pencil, X, Plus } from 'lucide-react'
 
 const COL_COLORS = {
   futured: { color: '#a78bfa', bg: 'rgba(124,58,237,0.12)', border: 'rgba(124,58,237,0.3)' },
@@ -148,17 +149,17 @@ export default function Column({ sectionKey, meta, movies, onContextMenu, onAdd,
           <button onClick={(e) => { e.stopPropagation(); setEditingName(true) }} title="Tahrirlash" style={colBtnStyle}
             onMouseEnter={e => { e.currentTarget.style.color = col.color; e.currentTarget.style.background = col.bg }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
-          >✎</button>
+          ><Pencil size={12} /></button>
           <button onClick={(e) => { e.stopPropagation(); onDelete?.() }} title="O'chirish" style={colBtnStyle}
             onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
-          >✕</button>
+          ><X size={12} /></button>
         </div>
         <button
           onClick={onAdd}
           style={{ background: 'transparent', border: `1px solid ${col.border}`, borderRadius: 6, color: col.color, width: 26, height: 26, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           title="Kino qo'shish"
-        >+</button>
+        ><Plus size={14} /></button>
       </div>
 
       {/* Cards — drop zone */}

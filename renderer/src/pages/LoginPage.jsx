@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { BookOpen } from 'lucide-react'
 
 export default function LoginPage({ onSwitch }) {
   const { login } = useAuth()
@@ -30,8 +31,10 @@ export default function LoginPage({ onSwitch }) {
       <div style={styles.card}>
         {/* Logo */}
         <div style={styles.logo}>
-          <span style={styles.logoIcon}>📓</span>
-          <span style={styles.logoText}>notelab</span>
+          <div style={styles.logoIconWrap}>
+            <BookOpen size={18} color="#a78bfa" />
+          </div>
+          <span className="font-logo" style={styles.logoText}>notelab</span>
         </div>
 
         <h2 style={styles.title}>Kirish</h2>
@@ -105,7 +108,13 @@ const styles = {
     gap: 10,
     marginBottom: 28,
   },
-  logoIcon: { fontSize: 28 },
+  logoIconWrap: {
+    width: 36, height: 36,
+    background: 'rgba(124,58,237,0.15)',
+    border: '1px solid rgba(124,58,237,0.3)',
+    borderRadius: 10,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
   logoText: {
     fontSize: 22,
     fontWeight: 800,
@@ -147,7 +156,7 @@ const styles = {
     padding: '10px 14px',
     color: 'var(--text-primary)',
     fontSize: 14,
-    fontFamily: 'Space Grotesk, sans-serif',
+    fontFamily: 'inherit',
     outline: 'none',
     transition: 'border-color 0.15s',
   },
@@ -167,7 +176,7 @@ const styles = {
     padding: '11px',
     fontSize: 14,
     fontWeight: 600,
-    fontFamily: 'Space Grotesk, sans-serif',
+    fontFamily: 'inherit',
     cursor: 'pointer',
     marginTop: 4,
     transition: 'background 0.15s',
