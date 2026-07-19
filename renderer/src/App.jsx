@@ -370,10 +370,10 @@ function EditNoteModal({ note, onClose, onSave }) {
 }
 
 const NOTE_TYPES = [
-  { type: 'books',  lucideIcon: <BookMarked size={20} color="#60a5fa" />, icon: '📚', label: 'Kitoblar',  desc: 'Google Books API' },
-  { type: 'travel', lucideIcon: <Plane size={20} color="#34d399" />,      icon: '✈️', label: 'Sayohat',   desc: 'Wikipedia rasmlari' },
-  { type: 'games',  lucideIcon: <Gamepad2 size={20} color="#f472b6" />,   icon: '🎮', label: "O'yinlar",  desc: 'RAWG API (key kerak)' },
-  { type: 'custom', lucideIcon: <Pencil size={20} color="#a78bfa" />,     icon: '📝', label: 'Erkin',     desc: "Qo'lda to'ldirish" },
+  { type: 'books',  Icon: BookMarked, iconColor: '#60a5fa', icon: '📚', label: 'Kitoblar',  desc: 'Google Books API' },
+  { type: 'travel', Icon: Plane,      iconColor: '#34d399', icon: '✈️', label: 'Sayohat',   desc: 'Wikipedia rasmlari' },
+  { type: 'games',  Icon: Gamepad2,   iconColor: '#f472b6', icon: '🎮', label: "O'yinlar",  desc: 'RAWG API (key kerak)' },
+  { type: 'custom', Icon: Pencil,     iconColor: '#a78bfa', icon: '📝', label: 'Erkin',     desc: "Qo'lda to'ldirish" },
 ]
 
 function CreateNoteModal({ onClose, onCreate }) {
@@ -419,7 +419,7 @@ function CreateNoteModal({ onClose, onCreate }) {
                   textAlign: 'left', transition: 'all 0.12s', fontFamily: 'inherit',
                 }}
               >
-                <div style={{ fontSize: 20, marginBottom: 4 }}>{t.lucideIcon}</div>
+                <div style={{ fontSize: 20, marginBottom: 4 }}><t.Icon size={20} color={t.iconColor} /></div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: type === t.type ? '#a78bfa' : '#efefef' }}>{t.label}</div>
                 <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>{t.desc}</div>
               </button>
