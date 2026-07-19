@@ -4,8 +4,34 @@ import Topbar from './components/layout/Topbar.jsx'
 import Agelab from './components/agelab/Agelab.jsx'
 import SettingsModal from './components/modals/SettingsModal.jsx'
 import { Modal } from './components/modals/SettingsModal.jsx'
+import { useAuth } from './context/AuthContext.jsx'
+import LoginPage from './pages/LoginPage.jsx'
+import RegisterPage from './pages/RegisterPage.jsx'
 
 export default function App() {
+  const { user, loading: authLoading, logout } = useAuth()
+  const [authPage, setAuthPage] = useState('login') // 'login' | 'register'
+
+  // Auth loading spinner
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Yuklanmoqda...</div>
+      </div>
+    )
+  }
+
+  // Auth guard — kirish/ro'yxat sahifalari
+  if (!user) {
+    return authPage === 'login'
+      ? <LoginPage onSwitch={() => setAuthPage('register')} />
+      : <RegisterPage onSwitch={() => setAuthPage('login')} />
+  }
+
+  return <MainApp user={user} onLogout={logout} />
+}
+
+function MainApp({ user, onLogout }) {
   const [notes, setNotes] = useState([])
   const [search, setSearch] = useState('')
   const [showSettings, setShowSettings] = useState(false)
@@ -169,6 +195,8 @@ export default function App() {
         noteLabel={activeNote ? noteLabel : undefined}
         onRefresh={activeNote?.is_movie ? handleRefreshMovies : undefined}
         refreshing={activeNote?.is_movie ? refreshing : false}
+        user={user}
+        onLogout={onLogout}
       />
 
       {refreshToast && (

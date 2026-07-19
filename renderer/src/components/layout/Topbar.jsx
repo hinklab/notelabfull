@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function Topbar({ search, onSearch, onSettings, onRefresh, refreshing, onBack, noteLabel }) {
+export default function Topbar({ search, onSearch, onSettings, onRefresh, refreshing, onBack, noteLabel, user, onLogout }) {
   return (
     <div
       className="topbar-sticky"
@@ -165,6 +165,44 @@ export default function Topbar({ search, onSearch, onSettings, onRefresh, refres
             Sozlamalar
           </div>
         </div>
+
+        {/* User + Logout */}
+        {user && onLogout && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user.email}
+            </span>
+            <button
+              onClick={onLogout}
+              title="Chiqish"
+              style={{
+                WebkitAppRegion: 'no-drag',
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: 7,
+                color: 'var(--text-muted)',
+                width: 34,
+                height: 34,
+                cursor: 'pointer',
+                fontSize: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'border-color 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = '#ef4444'
+                e.currentTarget.style.color = '#ef4444'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border)'
+                e.currentTarget.style.color = 'var(--text-muted)'
+              }}
+            >
+              ⏻
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
