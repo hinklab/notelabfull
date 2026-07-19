@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npx vite build renderer --outDir renderer/dist",
+  "outputDirectory": "renderer/dist",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
