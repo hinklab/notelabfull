@@ -328,11 +328,11 @@ export default function NoteBoard({ note, refreshTrigger }) {
         <CtxMenu
           x={itemContextMenu.x} y={itemContextMenu.y}
           items={[
-            { label: 'Tahrirlash', icon: <Pencil size={12} />, action: () => { setEditItem(itemContextMenu.item); setItemContextMenu(null) } },
-            { label: 'Kesib olish', icon: <Scissors size={12} />, action: () => handleItemCut(itemContextMenu.item) },
-            { label: 'Nusxa olish', icon: <Copy size={12} />, action: () => handleItemCopy(itemContextMenu.item) },
-            itemClipboard && { label: 'Joylashtirish', icon: <Clipboard size={12} />, action: () => handleItemPaste(itemContextMenu.item.group_id) },
-            { label: "O'chirish", icon: <X size={12} />, action: () => { handleDeleteItem(itemContextMenu.item); setItemContextMenu(null) }, color: '#ef4444' },
+            { label: 'Tahrirlash', Icon: Pencil, action: () => { setEditItem(itemContextMenu.item); setItemContextMenu(null) } },
+            { label: 'Kesib olish', Icon: Scissors, action: () => handleItemCut(itemContextMenu.item) },
+            { label: 'Nusxa olish', Icon: Copy, action: () => handleItemCopy(itemContextMenu.item) },
+            itemClipboard && { label: 'Joylashtirish', Icon: Clipboard, action: () => handleItemPaste(itemContextMenu.item.group_id) },
+            { label: "O'chirish", Icon: X, action: () => { handleDeleteItem(itemContextMenu.item); setItemContextMenu(null) }, color: '#ef4444' },
           ].filter(Boolean)}
           onClose={() => setItemContextMenu(null)}
         />
@@ -350,11 +350,11 @@ export default function NoteBoard({ note, refreshTrigger }) {
         <CtxMenu
           x={groupContextMenu.x} y={groupContextMenu.y}
           items={[
-            { label: 'Tahrirlash', icon: <Pencil size={12} />, action: () => { setRenameGroupId(groupContextMenu.group.id); setGroupContextMenu(null) } },
-            { label: 'Kesib olish', icon: <Scissors size={12} />, action: () => handleGroupCut(groupContextMenu.group) },
-            { label: 'Nusxa olish', icon: <Copy size={12} />, action: () => handleGroupCopy(groupContextMenu.group) },
-            groupClipboard && { label: 'Joylashtirish', icon: <Clipboard size={12} />, action: handleGroupPaste },
-            { label: "O'chirish", icon: <X size={12} />, action: () => { handleDeleteGroup(groupContextMenu.group); setGroupContextMenu(null) }, color: '#ef4444' },
+            { label: 'Tahrirlash', Icon: Pencil, action: () => { setRenameGroupId(groupContextMenu.group.id); setGroupContextMenu(null) } },
+            { label: 'Kesib olish', Icon: Scissors, action: () => handleGroupCut(groupContextMenu.group) },
+            { label: 'Nusxa olish', Icon: Copy, action: () => handleGroupCopy(groupContextMenu.group) },
+            groupClipboard && { label: 'Joylashtirish', Icon: Clipboard, action: handleGroupPaste },
+            { label: "O'chirish", Icon: X, action: () => { handleDeleteGroup(groupContextMenu.group); setGroupContextMenu(null) }, color: '#ef4444' },
           ].filter(Boolean)}
           onClose={() => setGroupContextMenu(null)}
         />
@@ -987,7 +987,9 @@ function CtxMenu({ x, y, items, onClose }) {
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           onClick={() => { item.action(); onClose() }}
         >
-          <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>{item.icon}</span>
+          <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>
+            {item.Icon && <item.Icon size={12} />}
+          </span>
           {item.label}
         </div>
       ))}

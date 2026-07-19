@@ -287,11 +287,11 @@ function HomeCard({ onClick, onContextMenu, children, dashed }) {
 
 function NoteCtxMenu({ x, y, note, clipboard, onEdit, onDelete, onCut, onCopy, onPaste, onClose }) {
   const items = [
-    { label: 'Tahrirlash', icon: <Pencil size={12} />, action: onEdit },
-    { label: 'Kesib olish', icon: <Scissors size={12} />, action: onCut },
-    { label: 'Nusxa olish', icon: <Copy size={12} />, action: onCopy },
-    onPaste && { label: 'Joylashtirish', icon: <Clipboard size={12} />, action: onPaste },
-    { label: "O'chirish", icon: <X size={12} />, action: onDelete, color: '#ef4444' },
+    { label: 'Tahrirlash', Icon: Pencil, action: onEdit },
+    { label: 'Kesib olish', Icon: Scissors, action: onCut },
+    { label: 'Nusxa olish', Icon: Copy, action: onCopy },
+    onPaste && { label: 'Joylashtirish', Icon: Clipboard, action: onPaste },
+    { label: "O'chirish", Icon: X, action: onDelete, color: '#ef4444' },
   ].filter(Boolean)
 
   return (
@@ -315,7 +315,9 @@ function NoteCtxMenu({ x, y, note, clipboard, onEdit, onDelete, onCut, onCopy, o
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           onClick={() => { item.action(); onClose() }}
         >
-          <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>{item.icon}</span>
+          <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>
+            {item.Icon && <item.Icon size={12} />}
+          </span>
           {item.label}
         </div>
       ))}
