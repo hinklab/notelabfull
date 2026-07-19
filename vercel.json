@@ -1,7 +1,7 @@
 {
-  "buildCommand": "npx vite build",
+  "buildCommand": "npm install --prefix renderer && npx vite build",
   "outputDirectory": "renderer/dist",
-  "installCommand": "npm install && cd renderer && npm install",
+  "installCommand": "npm install",
   "framework": null,
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
