@@ -979,20 +979,23 @@ function CtxMenu({ x, y, items, onClose }) {
       style={{ position: 'fixed', left: Math.min(x, window.innerWidth - 190), top: Math.min(y, window.innerHeight - 220), zIndex: 9999, background: '#1e1e1e', border: '1px solid #333', borderRadius: 8, padding: '4px 0', minWidth: 175, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
       onClick={e => e.stopPropagation()}
     >
-      {items.map((item, i) => (
-        <div
-          key={i}
-          style={{ padding: '7px 16px', cursor: 'pointer', color: item.color || 'var(--text-primary)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}
-          onMouseEnter={e => e.currentTarget.style.background = '#2a2a2a'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          onClick={() => { item.action(); onClose() }}
-        >
-          <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>
-            {item.Icon && <item.Icon size={12} />}
-          </span>
-          {item.label}
-        </div>
-      ))}
+      {items.map((item, i) => {
+        const IconCmp = item.Icon
+        return (
+          <div
+            key={i}
+            style={{ padding: '7px 16px', cursor: 'pointer', color: item.color || 'var(--text-primary)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}
+            onMouseEnter={e => e.currentTarget.style.background = '#2a2a2a'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            onClick={() => { item.action(); onClose() }}
+          >
+            <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>
+              {IconCmp && <IconCmp size={12} />}
+            </span>
+            {item.label}
+          </div>
+        )
+      })}
     </div>
   )
 }

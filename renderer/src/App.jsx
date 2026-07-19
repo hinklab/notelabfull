@@ -320,20 +320,23 @@ function NoteCtxMenu({ x, y, note, clipboard, onEdit, onDelete, onCut, onCopy, o
       }}
       onClick={e => e.stopPropagation()}
     >
-      {items.map((item, i) => (
-        <div
-          key={i}
-          style={{ padding: '7px 16px', cursor: 'pointer', color: item.color || 'var(--text-primary)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}
-          onMouseEnter={e => e.currentTarget.style.background = '#2a2a2a'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          onClick={() => { item.action(); onClose() }}
-        >
-          <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>
-            {item.Icon && <item.Icon size={12} />}
-          </span>
-          {item.label}
-        </div>
-      ))}
+      {items.map((item, i) => {
+        const IconCmp = item.Icon
+        return (
+          <div
+            key={i}
+            style={{ padding: '7px 16px', cursor: 'pointer', color: item.color || 'var(--text-primary)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}
+            onMouseEnter={e => e.currentTarget.style.background = '#2a2a2a'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            onClick={() => { item.action(); onClose() }}
+          >
+            <span style={{ opacity: 0.6, display: 'flex', alignItems: 'center' }}>
+              {IconCmp && <IconCmp size={12} />}
+            </span>
+            {item.label}
+          </div>
+        )
+      })}
     </div>
   )
 }
