@@ -732,21 +732,10 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
       return
     }
 
-    setTouchDelta({ x: 0, y: 0 })
-    const dx = (touch?.clientX || touchStartPos.current.x) - touchStartPos.current.x
-    const dy = (touch?.clientY || touchStartPos.current.y) - touchStartPos.current.y
-    const dist = Math.hypot(dx, dy)
-
-    if (dist <= 10) {
-      const now = Date.now()
-      const timeDiff = now - lastTapTimeRef.current
-      if (timeDiff > 0 && timeDiff < 300) {
-        onClick?.()
-        lastTapTimeRef.current = 0
-      } else {
-        lastTapTimeRef.current = now
-      }
-    }
+    // No drag and no context menu: treat as a tap to open detail modal
+    onClick?.()
+    // Reset tap timer
+    lastTapTimeRef.current = 0
   }
 
   const handleTouchCancel = () => {

@@ -135,41 +135,34 @@ export default function MovieCard({
     }
   }
 
-  const handleTouchEnd = (e) => {
-    clearTimers()
-    const touch = e.changedTouches[0] || e.touches[0]
+    const handleTouchEnd = (e) => {
+      clearTimers()
+      const touch = e.changedTouches[0] || e.touches[0]
 
-    if (contextOpenedRef.current) {
-      contextOpenedRef.current = false
-      setTouchDelta({ x: 0, y: 0 })
-      return
-    }
-
-    if (isTouchDraggingRef.current) {
-      isTouchDraggingRef.current = false
-      setIsTouchDragging(false)
-      setTouchDelta({ x: 0, y: 0 })
-      onTouchDragEnd?.(movie, touch?.clientX || touchStartPos.current.x, touch?.clientY || touchStartPos.current.y)
-      return
-    }
-
-    setTouchDelta({ x: 0, y: 0 })
-    const dx = (touch?.clientX || touchStartPos.current.x) - touchStartPos.current.x
-    const dy = (touch?.clientY || touchStartPos.current.y) - touchStartPos.current.y
-    const dist = Math.hypot(dx, dy)
-
-    // Double-tap logic for touch devices to open detail modal
-    if (dist <= 10) {
-      const now = Date.now()
-      const timeDiff = now - lastTapTimeRef.current
-      if (timeDiff > 0 && timeDiff < 300) {
-        setExpanded(true)
-        lastTapTimeRef.current = 0
-      } else {
-        lastTapTimeRef.current = now
+      if (contextOpenedRef.current) {
+        contextOpenedRef.current = false
+        setTouchDelta({ x: 0, y: 0 })
+        return
       }
+
+      if (isTouchDraggingRef.current) {
+        // End drag operation
+        isTouchDraggingRef.current = false
+        setIsTouchDragging(false)
+        setTouchDelta({ x: 0, y: 0 })
+        onTouchDragEnd?.(movie, touch?.clientX || touchStartPos.current.x, touch?.clientY || touchStartPos.current.y)
+        return
+      }
+
+      // Double-tap detection for opening detail modal
+      const now = Date.now()
+      if (now - lastTapTimeRef.current < 300) {
+        setExpanded(true)
+      }
+      lastTapTimeRef.current = now
+
+
     }
-  }
 
   const handleTouchCancel = () => {
     clearTimers()
