@@ -167,7 +167,14 @@ export default function MovieCard({
       draggable={!noDrag}
       onDragStart={noDrag ? undefined : handleDragStart}
       onDragEnd={noDrag ? undefined : handleDragEnd}
-      onContextMenu={onContextMenu ? (e) => onContextMenu(e) : undefined}
+      onContextMenu={onContextMenu ? (e) => {
+        // Block native context menu on touch (long-press) — only allow right-click on desktop
+        if (e.pointerType === 'touch' || isTouchSessionRef.current) {
+          e.preventDefault()
+          return
+        }
+        onContextMenu(e)
+      } : (e) => e.preventDefault()}
       onClick={handleCardClick}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -185,6 +192,8 @@ export default function MovieCard({
         zIndex: isTouchDragging ? 99999 : 1,
         opacity: isTouchDragging ? 0.95 : 1,
         touchAction: 'none',
+        WebkitTouchCallout: 'none',  // kills iOS long-press callout/context menu
+        WebkitUserSelect: 'none',
       }}
       onMouseEnter={e => {
         // Don't show hover state during or immediately after touch
