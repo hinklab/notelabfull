@@ -1,16 +1,15 @@
 const supabase = require('./supabase');
 const { readDB, writeDB, getUserSettings } = require('./database');
 
-const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
-
 async function getNotifications(userId) {
+  if (!userId) return [];
   let list = [];
   if (supabase) {
     try {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .or(`user_id.eq.${userId},user_id.eq.${DEFAULT_USER_ID}`)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (!error && data) {
@@ -23,10 +22,7 @@ async function getNotifications(userId) {
 
   // Fallback / merge with local DB
   const db = readDB();
-  const targetId = userId || DEFAULT_USER_ID;
-  const localList = (db.notifications || []).filter(
-    n => !n.user_id || n.user_id === targetId || n.user_id === DEFAULT_USER_ID || targetId === DEFAULT_USER_ID
-  );
+  const localList = (db.notifications || []).filter(n => n.user_id === userId);
   
   if (list.length === 0 && localList.length > 0) {
     list = localList.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -36,10 +32,10 @@ async function getNotifications(userId) {
 }
 
 async function createNotification(userId, { type, title, message, movie_data }) {
-  const targetUserId = userId || DEFAULT_USER_ID;
+  if (!userId) return null;
   const newNotif = {
     id: require('crypto').randomUUID(),
-    user_id: targetUserId,
+    user_id: userId,
     type,
     title,
     message: message || '',
@@ -55,7 +51,7 @@ async function createNotification(userId, { type, title, message, movie_data }) 
       const { data, error } = await supabase
         .from('notifications')
         .insert([{
-          user_id: targetUserId,
+          user_id: userId,
           type,
           title,
           message: message || '',
@@ -83,6 +79,7 @@ async function createNotification(userId, { type, title, message, movie_data }) 
 }
 
 async function markAsRead(userId, id) {
+  if (!userId) return;
   if (supabase) {
     try {
       await supabase
@@ -106,6 +103,7 @@ async function markAsRead(userId, id) {
 }
 
 async function markAllAsRead(userId) {
+  if (!userId) return;
   if (supabase) {
     try {
       await supabase
@@ -127,6 +125,7 @@ async function markAllAsRead(userId) {
 }
 
 async function deleteNotification(userId, id) {
+  if (!userId) return;
   if (supabase) {
     try {
       await supabase
@@ -147,6 +146,7 @@ async function deleteNotification(userId, id) {
 }
 
 async function createReleaseAlert(userId, movie) {
+  if (!userId) return null;
   const title = `${movie.title || 'Kino'} chiqdi!`;
   const message = `"${movie.title || 'Film'}" filmi endi 'To Do' bo'limida`;
   const movie_data = {
@@ -198,6 +198,7 @@ const GENRE_MAP = {
 };
 
 async function generateRecommendations(userId) {
+  if (!userId) return [];
   console.log(`\n=== [DEBUG RECOMMENDATIONS] Started for userId: ${userId} ===`);
   const db = readDB();
   const settings = getUserSettings(userId, db);
@@ -211,7 +212,7 @@ async function generateRecommendations(userId) {
 
   // Guard: If user already has unread recommendations, skip generating new ones!
   const unreadRecs = (db.notifications || []).filter(
-    n => (n.user_id === userId || n.user_id === DEFAULT_USER_ID) && !n.is_read && n.type === 'recommendation'
+    n => n.user_id === userId && !n.is_read && n.type === 'recommendation'
   );
   if (unreadRecs.length > 0) {
     console.log(`[DEBUG RECOMMENDATIONS] Skipping: user already has ${unreadRecs.length} unread recommendation notification(s).`);
@@ -326,15 +327,15 @@ async function generateRecommendations(userId) {
     console.log(`[DEBUG RECOMMENDATIONS] TMDB returned ${results.length} movie result(s).`);
 
     // Filter existing user movies AND existing notifications
-    const existingMovies = db.movies || [];
-    const existingNotifications = db.notifications || [];
+    const userMovies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
+    const userNotifications = (db.notifications || []).filter(n => n.user_id === userId);
     const existingTmdbIds = new Set([
-      ...existingMovies.map(m => m.tmdb_id).filter(Boolean),
-      ...existingNotifications.map(n => n.movie_data?.tmdb_id).filter(Boolean)
+      ...userMovies.map(m => m.tmdb_id).filter(Boolean),
+      ...userNotifications.map(n => n.movie_data?.tmdb_id).filter(Boolean)
     ]);
     const existingTitles = new Set([
-      ...existingMovies.map(m => (m.title || '').toLowerCase().trim()),
-      ...existingNotifications.map(n => (n.movie_data?.title || n.title || '').toLowerCase().trim())
+      ...userMovies.map(m => (m.title || '').toLowerCase().trim()),
+      ...userNotifications.map(n => (n.movie_data?.title || n.title || '').toLowerCase().trim())
     ]);
 
     const candidates = results.filter(m => {
@@ -369,8 +370,10 @@ async function generateRecommendations(userId) {
         movie_data: movieData
       });
 
-      console.log(`[DEBUG RECOMMENDATIONS] Notification created for "${item.title}" (id: ${notif.id})`);
-      createdNotifications.push(notif);
+      if (notif) {
+        console.log(`[DEBUG RECOMMENDATIONS] Notification created for "${item.title}" (id: ${notif.id})`);
+        createdNotifications.push(notif);
+      }
     }
 
     // Save timestamp of batch
