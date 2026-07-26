@@ -650,6 +650,7 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
   const [isTouchDragging, setIsTouchDragging] = useState(false)
   const [touchDelta, setTouchDelta] = useState({ x: 0, y: 0 })
   const touchStartPos = useRef({ x: 0, y: 0, time: 0 })
+  const lastTapTimeRef = useRef(0)
   const contextTimerRef = useRef(null)
   const isTouchDraggingRef = useRef(false)
   const contextOpenedRef = useRef(false)
@@ -680,7 +681,6 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
         isTouchDraggingRef.current = false
         setIsTouchDragging(false)
         setTouchDelta({ x: 0, y: 0 })
-        try { if (navigator.vibrate) navigator.vibrate([40, 30, 40]) } catch {}
         onContextMenu({
           preventDefault: () => {},
           stopPropagation: () => {},
@@ -703,7 +703,6 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
         isTouchDraggingRef.current = true
         setIsTouchDragging(true)
         setTouchDelta({ x: dx, y: dy })
-        try { if (navigator.vibrate) navigator.vibrate(30) } catch {}
         onTouchDragStart?.(item, touch.clientX, touch.clientY)
       }
     }
@@ -738,8 +737,15 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
     const dy = (touch?.clientY || touchStartPos.current.y) - touchStartPos.current.y
     const dist = Math.hypot(dx, dy)
 
-    if (dist <= 8) {
-      onClick?.()
+    if (dist <= 10) {
+      const now = Date.now()
+      const timeDiff = now - lastTapTimeRef.current
+      if (timeDiff > 0 && timeDiff < 300) {
+        onClick?.()
+        lastTapTimeRef.current = 0
+      } else {
+        lastTapTimeRef.current = now
+      }
     }
   }
 
@@ -772,9 +778,9 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
         position: 'relative', overflow: 'hidden', userSelect: 'none',
         minHeight: 52,
         transform: isTouchDragging ? `translate3d(${touchDelta.x}px, ${touchDelta.y}px, 0) scale(1.04)` : 'none',
-        boxShadow: isTouchDragging ? '0 16px 40px rgba(0,0,0,0.7)' : 'none',
-        zIndex: isTouchDragging ? 9999 : 1,
-        opacity: isTouchDragging ? 0.92 : 1,
+        boxShadow: isTouchDragging ? '0 20px 45px rgba(0,0,0,0.8)' : 'none',
+        zIndex: isTouchDragging ? 99999 : 1,
+        opacity: isTouchDragging ? 0.95 : 1,
         touchAction: 'none',
       }}
       onMouseEnter={e => { if (!isTouchDragging) { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.transform = 'translateY(-1px)' } }}

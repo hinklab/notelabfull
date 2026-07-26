@@ -248,5 +248,4 @@ html, body {
 .column-cards {
   position: relative;
   z-index: 1;
-  isolation: isolate;
 }

@@ -39,6 +39,7 @@ export default function MovieCard({
   const isFuture = movie.section === 'futured' && !movie.rating
 
   const touchStartPos = useRef({ x: 0, y: 0, time: 0 })
+  const lastTapTimeRef = useRef(0)
   const contextTimerRef = useRef(null)
   const isTouchDraggingRef = useRef(false)
   const contextOpenedRef = useRef(false)
@@ -71,19 +72,21 @@ export default function MovieCard({
     if (onDragEnd) onDragEnd(e)
   }
 
-  const handleCardClick = () => {
+  const handleCardClick = (e) => {
+    // Prevent mouse click from firing immediately after touch interaction
+    if (Date.now() - touchStartPos.current.time < 350) return
     setExpanded(true)
   }
 
   const handleClose = (e) => {
-    e.stopPropagation()
+    e?.stopPropagation()
     setAnimateOpen(false)
     setTimeout(() => setExpanded(false), 240)
   }
 
   // Touch gesture handlers for mobile:
-  // 1. Immediate movement (> 8px) = Drag (card translates 1:1 with finger)
-  // 2. Simple tap without movement = Open detail modal
+  // 1. Movement (> 8px) = Immediate Drag (translates card with finger)
+  // 2. Double-tap (two taps < 300ms) = Open detail modal
   // 3. Hold still for 3s = Context menu
   const handleTouchStart = (e) => {
     const touch = e.touches[0]
@@ -99,7 +102,6 @@ export default function MovieCard({
         isTouchDraggingRef.current = false
         setIsTouchDragging(false)
         setTouchDelta({ x: 0, y: 0 })
-        try { if (navigator.vibrate) navigator.vibrate([40, 30, 40]) } catch {}
         onContextMenu({
           preventDefault: () => {},
           stopPropagation: () => {},
@@ -117,13 +119,11 @@ export default function MovieCard({
     const dist = Math.hypot(dx, dy)
 
     if (!isTouchDraggingRef.current && !contextOpenedRef.current) {
-      // If movement exceeds threshold (> 8px), trigger DRAG mode immediately
       if (dist > 8 && !noDrag) {
         clearTimers()
         isTouchDraggingRef.current = true
         setIsTouchDragging(true)
         setTouchDelta({ x: dx, y: dy })
-        try { if (navigator.vibrate) navigator.vibrate(30) } catch {}
         onTouchDragStart?.(movie, touch.clientX, touch.clientY)
       }
     }
@@ -158,9 +158,16 @@ export default function MovieCard({
     const dy = (touch?.clientY || touchStartPos.current.y) - touchStartPos.current.y
     const dist = Math.hypot(dx, dy)
 
-    // Tap without drag movement -> open detail modal
-    if (dist <= 8) {
-      handleCardClick()
+    // Double-tap logic for touch devices to open detail modal
+    if (dist <= 10) {
+      const now = Date.now()
+      const timeDiff = now - lastTapTimeRef.current
+      if (timeDiff > 0 && timeDiff < 300) {
+        setExpanded(true)
+        lastTapTimeRef.current = 0
+      } else {
+        lastTapTimeRef.current = now
+      }
     }
   }
 
@@ -193,9 +200,9 @@ export default function MovieCard({
         transition: isTouchDragging ? 'none' : 'border-color 0.15s, background 0.15s, transform 0.15s',
         position: 'relative', overflow: 'hidden', userSelect: 'none',
         transform: isTouchDragging ? `translate3d(${touchDelta.x}px, ${touchDelta.y}px, 0) scale(1.04)` : 'none',
-        boxShadow: isTouchDragging ? '0 16px 40px rgba(0,0,0,0.7)' : 'none',
-        zIndex: isTouchDragging ? 9999 : 1,
-        opacity: isTouchDragging ? 0.92 : 1,
+        boxShadow: isTouchDragging ? '0 20px 45px rgba(0,0,0,0.8)' : 'none',
+        zIndex: isTouchDragging ? 99999 : 1,
+        opacity: isTouchDragging ? 0.95 : 1,
         touchAction: 'none',
       }}
       onMouseEnter={e => {
@@ -369,7 +376,7 @@ export default function MovieCard({
         <div
           onClick={handleClose}
           style={{
-            position: 'fixed', inset: 0, zIndex: 9999,
+            position: 'fixed', inset: 0, zIndex: 999999,
             background: animateOpen ? 'rgba(4,4,4,0.85)' : 'rgba(4,4,4,0)',
             backdropFilter: animateOpen ? 'blur(16px)' : 'blur(0px)',
             WebkitBackdropFilter: animateOpen ? 'blur(16px)' : 'blur(0px)',
