@@ -119,7 +119,7 @@ export default function MovieCard({
     const dist = Math.hypot(dx, dy)
 
     if (!isTouchDraggingRef.current && !contextOpenedRef.current) {
-      if (dist > 8 && !noDrag) {
+      if (dist > 10 && (Date.now() - touchStartPos.current.time) > 80 && !noDrag) {
         clearTimers()
         isTouchDraggingRef.current = true
         setIsTouchDragging(true)
@@ -136,6 +136,11 @@ export default function MovieCard({
   }
 
     const handleTouchEnd = (e) => {
+      console.log('handleTouchEnd ->', {
+        contextOpened: contextOpenedRef.current,
+        dragging: isTouchDraggingRef.current,
+        timeSinceLastTap: Date.now() - lastTapTimeRef.current
+      });
       clearTimers()
       const touch = e.changedTouches[0] || e.touches[0]
 
