@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard from '../cards/MovieCard.jsx'
-import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff } from 'lucide-react'
+import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle } from 'lucide-react'
 
 function hexToRgba(hex, alpha) {
   if (!hex || hex.length < 7) return `rgba(124,58,237,${alpha})`
@@ -34,7 +34,7 @@ function getDropPosition(items, clientY, containerRef) {
   return { ...best, insertIndex: Math.max(0, best.position === 'before' ? idx : idx + 1) }
 }
 
-export default function NoteBoard({ note, refreshTrigger }) {
+export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   const [groups, setGroups] = useState([])
   const [itemsByGroup, setItemsByGroup] = useState({})
   const [showCreateGroup, setShowCreateGroup] = useState(false)
@@ -55,7 +55,7 @@ export default function NoteBoard({ note, refreshTrigger }) {
   })
 
   const noteId = note?.id ?? null
-  const isMovieNote = note?.is_movie === true
+  const isMovieNote = note?.is_movie === true || note?.type === 'movie' || true
 
   const loadGroups = useCallback(async () => {
     const groups = await window.api.getGroups(noteId)
@@ -136,7 +136,22 @@ export default function NoteBoard({ note, refreshTrigger }) {
   const handleAddItem = async (groupId, data) => {
     if (isMovieNote) {
       const sectionKey = getGroupSectionKey(groupId)
-      await window.api.addMovie({ title: data.title, note: data.note || '', section: sectionKey, note_id: noteId })
+      await window.api.addMovie({
+        title: data.title,
+        release_date: data.release_date || null,
+        release_year: data.release_year || '-',
+        rating: data.rating || null,
+        vote_count: data.vote_count || 0,
+        poster_path: data.poster_path || data.cover_url || null,
+        genre: data.genre || '-',
+        director: data.director || '-',
+        tmdb_id: data.tmdb_id || null,
+        imdb_id: data.imdb_id || null,
+        media_type: data.media_type || null,
+        note: data.note || '',
+        section: sectionKey,
+        note_id: noteId,
+      })
     } else {
       await window.api.addItem(groupId, data)
     }
@@ -255,62 +270,128 @@ export default function NoteBoard({ note, refreshTrigger }) {
 
   const maxReached = groups.length >= 5
 
-  return (
-    <div className="board" style={{ flex: 1 }}>
-      {groups.map(group => (
-        <NoteColumn
-          key={group.id}
-          group={group}
-          items={itemsByGroup[group.id] || []}
-          itemClipboard={itemClipboard}
-          onAdd={() => setAddItemGroup(group.id)}
-          renameSignal={renameGroupId === group.id}
-          onRenameConsumed={() => setRenameGroupId(null)}
-          onRename={() => setRenameGroupId(group.id)}
-          onDelete={() => handleDeleteGroup(group)}
-          onGroupContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setGroupContextMenu({ x: e.clientX, y: e.clientY, group }) }}
-          onItemContextMenu={(e, item) => { e.preventDefault(); e.stopPropagation(); setItemContextMenu({ x: e.clientX, y: e.clientY, item }) }}
-          onItemClick={(item) => setEditItem(item)}
-          onMoveItem={handleMoveItem}
-          onReorderItem={handleReorderItem}
-          isDragging={draggingGroupId === group.id}
-          onGroupDragStart={() => handleGroupDragStart(group.id)}
-          onGroupDragEnd={handleGroupDragEnd}
-          onGroupDragOver={() => handleGroupDragOverCol(group.id)}
-          onGroupDrop={handleGroupDrop}
-        />
-      ))}
+  // Responsive: detect compact/mobile mode
+  const boardRef = useRef(null)
+  const [isCompact, setIsCompact] = useState(false)
+  const [activeSection, setActiveSection] = useState(null)
 
-      {/* Create New Note Group kolonnasi */}
-      {!maxReached && (
-        <div
-          onClick={() => setShowCreateGroup(true)}
-          style={{
-            width: 260, minWidth: 260,
-            border: '1.5px dashed var(--border-hover)',
-            borderRadius: 10, padding: '18px 14px',
-            cursor: 'pointer', flexShrink: 0, alignSelf: 'flex-start',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            color: 'var(--text-muted)', transition: 'border-color 0.15s, color 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.color = '#a78bfa' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-        >
-          <Plus size={16} />
-          <span style={{ fontSize: 13, fontWeight: 700 }}>Create New Note Group</span>
+  useEffect(() => {
+    const el = boardRef.current?.parentElement || boardRef.current
+    if (!el) return
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setIsCompact(entry.contentRect.width < 700)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // When compact mode activates, default to the first section
+  useEffect(() => {
+    if (isCompact && groups.length > 0 && !activeSection) {
+      setActiveSection(groups[0].section_key)
+    }
+  }, [isCompact, groups, activeSection])
+
+  const SIDEBAR_ICONS = { futured: Clock, todo: ListTodo, doing: Play, done: CheckCircle }
+
+  const filteredItemsByGroup = useMemo(() => {
+    const q = (search || '').trim().toLowerCase()
+    if (!q) return itemsByGroup
+
+    const result = {}
+    for (const [groupId, items] of Object.entries(itemsByGroup)) {
+      result[groupId] = (items || []).filter(item => {
+        const title = (item.title || '').toLowerCase()
+        const subtitle = (item.subtitle || '').toLowerCase()
+        const noteText = (item.note || '').toLowerCase()
+        const director = (item._movie?.director || '').toLowerCase()
+        const genre = (item._movie?.genre || '').toLowerCase()
+        return (
+          title.includes(q) ||
+          subtitle.includes(q) ||
+          noteText.includes(q) ||
+          director.includes(q) ||
+          genre.includes(q)
+        )
+      })
+    }
+    return result
+  }, [itemsByGroup, search])
+
+  const renderColumn = (group) => (
+    <NoteColumn
+      key={group.id}
+      group={group}
+      items={filteredItemsByGroup[group.id] || []}
+      itemClipboard={itemClipboard}
+      onAdd={() => setAddItemGroup(group.id)}
+      renameSignal={renameGroupId === group.id}
+      onRenameConsumed={() => setRenameGroupId(null)}
+      onRename={() => setRenameGroupId(group.id)}
+      onDelete={() => handleDeleteGroup(group)}
+      onItemContextMenu={(e, item) => { e.preventDefault(); e.stopPropagation(); setItemContextMenu({ x: e.clientX, y: e.clientY, item }) }}
+      onItemClick={(item) => setEditItem(item)}
+      onItemDelete={(item) => handleDeleteItem(item)}
+      onMoveItem={handleMoveItem}
+      onReorderItem={handleReorderItem}
+      isDragging={draggingGroupId === group.id}
+      onGroupDragStart={() => handleGroupDragStart(group.id)}
+      onGroupDragEnd={handleGroupDragEnd}
+      onGroupDragOver={() => handleGroupDragOverCol(group.id)}
+      onGroupDrop={handleGroupDrop}
+    />
+  )
+
+  const activeGroup = isCompact ? groups.find(g => g.section_key === activeSection) : null
+
+  return (
+    <div ref={boardRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      {isCompact ? (
+        <div className="board-responsive">
+          {/* Sidebar */}
+          <div className="board-sidebar">
+            {groups.map(group => {
+              const Icon = SIDEBAR_ICONS[group.section_key] || ListTodo
+              const label = group.name
+              const count = (filteredItemsByGroup[group.id] || []).length
+              const isActive = activeSection === group.section_key
+              return (
+                <button
+                  key={group.id}
+                  className={`board-sidebar-btn ${isActive ? 'active' : ''}`}
+                  onClick={() => setActiveSection(group.section_key)}
+                  style={isActive ? { borderLeft: `3px solid ${group.color || '#a78bfa'}` } : {}}
+                >
+                  <div className="sidebar-dot" style={{ background: group.color || '#a78bfa' }} />
+                  <Icon size={18} />
+                  <span style={{ fontSize: 8, lineHeight: 1, marginTop: 1 }}>{label}</span>
+                  <span className="sidebar-count">{count}</span>
+                </button>
+              )
+            })}
+          </div>
+          {/* Main column */}
+          <div className="board-mobile-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            {activeGroup && renderColumn(activeGroup)}
+          </div>
+        </div>
+      ) : (
+        <div className="board">
+          {groups.map(group => renderColumn(group))}
         </div>
       )}
 
       {/* Modals */}
-      {showCreateGroup && (
-        <CreateGroupModal onClose={() => setShowCreateGroup(false)} onCreate={handleCreateGroup} creating={creatingGroup} />
-      )}
 
       {addItemGroup && (
         <AddItemModal
           onClose={() => setAddItemGroup(null)}
           onSave={(data) => handleAddItem(addItemGroup, data)}
           note={note}
+          existingMovies={isMovieNote ? Object.values(itemsByGroup).flat().map(i => i._movie).filter(Boolean) : []}
+          groups={groups}
         />
       )}
 
@@ -363,7 +444,7 @@ export default function NoteBoard({ note, refreshTrigger }) {
   )
 }
 
-function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onMoveItem, onReorderItem, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
+function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
   const color = group.color || '#a78bfa'
   const bg = hexToRgba(color, 0.12)
   const border = hexToRgba(color, 0.3)
@@ -393,18 +474,19 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
 
   const handleDragOver = (e) => {
     e.preventDefault()
-    e.currentTarget.style.outline = `2px dashed ${color}`
+    e.dataTransfer.dropEffect = 'move'
+    if (cardsRef.current) cardsRef.current.style.outline = `2px dashed ${color}`
     updateMarker(e.clientY)
   }
   const handleDragLeave = (e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return
-    e.currentTarget.style.outline = 'none'
+    if (cardsRef.current) cardsRef.current.style.outline = 'none'
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     setDragMarker(null)
   }
   const handleDrop = async (e) => {
     e.preventDefault()
-    e.currentTarget.style.outline = 'none'
+    if (cardsRef.current) cardsRef.current.style.outline = 'none'
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     const itemId = parseInt(e.dataTransfer.getData('itemId'))
     const fromGroup = parseInt(e.dataTransfer.getData('fromGroup'))
@@ -428,13 +510,29 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
 
   return (
     <div
-      onDragOver={(e) => { if (e.dataTransfer.types.includes('groupdrag')) { e.preventDefault(); onGroupDragOver?.() } }}
-      onDrop={(e) => { if (e.dataTransfer.types.includes('groupdrag')) { e.preventDefault(); onGroupDrop?.() } }}
-      style={{ width: 280, minWidth: 280, maxWidth: 280, display: 'flex', flexDirection: 'column', background: '#111', borderRadius: 10, border: `1px solid ${isDragging ? color : 'var(--border)'}`, flexShrink: 0, opacity: isDragging ? 0.5 : 1, transition: 'opacity 0.15s, border-color 0.15s' }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('groupdrag')) {
+          e.preventDefault()
+          onGroupDragOver?.()
+        } else {
+          handleDragOver(e)
+        }
+      }}
+      onDragLeave={handleDragLeave}
+      onDrop={(e) => {
+        if (e.dataTransfer.types.includes('groupdrag')) {
+          e.preventDefault()
+          onGroupDrop?.()
+        } else {
+          handleDrop(e)
+        }
+      }}
+      className="note-column"
+      style={{ background: 'var(--bg-surface)', borderRadius: 10, border: `1px solid ${isDragging ? color : 'var(--border)'}`, flexShrink: 0, opacity: isDragging ? 0.5 : 1, transition: 'opacity 0.15s, border-color 0.15s' }}
     >
       <div
         className="column-header-sticky"
-        style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6, borderRadius: '10px 10px 0 0', borderTop: `3px solid ${color}`, background: '#111', flexShrink: 0 }}
+        style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6, borderRadius: '10px 10px 0 0', borderTop: `3px solid ${color}`, background: 'var(--bg-surface)', flexShrink: 0 }}
         onContextMenu={onGroupContextMenu}
         onMouseEnter={() => setHeaderHovered(true)}
         onMouseLeave={() => setHeaderHovered(false)}
@@ -468,28 +566,12 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
           >{group.name}</span>
         )}
         {!editingName && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{items.length}</span>}
+        {/* Fixed system columns — no edit/delete buttons needed */}
         <div style={{ flex: 1 }} />
-
-        {/* Inline tugmalar — hover da ko'rinadi, tahrirlashda yashiriladi */}
-        {!editingName && <div style={{ display: 'flex', gap: 2, opacity: headerHovered ? 1 : 0, transition: 'opacity 0.15s', pointerEvents: headerHovered ? 'auto' : 'none' }}>
-          <button
-            onClick={(e) => { e.stopPropagation(); setEditingName(true) }}
-            title="Tahrirlash"
-            style={colBtnStyle}
-            onMouseEnter={e => { e.currentTarget.style.color = color; e.currentTarget.style.background = bg }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
-          ><Pencil size={12} /></button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete?.() }}
-            title="O'chirish"
-            style={colBtnStyle}
-            onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
-          ><X size={12} /></button>
-        </div>}
 
         <button
           onClick={onAdd}
+          title="Film qo'shish"
           style={{ background: 'transparent', border: `1px solid ${border}`, borderRadius: 6, color, width: 26, height: 26, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
         ><Plus size={14} /></button>
       </div>
@@ -497,9 +579,6 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
       <div
         ref={cardsRef}
         className="column-cards"
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
         style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 100, borderRadius: '0 0 10px 10px', transition: 'outline 0.1s' }}
       >
         {items.map(item => (
@@ -508,23 +587,17 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
               <div style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
             )}
             {item._movie ? (
-              <div
-                draggable
+              <MovieCard
+                movie={item._movie}
+                sectionKey={group.section_key}
+                onContextMenu={(e) => onItemContextMenu(e, item)}
+                onDelete={() => onItemDelete?.(item)}
                 onDragStart={(e) => {
                   e.dataTransfer.setData('itemId', String(item.id))
                   e.dataTransfer.setData('fromGroup', String(group.id))
                   e.dataTransfer.effectAllowed = 'move'
                 }}
-                onDragEnd={(e) => { e.currentTarget.style.opacity = '1' }}
-                style={{ userSelect: 'none' }}
-              >
-                <MovieCard
-                  movie={item._movie}
-                  sectionKey={group.section_key}
-                  onContextMenu={(e) => onItemContextMenu(e, item)}
-                  noDrag
-                />
-              </div>
+              />
             ) : (
               <NoteItemCard
                 item={item}
@@ -807,7 +880,9 @@ function NoteItemModal({ item, note, onClose, onSave, onDelete, isEdit }) {
   )
 }
 
-function AddItemModal({ onClose, onSave, note }) {
+const SECTION_LABELS = { futured: 'Kutilmoqda', todo: 'Ko\'rish kerak', doing: 'Ko\'rilmoqda', done: 'Ko\'rilgan' }
+
+function AddItemModal({ onClose, onSave, note, existingMovies = [], groups = [] }) {
   const noteType = note?.type || 'custom'
   const isSearchable = noteType !== 'custom'
 
@@ -817,23 +892,67 @@ function AddItemModal({ onClose, onSave, note }) {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState(null)
   const [selected, setSelected] = useState(null)
+  const [dupMessage, setDupMessage] = useState(null)
+
+  // Build a map of existing movie ids for fast lookup
+  const existingMap = useMemo(() => {
+    const map = {}
+    for (const m of existingMovies) {
+      if (m.tmdb_id) map['tmdb_' + m.tmdb_id] = m
+      if (m.imdb_id) map['imdb_' + m.imdb_id] = m
+    }
+    return map
+  }, [existingMovies])
+
+  const findExisting = (r) => {
+    if (r.tmdb_id && existingMap['tmdb_' + r.tmdb_id]) return existingMap['tmdb_' + r.tmdb_id]
+    if (r.imdb_id && existingMap['imdb_' + r.imdb_id]) return existingMap['imdb_' + r.imdb_id]
+    return null
+  }
 
   const typeLabel = { books: 'Kitob', travel: 'Joy', games: "O'yin", custom: '' }[noteType] || ''
 
-  const handleSearch = async () => {
-    if (!query.trim()) return
+  const performSearch = useCallback(async (q) => {
+    const trimmed = (q || '').trim()
+    if (!trimmed) {
+      setResults([])
+      setSearching(false)
+      setSearchError(null)
+      return
+    }
     setSearching(true)
     setSearchError(null)
-    setResults([])
-    setSelected(null)
-    const res = await window.api.searchContent(noteType, query.trim())
+    const res = await window.api.searchContent(noteType, trimmed)
     setSearching(false)
     if (res?.error) { setSearchError(res.error); return }
-    if (res?.redirect === 'use_tmdb') { setSearchError('Movie note uchun Movie note ichida qo\'shing'); return }
     setResults(Array.isArray(res) ? res : [])
+  }, [noteType])
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([])
+      return
+    }
+    const timer = setTimeout(() => {
+      performSearch(query)
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [query, performSearch])
+
+  const handleSearch = () => {
+    performSearch(query)
   }
 
   const handleSelect = (r) => {
+    const existing = findExisting(r)
+    if (existing) {
+      const sectionLabel = SECTION_LABELS[existing.section] || existing.section || '?'
+      const typeWord = r.media_type === 'tv' ? 'seriali' : (existing.genre && existing.genre.toLowerCase().includes('animation') ? 'multfilmi' : 'filmi')
+      setDupMessage(`"${r.title}" ${typeWord} allaqachon "${sectionLabel}"ga qo'shilgan`)
+      setTimeout(() => setDupMessage(null), 3500)
+      return
+    }
+    setDupMessage(null)
     setSelected(r)
   }
 
@@ -841,8 +960,17 @@ function AddItemModal({ onClose, onSave, note }) {
     if (!selected) return
     onSave({
       title: selected.title,
-      subtitle: selected.subtitle || '',
-      cover_url: selected.cover_url || null,
+      release_date: selected.release_date || null,
+      release_year: selected.release_year || selected.year || '-',
+      rating: selected.rating || null,
+      vote_count: selected.vote_count || 0,
+      poster_path: selected.poster_path || selected.cover_url || null,
+      cover_url: selected.cover_url || selected.poster_path || null,
+      genre: selected.genre || '-',
+      director: selected.director || '-',
+      tmdb_id: selected.tmdb_id || null,
+      imdb_id: selected.imdb_id || null,
+      media_type: selected.media_type || null,
       note: selected.note || '',
     })
   }
@@ -894,43 +1022,76 @@ function AddItemModal({ onClose, onSave, note }) {
                 Qidiruv natijasi bu yerda ko'rinadi
               </div>
             )}
-            {results.map((r, i) => (
-              <div
-                key={i}
-                onClick={() => handleSelect(r)}
-                style={{
-                  display: 'flex', gap: 12, padding: '12px 20px',
-                  cursor: 'pointer', borderBottom: '1px solid #1a1a1a',
-                  background: selected === r ? 'rgba(124,58,237,0.1)' : 'transparent',
-                  borderLeft: selected === r ? '3px solid #7c3aed' : '3px solid transparent',
-                  transition: 'background 0.1s',
-                }}
-                onMouseEnter={e => { if (selected !== r) e.currentTarget.style.background = '#1a1a1a' }}
-                onMouseLeave={e => { if (selected !== r) e.currentTarget.style.background = 'transparent' }}
-              >
-                {/* Cover */}
-                <div style={{ width: 48, height: 64, borderRadius: 6, overflow: 'hidden', background: '#111', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {r.cover_url ? (
-                    <img src={r.cover_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <Plus size={18} color="var(--text-muted)" />
-                  )}
+            {results.map((r, i) => {
+              const isSelected = selected && (selected.tmdb_id ? selected.tmdb_id === r.tmdb_id : selected.title === r.title)
+              const existingMovie = findExisting(r)
+              const isDuplicate = !!existingMovie
+              const dupSection = isDuplicate ? (SECTION_LABELS[existingMovie.section] || existingMovie.section) : null
+              return (
+                <div
+                  key={r.tmdb_id || r.imdb_id || i}
+                  onClick={() => handleSelect(r)}
+                  style={{
+                    display: 'flex', gap: 14, padding: '12px 20px',
+                    cursor: isDuplicate ? 'default' : 'pointer',
+                    borderBottom: '1px solid var(--border)',
+                    background: isSelected ? 'rgba(124,58,237,0.15)' : 'transparent',
+                    borderLeft: isSelected ? '4px solid var(--accent)' : '4px solid transparent',
+                    opacity: isDuplicate ? 0.45 : 1,
+                    transition: 'background 0.12s, border-left 0.12s, opacity 0.15s',
+                  }}
+                  onMouseEnter={e => { if (!isSelected && !isDuplicate) e.currentTarget.style.background = 'var(--bg-card-hover)' }}
+                  onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                >
+                  {/* Cover */}
+                  <div style={{ width: 44, height: 60, borderRadius: 6, overflow: 'hidden', background: 'var(--bg-card)', flexShrink: 0, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {r.cover_url ? (
+                      <img src={r.cover_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: isDuplicate ? 'grayscale(0.7)' : 'none' }} />
+                    ) : (
+                      <Plus size={16} color="var(--text-muted)" />
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: isDuplicate ? 'var(--text-muted)' : 'var(--text-primary)', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</span>
+                      {r.year && r.year !== '-' && (
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400, flexShrink: 0 }}>({r.year})</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {r.media_type && (
+                        <span style={{ background: 'var(--border)', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: isDuplicate ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                          {r.media_type === 'tv' ? 'Serial' : 'Kino'}
+                        </span>
+                      )}
+                      {r.rating && (
+                        <span style={{ color: isDuplicate ? 'var(--text-muted)' : '#fbbf24', fontWeight: 600, fontSize: 11 }}>⭐ {r.rating}</span>
+                      )}
+                      {isDuplicate && (
+                        <span style={{ color: '#f59e0b', fontSize: 10, fontWeight: 600, background: 'rgba(245,158,11,0.12)', padding: '1px 7px', borderRadius: 4 }}>
+                          ✓ {dupSection}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title}</div>
-                  {r.subtitle && <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 2 }}>{r.subtitle}</div>}
-                  {r.year && !r.subtitle?.includes(r.year) && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.year}</div>}
-                  {r.note && <div style={{ fontSize: 11, color: '#444', marginTop: 3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{r.note}</div>}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
+          {/* Duplicate message toast */}
+          {dupMessage && (
+            <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(245,158,11,0.25)', background: 'rgba(245,158,11,0.08)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Check size={14} color="#f59e0b" />
+              <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600 }}>{dupMessage}</span>
+            </div>
+          )}
+
           {/* Footer */}
-          {selected && (
+          {selected && !dupMessage && (
             <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(124,58,237,0.06)', flexShrink: 0 }}>
-              <div style={{ flex: 1, fontSize: 12, color: '#a78bfa', fontWeight: 600 }}>✓ {selected.title}</div>
+              <div style={{ flex: 1, fontSize: 12, color: '#a78bfa', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><Check size={14} color="#a78bfa" /> {selected.title}</div>
               <button onClick={handleSaveSelected} style={btnS('#7c3aed', 'white')}>Qo'shish</button>
             </div>
           )}

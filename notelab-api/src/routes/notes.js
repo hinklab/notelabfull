@@ -2,15 +2,35 @@ const express = require('express');
 const router = express.Router();
 const { readDB, writeDB, normalizeNoteIcon } = require('../services/database');
 
+const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
+
 // GET /api/notes - with groups summary
 router.get('/', async (req, res) => {
   try {
     const db = readDB();
-    const notes = db.notes || [];
-    const groups = db.note_groups || [];
-    const items = db.note_items || [];
-    const movies = db.movies || [];
+    const userId = req.userId || DEFAULT_USER_ID;
+    let notes = (db.notes || []).filter(n => (n.user_id || DEFAULT_USER_ID) === userId);
+    let groups = (db.note_groups || []).filter(g => (g.user_id || DEFAULT_USER_ID) === userId);
+    let items = (db.note_items || []).filter(i => (i.user_id || DEFAULT_USER_ID) === userId);
+    let movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
     
+    // Auto-create Movies note for user if not exists
+    let movieNote = notes.find(n => n.is_movie || n.type === 'movie');
+    if (!movieNote) {
+      movieNote = {
+        id: db.notes.length ? Math.max(...db.notes.map(n => n.id)) + 1 : 1,
+        user_id: userId,
+        name: 'Movies',
+        icon: '🎬',
+        type: 'movie',
+        is_movie: true,
+        created_at: new Date().toISOString(),
+      };
+      db.notes.push(movieNote);
+      notes.push(movieNote);
+      writeDB(db);
+    }
+
     const result = notes.map(n => {
       const noteGroups = groups.filter(g => g.note_id === n.id).sort((a, b) => a.position - b.position);
       const groupIds = noteGroups.map(g => g.id);
@@ -47,9 +67,11 @@ router.post('/', async (req, res) => {
     
     const note = {
       id: db.notes.length ? Math.max(...db.notes.map(n => n.id)) + 1 : 1,
+      user_id: req.userId || DEFAULT_USER_ID,
       name: req.body.name || 'Note',
       icon: normalizeNoteIcon(req.body.icon),
       type: req.body.type || 'custom',
+      is_movie: req.body.type === 'movie' || req.body.is_movie || false,
       created_at: new Date().toISOString(),
     };
     

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { List, Trash2, X, Send, Loader2 } from 'lucide-react'
+import { List, Trash2, X, Send, Loader2, Sparkles } from 'lucide-react'
 
 const UI_SNAPSHOT_KEY = 'agelab_ui_snapshot'
 
@@ -223,76 +223,69 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
 
   const panelStyle = {
     position: 'fixed',
-    right: 0,
-    bottom: 0,
-    top: 'var(--topbar-height)',
-    width: 340,
-    background: '#111',
-    borderLeft: '1px solid #2a2a2a',
+    right: 24,
+    bottom: 88,
+    width: 350,
+    height: 560,
+    maxHeight: 'calc(100vh - 110px)',
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 16,
     display: 'flex',
     flexDirection: 'column',
     zIndex: 39,
-    boxShadow: '-8px 0 40px rgba(0,0,0,0.5)',
-    transform: open ? 'translateX(0)' : 'translateX(100%)',
-    transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
-    willChange: 'transform',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+    transform: open ? 'scale(1) translateY(0)' : 'scale(0.92) translateY(24px)',
+    opacity: open ? 1 : 0,
+    transition: 'transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease',
+    willChange: 'transform, opacity',
   }
 
   return (
     <>
       <button
         onClick={togglePanel}
-        title={open ? 'Yopish' : 'Sizning shaxsiy yordamchingiz'}
+        title={open ? 'Yopish' : 'Sizning shaxsiy yordamchingiz (Agelab)'}
         style={{
           position: 'fixed',
-          right: open ? 348 : 0,
-          bottom: 80,
+          right: 24,
+          bottom: 24,
           zIndex: 40,
-          width: 44,
-          height: 56,
+          width: 52,
+          height: 52,
+          borderRadius: '50%',
           background: open ? '#6d28d9' : '#7c3aed',
           opacity: hasNote ? 1 : 0,
           pointerEvents: hasNote ? 'auto' : 'none',
-          transition: 'right 0.32s cubic-bezier(0.4,0,0.2,1), background 0.15s, opacity 0.25s',
+          transition: 'background 0.15s, opacity 0.25s, transform 0.15s',
           border: 'none',
-          borderRadius: '10px 0 0 10px',
           cursor: 'pointer',
           display: 'flex',
-          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 3,
-          boxShadow: '-3px 0 16px rgba(124,58,237,0.45)',
+          boxShadow: '0 8px 24px rgba(124,58,237,0.5)',
           padding: 0,
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#6d28d9' }}
-        onMouseLeave={e => { e.currentTarget.style.background = open ? '#6d28d9' : '#7c3aed' }}
+        onMouseEnter={e => { e.currentTarget.style.background = '#6d28d9'; e.currentTarget.style.transform = 'scale(1.06)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = open ? '#6d28d9' : '#7c3aed'; e.currentTarget.style.transform = 'scale(1)' }}
       >
-        {open ? (
-          <X size={18} color="#fff" />
-        ) : (
-          <span style={{
-            color: '#e9d5ff', fontSize: 9, fontWeight: 800, letterSpacing: 1.5,
-            writingMode: 'vertical-rl', textOrientation: 'mixed',
-            transform: 'rotate(180deg)', lineHeight: 1,
-          }}>Agelab</span>
-        )}
+        {open ? <X size={22} color="#fff" /> : <Sparkles size={22} color="#fff" />}
       </button>
 
       {visible && (
         <div style={panelStyle}>
           <div style={{
             padding: '14px 16px',
-            borderBottom: '1px solid #1e1e1e',
+            borderBottom: '1px solid var(--border)',
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            background: '#0f0f0f',
+            background: 'var(--bg-surface)',
             flexShrink: 0,
           }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: '#efefef', lineHeight: 1.2 }}>agelab</div>
-              <div style={{ fontSize: 10, color: uiSnapshot ? '#a78bfa' : '#555' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.2 }}>agelab</div>
+              <div style={{ fontSize: 10, color: uiSnapshot ? '#a78bfa' : 'var(--text-muted)' }}>
                 {uiSnapshot
                   ? `UI ro'yxati: ${uiSnapshot.count} ta film`
                   : 'AI assistant'}
@@ -303,8 +296,8 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
               onClick={syncUiList}
               title="Ekrandagi kinolar ro'yxatini agentga ulash (chat tozalangandan keyin ham)"
               style={headerBtnStyle(!!uiSnapshot)}
-              onMouseEnter={e => { if (!uiSnapshot) e.currentTarget.style.color = '#888' }}
-              onMouseLeave={e => { if (!uiSnapshot) e.currentTarget.style.color = '#555' }}
+              onMouseEnter={e => { if (!uiSnapshot) e.currentTarget.style.color = 'var(--text-secondary)' }}
+              onMouseLeave={e => { if (!uiSnapshot) e.currentTarget.style.color = 'var(--text-muted)' }}
             >
               <List size={14} />
             </button>
@@ -312,14 +305,14 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
               onClick={clearChat}
               title="Chatni tozalash"
               style={headerBtnStyle(false)}
-              onMouseEnter={e => e.currentTarget.style.color = '#888'}
-              onMouseLeave={e => e.currentTarget.style.color = '#555'}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
             ><Trash2 size={14} /></button>
             <button
               onClick={closePanel}
               style={headerBtnStyle(false)}
-              onMouseEnter={e => e.currentTarget.style.color = '#888'}
-              onMouseLeave={e => e.currentTarget.style.color = '#555'}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
             ><X size={14} /></button>
           </div>
 
@@ -335,13 +328,13 @@ export default function Agelab({ onAction, getUiMovies, activeNote }) {
               <div key={i} style={{
                 maxWidth: '90%',
                 alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                background: m.role === 'user' ? '#7c3aed' : '#1a1a1a',
-                color: m.role === 'user' ? '#fff' : '#ddd',
+                background: m.role === 'user' ? '#7c3aed' : 'var(--bg-input)',
+                color: m.role === 'user' ? '#fff' : 'var(--text-primary)',
                 borderRadius: m.role === 'user' ? '14px 14px 3px 14px' : '14px 14px 14px 3px',
                 padding: '8px 12px',
                 fontSize: 12.5,
                 lineHeight: 1.55,
-                border: m.role === 'agent' ? '1px solid #252525' : 'none',
+                border: m.role === 'agent' ? '1px solid var(--border)' : 'none',
                 whiteSpace: 'pre-wrap',
               }}>
                 {m.text}

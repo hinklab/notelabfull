@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const https = require('https');
-const { readDB, writeDB } = require('../services/database');
+const { readDB, writeDB, getUserSettings } = require('../services/database');
 
 function geminiRequest(messages, apiKey, model = 'gemini-2.0-flash-exp') {
   return new Promise((resolve, reject) => {
@@ -108,8 +108,8 @@ router.post('/chat', async (req, res) => {
   try {
     const { message, history, noteCtx } = req.body;
     const db = readDB();
-    
-    const geminiKey = db.settings?.gemini_key || '';
+    const settings = getUserSettings(req.userId, db);
+    const geminiKey = settings.gemini_key || '';
     if (!geminiKey) {
       return res.json({
         reply: "Gemini API kaliti yo'q. Sozlamalarda kiriting.",

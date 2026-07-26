@@ -23,6 +23,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use(require('./middleware/authMiddleware'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -38,6 +39,8 @@ app.use('/api/agent', require('./routes/agent'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/content', require('./routes/content'));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/user-preferences', require('./routes/userPreferences'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Error handler
 app.use((err, req, res, next) => {
@@ -45,8 +48,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
+const { readDB } = require('./services/database');
+const { autoMigrateFuturedMovies } = require('./routes/movies');
+
 app.listen(PORT, () => {
   console.log(`Notelab API running on http://localhost:${PORT}`);
+  try {
+    const db = readDB();
+    autoMigrateFuturedMovies(db);
+  } catch (err) {
+    console.error('Error running startup movie migration:', err.message);
+  }
 });
 
 module.exports = app;

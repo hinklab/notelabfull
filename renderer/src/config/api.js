@@ -1,9 +1,20 @@
-// API configuration - works in both Electron and Web
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+function getUserHeader() {
+  try {
+    const saved = localStorage.getItem('notelab_user')
+    if (saved) {
+      const u = JSON.parse(saved)
+      if (u && u.id) return { 'x-user-id': u.id }
+    }
+  } catch {}
+  return {}
+}
+
 async function fetchJSON(url, options = {}) {
+  const userHeader = getUserHeader()
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { 'Content-Type': 'application/json', ...userHeader, ...options.headers },
     ...options
   });
   if (!res.ok) {
@@ -36,9 +47,29 @@ export const api = {
   moveItem: (id, to_group_id, position) => fetchJSON(`${API_BASE}/items/move`, { method: 'POST', body: JSON.stringify({ id, to_group_id, position }) }),
   reorderItems: (group_id, ids) => fetchJSON(`${API_BASE}/items/reorder`, { method: 'POST', body: JSON.stringify({ group_id, ids }) }),
 
-  // Settings
+  // Movies
+  getMovies: (note_id) => fetchJSON(`${API_BASE}/movies?note_id=${note_id || ''}`),
+  addMovie: (data) => fetchJSON(`${API_BASE}/movies`, { method: 'POST', body: JSON.stringify(data) }),
+  updateMovie: (id, data) => fetchJSON(`${API_BASE}/movies/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMovie: (id) => fetchJSON(`${API_BASE}/movies/${id}`, { method: 'DELETE' }),
+  moveMovie: (id, section, position) => fetchJSON(`${API_BASE}/movies/move`, { method: 'POST', body: JSON.stringify({ id, section, position }) }),
+  reorderMovies: (section, ids) => fetchJSON(`${API_BASE}/movies/reorder`, { method: 'POST', body: JSON.stringify({ section, ids }) }),
+  refreshAllMovies: () => fetchJSON(`${API_BASE}/movies/refresh-all`, { method: 'POST' }),
+
+  // Content Search
+  searchContent: (type, query) => fetchJSON(`${API_BASE}/content/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query)}`),
+
+  // Settings & Profile & Auth
   getSettings: () => fetchJSON(`${API_BASE}/settings`),
   saveSettings: (data) => fetchJSON(`${API_BASE}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateProfile: (data) => fetchJSON(`${API_BASE}/auth/profile`, { method: 'PATCH', body: JSON.stringify(data) }),
+  resetPasswordEmail: (email) => fetchJSON(`${API_BASE}/auth/reset-password-email`, { method: 'POST', body: JSON.stringify({ email }) }),
+
+  // Notifications
+  getNotifications: () => fetchJSON(`${API_BASE}/notifications`),
+  markNotificationRead: (id) => fetchJSON(`${API_BASE}/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllNotificationsRead: () => fetchJSON(`${API_BASE}/notifications/read-all`, { method: 'POST' }),
+  deleteNotification: (id) => fetchJSON(`${API_BASE}/notifications/${id}`, { method: 'DELETE' }),
 
   // Agent
   agentChat: (msg, history, uiMovies, noteCtx) => fetchJSON(`${API_BASE}/agent/chat`, {

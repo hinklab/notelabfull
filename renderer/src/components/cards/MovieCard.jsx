@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom'
-import { Star, Calendar, Clapperboard, X } from 'lucide-react'
+import { Star, Calendar, Clapperboard, X, Trash2 } from 'lucide-react'
 
 function formatVotes(n) {
   if (!n) return null
@@ -19,9 +19,10 @@ function formatReleaseDate(dateStr) {
   }
 }
 
-export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) {
+export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag, onDragStart, onDragEnd, onDelete }) {
   const [expanded, setExpanded] = useState(false)
   const [animateOpen, setAnimateOpen] = useState(false)
+  const [hovered, setHovered] = useState(false)
   const isFuture = movie.section === 'futured' && !movie.rating
 
   useEffect(() => {
@@ -36,13 +37,16 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) 
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('movieId', String(movie.id))
-    e.dataTransfer.setData('fromSection', sectionKey)
+    e.dataTransfer.setData('itemId', String(movie.id))
+    if (sectionKey) e.dataTransfer.setData('fromSection', sectionKey)
     e.dataTransfer.effectAllowed = 'move'
     e.currentTarget.style.opacity = '0.5'
+    if (onDragStart) onDragStart(e)
   }
 
   const handleDragEnd = (e) => {
     e.currentTarget.style.opacity = '1'
+    if (onDragEnd) onDragEnd(e)
   }
 
   const handleCardClick = () => {
@@ -69,16 +73,51 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) 
         position: 'relative', overflow: 'hidden', userSelect: 'none',
       }}
       onMouseEnter={e => {
+        setHovered(true)
         e.currentTarget.style.borderColor = 'var(--border-hover)'
         e.currentTarget.style.background = 'var(--bg-card-hover)'
         e.currentTarget.style.transform = 'translateY(-1px)'
       }}
       onMouseLeave={e => {
+        setHovered(false)
         e.currentTarget.style.borderColor = 'var(--border)'
         e.currentTarget.style.background = 'var(--bg-card)'
         e.currentTarget.style.transform = 'translateY(0)'
       }}
     >
+      {/* Delete button on hover */}
+      {onDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete(movie)
+          }}
+          title="Kinolardan o'chirish"
+          style={{
+            position: 'absolute',
+            top: 6,
+            right: 6,
+            zIndex: 10,
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            color: 'var(--text-muted)',
+            width: 24,
+            height: 24,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: hovered ? 0.9 : 0,
+            transform: hovered ? 'scale(1)' : 'scale(0.85)',
+            transition: 'opacity 0.15s, transform 0.15s, color 0.15s, border-color 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+        >
+          <Trash2 size={12} />
+        </button>
+      )}
       {/* Poster background */}
       {movie.poster_path && (
         <>
@@ -120,34 +159,31 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) 
           </div>
         ) : null}
 
-        {!isFuture && movie.rating && (
+        {!isFuture && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <Star size={11} color="#fbbf24" fill="#fbbf24" />
-            <span style={{ color: '#fbbf24', fontSize: 12, fontWeight: 600 }}>{movie.rating}</span>
-            {movie.vote_count && (
+            <Star size={11} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} fill={movie.rating ? "#fbbf24" : "none"} />
+            <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 12, fontWeight: 600 }}>
+              {movie.rating ? movie.rating : '0/10'}
+            </span>
+            {movie.vote_count ? (
               <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
-            )}
+            ) : null}
           </div>
         )}
 
-        {(movie.genre || movie.director) && (
+        {((movie.genre && movie.genre !== '—' && movie.genre !== '-') || (movie.director && movie.director !== '—' && movie.director !== '-')) && (
           <div style={{ color: 'var(--text-secondary)', fontSize: 11, marginBottom: 2, lineHeight: 1.4 }}>
-            {movie.genre && movie.genre !== '—' && <span>{movie.genre}</span>}
-            {movie.director && movie.director !== '—' && (
-              <span style={{ color: 'var(--text-muted)' }}> • {movie.director}</span>
+            {movie.genre && movie.genre !== '—' && movie.genre !== '-' && <span>{movie.genre}</span>}
+            {movie.director && movie.director !== '—' && movie.director !== '-' && (
+              <span style={{ color: 'var(--text-muted)' }}>
+                {movie.genre && movie.genre !== '—' && movie.genre !== '-' ? ' • ' : ''}{movie.director}
+              </span>
             )}
           </div>
         )}
 
         {movie.seasons && movie.seasons !== '—' && movie.seasons !== '-' && (
           <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{movie.seasons}</div>
-        )}
-
-        {movie.note && (
-          <div style={{
-            color: 'var(--text-muted)', fontSize: 11, marginTop: 4,
-            fontStyle: 'italic', whiteSpace: 'normal',
-          }}>{movie.note}</div>
         )}
       </div>
     </div>
@@ -260,9 +296,9 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) 
                 {movie.director && movie.director !== '—' && (
                   <span style={{ background: '#222', borderRadius: 6, padding: '3px 8px' }}><><Clapperboard size={11} style={{marginRight: 4}} />{movie.director}</></span>
                 )}
-                {!isFuture && movie.rating && (
-                  <span style={{ background: '#2a1f00', color: '#fbbf24', borderRadius: 6, padding: '3px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <Star size={11} fill="#fbbf24" color="#fbbf24" /> {movie.rating}
+                {!isFuture && (
+                  <span style={{ background: movie.rating ? '#2a1f00' : 'var(--bg-input)', color: movie.rating ? '#fbbf24' : 'var(--text-muted)', borderRadius: 6, padding: '3px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Star size={11} fill={movie.rating ? "#fbbf24" : "none"} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} /> {movie.rating ? movie.rating : '0/10'}
                   </span>
                 )}
               </div>
@@ -289,7 +325,7 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag }) 
                     <strong>Sezonlar:</strong> {movie.seasons}
                   </div>
                 )}
-                {movie.note && (
+                {movie.note && movie.note !== movie.overview && movie.note.trim() !== (movie.overview || '').trim() && (
                   <div style={{ color: 'var(--text-muted)', fontSize: 13, whiteSpace: 'pre-wrap' }}>
                     <strong>Izoh:</strong> {movie.note}
                   </div>

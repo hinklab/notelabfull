@@ -17,6 +17,7 @@ async function fetchJSON(url, options = {}) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isNewRegistration, setIsNewRegistration] = useState(false)
 
   // Sessionni localStorage dan tiklash
   useEffect(() => {
@@ -32,6 +33,7 @@ export function AuthProvider({ children }) {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
+    setIsNewRegistration(true)
     setUser(data.user)
     localStorage.setItem('notelab_user', JSON.stringify(data.user))
     return data
@@ -42,6 +44,7 @@ export function AuthProvider({ children }) {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
+    setIsNewRegistration(false)
     setUser(data.user)
     localStorage.setItem('notelab_user', JSON.stringify(data.user))
     return data
@@ -49,11 +52,20 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setUser(null)
+    setIsNewRegistration(false)
     localStorage.removeItem('notelab_user')
   }
 
+  const updateUser = (updatedFields) => {
+    setUser(prev => {
+      const nextUser = { ...prev, ...updatedFields }
+      localStorage.setItem('notelab_user', JSON.stringify(nextUser))
+      return nextUser
+    })
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, isNewRegistration, setIsNewRegistration, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

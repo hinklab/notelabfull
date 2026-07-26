@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, ArrowLeft, CheckCircle2 } from 'lucide-react'
 
 export default function LoginPage({ onSwitch }) {
   const { login } = useAuth()
@@ -8,6 +8,13 @@ export default function LoginPage({ onSwitch }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Forgot password view state
+  const [showForgot, setShowForgot] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotSuccess, setForgotSuccess] = useState('')
+  const [forgotError, setForgotError] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -26,6 +33,27 @@ export default function LoginPage({ onSwitch }) {
     }
   }
 
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault()
+    if (!forgotEmail.trim()) {
+      setForgotError('Email manzilini kiriting.')
+      return
+    }
+    setForgotError('')
+    setForgotSuccess('')
+    setForgotLoading(true)
+    try {
+      if (window.api && window.api.resetPasswordEmail) {
+        const res = await window.api.resetPasswordEmail(forgotEmail.trim())
+        setForgotSuccess(res.message || 'Parolni tiklash havolasi yuborildi.')
+      }
+    } catch (err) {
+      setForgotError(err.message || 'Xatolik yuz berdi.')
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
   return (
     <div style={styles.page}>
       <div style={styles.card}>
@@ -37,48 +65,117 @@ export default function LoginPage({ onSwitch }) {
           <span className="font-logo" style={styles.logoText}>notelab</span>
         </div>
 
-        <h2 style={styles.title}>Kirish</h2>
-        <p style={styles.subtitle}>Hisobingizga kiring</p>
+        {!showForgot ? (
+          <>
+            <h2 style={styles.title}>Kirish</h2>
+            <p style={styles.subtitle}>Hisobingizga kiring</p>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.field}>
-            <label style={styles.label}>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="email@example.com"
-              style={styles.input}
-              autoFocus
-              disabled={loading}
-            />
-          </div>
+            <form onSubmit={handleSubmit} style={styles.form}>
+              <div style={styles.field}>
+                <label style={styles.label}>Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  style={styles.input}
+                  autoFocus
+                  disabled={loading}
+                />
+              </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Parol</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={styles.input}
-              disabled={loading}
-            />
-          </div>
+              <div style={styles.field}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={styles.label}>Parol</label>
+                  <span
+                    onClick={() => {
+                      setForgotEmail(email)
+                      setShowForgot(true)
+                    }}
+                    style={{ fontSize: 12, color: 'var(--accent)', cursor: 'pointer', fontWeight: 500 }}
+                  >
+                    Parolni unutdingizmi?
+                  </span>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  style={styles.input}
+                  disabled={loading}
+                />
+              </div>
 
-          {error && <div style={styles.error}>{error}</div>}
+              {error && <div style={styles.error}>{error}</div>}
 
-          <button type="submit" style={{ ...styles.btn, opacity: loading ? 0.6 : 1 }} disabled={loading}>
-            {loading ? 'Kirilmoqda...' : 'Kirish'}
-          </button>
-        </form>
+              <button type="submit" style={{ ...styles.btn, opacity: loading ? 0.6 : 1 }} disabled={loading}>
+                {loading ? 'Kirilmoqda...' : 'Kirish'}
+              </button>
+            </form>
 
-        <p style={styles.switchText}>
-          Hisobingiz yo'qmi?{' '}
-          <span style={styles.switchLink} onClick={onSwitch}>
-            Ro'yxatdan o'tish
-          </span>
-        </p>
+            <p style={styles.switchText}>
+              Hisobingiz yo'qmi?{' '}
+              <span style={styles.switchLink} onClick={onSwitch}>
+                Ro'yxatdan o'tish
+              </span>
+            </p>
+          </>
+        ) : (
+          <>
+            <div
+              onClick={() => {
+                setShowForgot(false)
+                setForgotSuccess('')
+                setForgotError('')
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                marginBottom: 16,
+              }}
+            >
+              <ArrowLeft size={14} /> Ortga qaytish
+            </div>
+
+            <h2 style={styles.title}>Parolni tiklash</h2>
+            <p style={styles.subtitle}>Email manzilingizga parolni tiklash havolasini yuboramiz</p>
+
+            {forgotSuccess ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, padding: 16, color: '#10b981', fontSize: 13, lineHeight: 1.45 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+                  <CheckCircle2 size={18} /> Yuborildi!
+                </div>
+                <div>{forgotSuccess}</div>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotSubmit} style={styles.form}>
+                <div style={styles.field}>
+                  <label style={styles.label}>Email manzil</label>
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    style={styles.input}
+                    autoFocus
+                    disabled={forgotLoading}
+                  />
+                </div>
+
+                {forgotError && <div style={styles.error}>{forgotError}</div>}
+
+                <button type="submit" style={{ ...styles.btn, opacity: forgotLoading ? 0.6 : 1 }} disabled={forgotLoading}>
+                  {forgotLoading ? 'Yuborilmoqda...' : 'Tiklash havolasini yuborish'}
+                </button>
+              </form>
+            )}
+          </>
+        )}
       </div>
     </div>
   )

@@ -1,101 +1,509 @@
 import React, { useState, useEffect } from 'react'
-import { Settings, X, Check } from 'lucide-react'
+import ReactDOM from 'react-dom'
+import { User, Sun, Moon, Key, LogOut, X, Check, AlertTriangle } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function SettingsModal({ onClose }) {
+  const { user, updateUser, logout } = useAuth()
+  const [activeTab, setActiveTab] = useState('profile') // 'profile' | 'appearance' | 'apikeys' | 'logout'
+
+  // Tab 1: Profile state
+  const [firstName, setFirstName] = useState(user?.first_name || '')
+  const [lastName, setLastName] = useState(user?.last_name || '')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
+
+  // Tab 2: Theme state
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
+
+  // Tab 3: API Keys state
   const [geminiKey, setGeminiKey] = useState('')
-  const [omdbKey,  setOmdbKey]  = useState('')
-  const [tmdbKey,  setTmdbKey]  = useState('')
-  const [rawgKey,  setRawgKey]  = useState('')
-  const [saved,    setSaved]    = useState(false)
+  const [omdbKey, setOmdbKey] = useState('')
+  const [tmdbKey, setTmdbKey] = useState('')
+  const [keysSaving, setKeysSaving] = useState(false)
+  const [keysSaved, setKeysSaved] = useState(false)
   const [hasGemini, setHasGemini] = useState(false)
-  const [hasOmdb,  setHasOmdb]  = useState(false)
-  const [hasTmdb,  setHasTmdb]  = useState(false)
-  const [hasRawg,  setHasRawg]  = useState(false)
+  const [hasOmdb, setHasOmdb] = useState(false)
+  const [hasTmdb, setHasTmdb] = useState(false)
 
   useEffect(() => {
-    window.api.getSettings().then(s => {
-      setGeminiKey(s.gemini_key || '')
-      setOmdbKey(s.omdb_key  || '')
-      setTmdbKey(s.tmdb_key  || '')
-      setRawgKey(s.rawg_key  || '')
-      setHasGemini(!!(s.gemini_key))
-      setHasOmdb(!!(s.omdb_key))
-      setHasTmdb(!!(s.tmdb_key))
-      setHasRawg(!!(s.rawg_key))
-    })
+    if (window.api && window.api.getSettings) {
+      window.api.getSettings().then(s => {
+        setGeminiKey(s.gemini_key || '')
+        setOmdbKey(s.omdb_key || '')
+        setTmdbKey(s.tmdb_key || '')
+        setHasGemini(!!s.gemini_key)
+        setHasOmdb(!!s.omdb_key)
+        setHasTmdb(!!s.tmdb_key)
+      })
+    }
   }, [])
 
-  const save = async () => {
-    const payload = {}
-    if (geminiKey.trim()) payload.gemini_key = geminiKey.trim()
-    if (omdbKey.trim()) payload.omdb_key  = omdbKey.trim()
-    if (tmdbKey.trim()) payload.tmdb_key  = tmdbKey.trim()
-    if (rawgKey.trim()) payload.rawg_key  = rawgKey.trim()
-    await window.api.saveSettings(payload)
-    setHasGemini(!!(payload.gemini_key || geminiKey))
-    setHasOmdb(!!(payload.omdb_key || omdbKey))
-    setHasTmdb(!!(payload.tmdb_key || tmdbKey))
-    setHasRawg(!!(payload.rawg_key || rawgKey))
-    setSaved(true)
-    setTimeout(() => { setSaved(false); onClose() }, 800)
+  const handleSaveProfile = async () => {
+    if (profileSaving) return
+    setProfileSaving(true)
+    try {
+      const res = await window.api.updateProfile({
+        first_name: firstName,
+        last_name: lastName
+      })
+      if (res.success && res.user) {
+        updateUser(res.user)
+      }
+      setProfileSaved(true)
+      setTimeout(() => setProfileSaved(false), 2000)
+    } catch (err) {
+      console.error('Failed to update profile:', err)
+      alert('Profilni saqlashda xatolik: ' + (err.message || 'Xato'))
+    } finally {
+      setProfileSaving(false)
+    }
   }
 
-  return (
-    <Modal title="Sozlamalar" onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-        <Field
-          label="Gemini API kaliti (agent uchun)"
-          hint={<>aistudio.google.com/apikey {hasGemini && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
-          value={geminiKey}
-          onChange={setGeminiKey}
-          placeholder="AIza..."
-        />
-        <Field
-          label="OMDB API kaliti (IMDb — chiqib bo'lgan filmlar, bepul)"
-          hint={<>omdbapi.com/apikey.aspx {hasOmdb && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
-          value={omdbKey}
-          onChange={setOmdbKey}
-          placeholder="OMDB kaliti..."
-        />
-        <Field
-          label="TMDB API kaliti (kelajakdagi filmlar — Futured bo'limi, bepul)"
-          hint={<>themoviedb.org/settings/api {hasTmdb && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
-          value={tmdbKey}
-          onChange={setTmdbKey}
-          placeholder="TMDB kaliti..."
-        />
-        <Field
-          label="RAWG API kaliti (o'yinlar note uchun, bepul)"
-          hint={<>rawg.io/apidocs — bepul ro'yxatdan o'ting {hasRawg && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
-          value={rawgKey}
-          onChange={setRawgKey}
-          placeholder="RAWG kaliti..."
-        />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-          <button onClick={onClose} style={btnStyle('#222', '#888')}>Bekor</button>
-          <button onClick={save} style={btnStyle('#7c3aed', 'white')}>
-            {saved ? 'Saqlandi' : 'Saqlash'}
+  const handleThemeChange = (newTheme) => {
+    setTheme(newTheme)
+    localStorage.setItem('theme', newTheme)
+    document.documentElement.setAttribute('data-theme', newTheme)
+  }
+
+  const handleSaveKeys = async () => {
+    if (keysSaving) return
+    setKeysSaving(true)
+    try {
+      const payload = {}
+      if (geminiKey.trim()) payload.gemini_key = geminiKey.trim()
+      if (omdbKey.trim()) payload.omdb_key = omdbKey.trim()
+      if (tmdbKey.trim()) payload.tmdb_key = tmdbKey.trim()
+      await window.api.saveSettings(payload)
+      setHasGemini(!!geminiKey.trim())
+      setHasOmdb(!!omdbKey.trim())
+      setHasTmdb(!!tmdbKey.trim())
+      setKeysSaved(true)
+      setTimeout(() => setKeysSaved(false), 2000)
+    } catch (err) {
+      console.error('Failed to save API keys:', err)
+    } finally {
+      setKeysSaving(false)
+    }
+  }
+
+  const tabs = [
+    { id: 'profile', label: 'Profil', icon: User },
+    { id: 'appearance', label: 'Ko\'rinish', icon: theme === 'dark' ? Moon : Sun },
+    { id: 'apikeys', label: 'API kalitlari', icon: Key },
+    { id: 'logout', label: 'Chiqish', icon: LogOut, color: '#ef4444' },
+  ]
+
+  const tabIndexMap = { profile: 0, appearance: 1, apikeys: 2, logout: 3 }
+  const activeIndex = tabIndexMap[activeTab] ?? 0
+
+  return ReactDOM.createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999,
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: 'var(--bg-surface, #161616)',
+          border: '1px solid var(--border, #2a2a2a)',
+          borderRadius: 16,
+          width: 'min(580px, 94vw)',
+          maxHeight: '85vh',
+          overflow: 'hidden',
+          boxShadow: '0 25px 70px rgba(0,0,0,0.6)',
+          display: 'flex',
+          flexDirection: 'column',
+          color: 'var(--text-primary, #efefef)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '18px 24px',
+            borderBottom: '1px solid var(--border, #2a2a2a)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'rgba(255, 255, 255, 0.02)',
+          }}
+        >
+          <span style={{ fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Sozlamalar
+          </span>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted, #71717a)',
+              cursor: 'pointer',
+              padding: 4,
+              borderRadius: 6,
+            }}
+          >
+            <X size={18} />
           </button>
         </div>
+
+        {/* Tab Navigation Bar */}
+        <div
+          style={{
+            display: 'flex',
+            borderBottom: '1px solid var(--border, #2a2a2a)',
+            background: 'var(--bg-base, #0b0b0b)',
+            padding: '4px 12px 0 12px',
+            gap: 4,
+          }}
+        >
+          {tabs.map(tab => {
+            const Icon = tab.icon
+            const active = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  background: active ? 'var(--bg-surface, #161616)' : 'transparent',
+                  color: active ? (tab.color || 'var(--accent, #7c3aed)') : 'var(--text-muted, #71717a)',
+                  borderTop: active ? '2px solid ' + (tab.color || 'var(--accent, #7c3aed)') : '2px solid transparent',
+                  borderLeft: active ? '1px solid var(--border, #2a2a2a)' : '1px solid transparent',
+                  borderRight: active ? '1px solid var(--border, #2a2a2a)' : '1px solid transparent',
+                  borderBottom: active ? '1px solid var(--bg-surface, #161616)' : 'none',
+                  borderRadius: '8px 8px 0 0',
+                  padding: '10px 16px',
+                  fontSize: 13,
+                  fontWeight: active ? 600 : 400,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  transition: 'all 0.2s ease',
+                  marginBottom: -1,
+                }}
+              >
+                <Icon size={15} color={active ? (tab.color || 'var(--accent)') : undefined} />
+                <span>{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Fixed Height Viewport with Horizontal Sliding Track */}
+        <div style={{ height: 395, overflow: 'hidden', position: 'relative', width: '100%' }}>
+          <div
+            style={{
+              display: 'flex',
+              width: '400%',
+              height: '100%',
+              transform: `translateX(-${activeIndex * 25}%)`,
+              transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            {/* SLIDE 0: TAB 1 - Profil */}
+            <div style={{ width: '25%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  Elektron pochta (faqat ko'rish uchun)
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  disabled
+                  value={user?.email || ''}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    color: 'var(--text-muted)',
+                    fontSize: 13,
+                    cursor: 'not-allowed',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  Ism
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={e => setFirstName(e.target.value)}
+                  placeholder="Ismingizni kiriting..."
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  Familiya
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={e => setLastName(e.target.value)}
+                  placeholder="Familiyangizni kiriting..."
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={profileSaving}
+                  style={{
+                    background: 'var(--accent, #7c3aed)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '9px 20px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: profileSaving ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 14px rgba(124, 58, 237, 0.35)',
+                    opacity: profileSaving ? 0.7 : 1,
+                  }}
+                >
+                  {profileSaved ? (
+                    <>
+                      <Check size={15} /> Saqlandi!
+                    </>
+                  ) : (
+                    profileSaving ? 'Saqlanmoqda...' : 'Saqlash'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* SLIDE 1: TAB 2 - Ko'rinish */}
+            <div style={{ width: '25%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  Mavzu (Theme)
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+                  Ilovaning umumiy ko'rinish rejimini tanlang.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <button
+                    onClick={() => handleThemeChange('dark')}
+                    style={{
+                      background: theme === 'dark' ? 'rgba(124,58,237,0.18)' : 'var(--bg-input)',
+                      border: theme === 'dark' ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                      borderRadius: 10,
+                      padding: '14px 16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      color: theme === 'dark' ? 'var(--accent)' : 'var(--text-primary)',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <Moon size={16} /> Dark (To'q rejim)
+                  </button>
+                  <button
+                    onClick={() => handleThemeChange('light')}
+                    style={{
+                      background: theme === 'light' ? 'rgba(124,58,237,0.18)' : 'var(--bg-input)',
+                      border: theme === 'light' ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                      borderRadius: 10,
+                      padding: '14px 16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      color: theme === 'light' ? 'var(--accent)' : 'var(--text-primary)',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <Sun size={16} /> Light (Oq rejim)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* SLIDE 2: TAB 3 - API kalitlari */}
+            <div style={{ width: '25%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div
+                style={{
+                  background: 'rgba(217, 119, 6, 0.12)',
+                  border: '1px solid rgba(217, 119, 6, 0.35)',
+                  borderRadius: 10,
+                  padding: '12px 14px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                  color: '#fbbf24',
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                }}
+              >
+                <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 1 }} color="#f59e0b" />
+                <span>
+                  <strong>Diqqat:</strong> bu API kalitlarga tegish yoki ularni o'zgartirish tizimning ishlashiga ta'sir qilishi mumkin. Faqat nima qilayotganingizni bilsangiz o'zgartiring.
+                </span>
+              </div>
+
+              {/* Gemini API Key field - temporarily hidden while AI agent is bypassed */}
+              {/* SHOW_GEMINI_KEY && (
+              <Field
+                label="Gemini API kaliti (AI agent va izlash uchun)"
+                hint={<>aistudio.google.com/apikey {hasGemini && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
+                value={geminiKey}
+                onChange={setGeminiKey}
+                placeholder="AIza..."
+              />
+              ) */}
+
+              <Field
+                label="OMDB API kaliti (IMDb — ma'lumotlarni aniqlashtirish)"
+                hint={<>omdbapi.com/apikey.aspx {hasOmdb && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
+                value={omdbKey}
+                onChange={setOmdbKey}
+                placeholder="OMDB kaliti..."
+              />
+
+              <Field
+                label="TMDB API kaliti (kino va seriallar bazasi hamda tavsiyalar)"
+                hint={<>themoviedb.org/settings/api {hasTmdb && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
+                value={tmdbKey}
+                onChange={setTmdbKey}
+                placeholder="TMDB kaliti..."
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <button
+                  onClick={handleSaveKeys}
+                  disabled={keysSaving}
+                  style={{
+                    background: 'var(--accent, #7c3aed)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '9px 20px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: keysSaving ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 14px rgba(124, 58, 237, 0.35)',
+                    opacity: keysSaving ? 0.7 : 1,
+                  }}
+                >
+                  {keysSaved ? (
+                    <>
+                      <Check size={15} /> Saqlandi!
+                    </>
+                  ) : (
+                    keysSaving ? 'Saqlanmoqda...' : 'Saqlash'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* SLIDE 3: TAB 4 - Chiqish */}
+            <div style={{ width: '25%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Hisobdan chiqish
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Hisobingizdan chiqmoqchimisiz? Qayta kirish uchun elektron pochta va parolingiz kerak bo'ladi.
+              </p>
+              <div style={{ marginTop: 12 }}>
+                <button
+                  onClick={() => {
+                    onClose()
+                    logout()
+                  }}
+                  style={{
+                    background: '#ef4444',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '11px 22px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+                  }}
+                >
+                  <LogOut size={16} /> Hisobdan chiqish
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </Modal>
+    </div>,
+    document.body
   )
 }
 
 function Field({ label, hint, value, onChange, placeholder }) {
   return (
     <div>
-      <div style={{ fontSize: 13, fontWeight: 500, color: '#ddd', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 11, color: '#555', marginBottom: 6 }}>{hint}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>{hint}</div>
       <input
         type="password"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         style={{
-          width: '100%', background: '#1e1e1e', border: '1px solid #2a2a2a',
-          borderRadius: 7, padding: '8px 12px', color: '#efefef', fontSize: 13,
-          outline: 'none', fontFamily: 'inherit',
+          width: '100%',
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border)',
+          borderRadius: 8,
+          padding: '10px 14px',
+          color: 'var(--text-primary)',
+          fontSize: 13,
+          outline: 'none',
+          fontFamily: 'inherit',
         }}
       />
     </div>
@@ -103,31 +511,24 @@ function Field({ label, hint, value, onChange, placeholder }) {
 }
 
 export function Modal({ title, onClose, children }) {
-  return (
+  return ReactDOM.createPortal(
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
     }} onClick={onClose}>
       <div style={{
-        background: '#161616', border: '1px solid #2a2a2a', borderRadius: 12,
+        background: 'var(--bg-surface, #161616)', border: '1px solid var(--border, #2a2a2a)', borderRadius: 12,
         padding: '22px 24px', width: 440, maxHeight: '80vh', overflowY: 'auto',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.7)', color: 'var(--text-primary, #efefef)',
       }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-          <span style={{ fontWeight: 600, fontSize: 15, color: '#efefef', display: 'flex', alignItems: 'center', gap: 8 }}>{title}</span>
+          <span style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary, #efefef)', display: 'flex', alignItems: 'center', gap: 8 }}>{title}</span>
           <div style={{ flex: 1 }} />
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18 }}><X size={16} /></button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted, #555)', cursor: 'pointer', fontSize: 18 }}><X size={16} /></button>
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   )
-}
-
-function btnStyle(bg, color) {
-  return {
-    background: bg, color, border: 'none', borderRadius: 7,
-    padding: '8px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-    fontFamily: 'inherit',
-  }
 }
