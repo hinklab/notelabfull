@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
-import { User, Sun, Moon, Key, LogOut, X, Check, AlertTriangle } from 'lucide-react'
+import { User, Sun, Moon, LogOut, X, Check } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function SettingsModal({ onClose }) {
   const { user, updateUser, logout } = useAuth()
-  const [activeTab, setActiveTab] = useState('profile') // 'profile' | 'appearance' | 'apikeys' | 'logout'
+  const [activeTab, setActiveTab] = useState('profile') // 'profile' | 'appearance' | 'logout'
 
   // Tab 1: Profile state
   const [firstName, setFirstName] = useState(user?.first_name || '')
@@ -15,29 +15,6 @@ export default function SettingsModal({ onClose }) {
 
   // Tab 2: Theme state
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
-
-  // Tab 3: API Keys state
-  const [geminiKey, setGeminiKey] = useState('')
-  const [omdbKey, setOmdbKey] = useState('')
-  const [tmdbKey, setTmdbKey] = useState('')
-  const [keysSaving, setKeysSaving] = useState(false)
-  const [keysSaved, setKeysSaved] = useState(false)
-  const [hasGemini, setHasGemini] = useState(false)
-  const [hasOmdb, setHasOmdb] = useState(false)
-  const [hasTmdb, setHasTmdb] = useState(false)
-
-  useEffect(() => {
-    if (window.api && window.api.getSettings) {
-      window.api.getSettings().then(s => {
-        setGeminiKey(s.gemini_key || '')
-        setOmdbKey(s.omdb_key || '')
-        setTmdbKey(s.tmdb_key || '')
-        setHasGemini(!!s.gemini_key)
-        setHasOmdb(!!s.omdb_key)
-        setHasTmdb(!!s.tmdb_key)
-      })
-    }
-  }, [])
 
   const handleSaveProfile = async () => {
     if (profileSaving) return
@@ -66,35 +43,13 @@ export default function SettingsModal({ onClose }) {
     document.documentElement.setAttribute('data-theme', newTheme)
   }
 
-  const handleSaveKeys = async () => {
-    if (keysSaving) return
-    setKeysSaving(true)
-    try {
-      const payload = {}
-      if (geminiKey.trim()) payload.gemini_key = geminiKey.trim()
-      if (omdbKey.trim()) payload.omdb_key = omdbKey.trim()
-      if (tmdbKey.trim()) payload.tmdb_key = tmdbKey.trim()
-      await window.api.saveSettings(payload)
-      setHasGemini(!!geminiKey.trim())
-      setHasOmdb(!!omdbKey.trim())
-      setHasTmdb(!!tmdbKey.trim())
-      setKeysSaved(true)
-      setTimeout(() => setKeysSaved(false), 2000)
-    } catch (err) {
-      console.error('Failed to save API keys:', err)
-    } finally {
-      setKeysSaving(false)
-    }
-  }
-
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'appearance', label: 'Ko\'rinish', icon: theme === 'dark' ? Moon : Sun },
-    { id: 'apikeys', label: 'API kalitlari', icon: Key },
     { id: 'logout', label: 'Chiqish', icon: LogOut, color: '#ef4444' },
   ]
 
-  const tabIndexMap = { profile: 0, appearance: 1, apikeys: 2, logout: 3 }
+  const tabIndexMap = { profile: 0, appearance: 1, logout: 2 }
   const activeIndex = tabIndexMap[activeTab] ?? 0
 
   return ReactDOM.createPortal(
@@ -117,7 +72,7 @@ export default function SettingsModal({ onClose }) {
           background: 'var(--bg-surface, #161616)',
           border: '1px solid var(--border, #2a2a2a)',
           borderRadius: 16,
-          width: 'min(580px, 94vw)',
+          width: 'min(540px, 94vw)',
           maxHeight: '85vh',
           overflow: 'hidden',
           boxShadow: '0 25px 70px rgba(0,0,0,0.6)',
@@ -181,7 +136,7 @@ export default function SettingsModal({ onClose }) {
                   borderRight: active ? '1px solid var(--border, #2a2a2a)' : '1px solid transparent',
                   borderBottom: active ? '1px solid var(--bg-surface, #161616)' : 'none',
                   borderRadius: '8px 8px 0 0',
-                  padding: '10px 16px',
+                  padding: '10px 18px',
                   fontSize: 13,
                   fontWeight: active ? 600 : 400,
                   cursor: 'pointer',
@@ -200,18 +155,18 @@ export default function SettingsModal({ onClose }) {
         </div>
 
         {/* Fixed Height Viewport with Horizontal Sliding Track */}
-        <div style={{ height: 395, overflow: 'hidden', position: 'relative', width: '100%' }}>
+        <div style={{ height: 350, overflow: 'hidden', position: 'relative', width: '100%' }}>
           <div
             style={{
               display: 'flex',
-              width: '400%',
+              width: '300%',
               height: '100%',
-              transform: `translateX(-${activeIndex * 25}%)`,
+              transform: `translateX(-${activeIndex * (100 / 3)}%)`,
               transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
             {/* SLIDE 0: TAB 1 - Profil */}
-            <div style={{ width: '25%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ width: '33.3333%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
                   Elektron pochta (faqat ko'rish uchun)
@@ -310,7 +265,7 @@ export default function SettingsModal({ onClose }) {
             </div>
 
             {/* SLIDE 1: TAB 2 - Ko'rinish */}
-            <div style={{ width: '25%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ width: '33.3333%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
                   Mavzu (Theme)
@@ -363,88 +318,8 @@ export default function SettingsModal({ onClose }) {
               </div>
             </div>
 
-            {/* SLIDE 2: TAB 3 - API kalitlari */}
-            <div style={{ width: '25%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div
-                style={{
-                  background: 'rgba(217, 119, 6, 0.12)',
-                  border: '1px solid rgba(217, 119, 6, 0.35)',
-                  borderRadius: 10,
-                  padding: '12px 14px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 10,
-                  color: '#fbbf24',
-                  fontSize: 12,
-                  lineHeight: 1.45,
-                }}
-              >
-                <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 1 }} color="#f59e0b" />
-                <span>
-                  <strong>Diqqat:</strong> bu API kalitlarga tegish yoki ularni o'zgartirish tizimning ishlashiga ta'sir qilishi mumkin. Faqat nima qilayotganingizni bilsangiz o'zgartiring.
-                </span>
-              </div>
-
-              {/* Gemini API Key field - temporarily hidden while AI agent is bypassed */}
-              {/* SHOW_GEMINI_KEY && (
-              <Field
-                label="Gemini API kaliti (AI agent va izlash uchun)"
-                hint={<>aistudio.google.com/apikey {hasGemini && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
-                value={geminiKey}
-                onChange={setGeminiKey}
-                placeholder="AIza..."
-              />
-              ) */}
-
-              <Field
-                label="OMDB API kaliti (IMDb — ma'lumotlarni aniqlashtirish)"
-                hint={<>omdbapi.com/apikey.aspx {hasOmdb && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
-                value={omdbKey}
-                onChange={setOmdbKey}
-                placeholder="OMDB kaliti..."
-              />
-
-              <Field
-                label="TMDB API kaliti (kino va seriallar bazasi hamda tavsiyalar)"
-                hint={<>themoviedb.org/settings/api {hasTmdb && <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 3 }}><Check size={11} /> saqlangan</span>}</>}
-                value={tmdbKey}
-                onChange={setTmdbKey}
-                placeholder="TMDB kaliti..."
-              />
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                <button
-                  onClick={handleSaveKeys}
-                  disabled={keysSaving}
-                  style={{
-                    background: 'var(--accent, #7c3aed)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 8,
-                    padding: '9px 20px',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: keysSaving ? 'not-allowed' : 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    boxShadow: '0 4px 14px rgba(124, 58, 237, 0.35)',
-                    opacity: keysSaving ? 0.7 : 1,
-                  }}
-                >
-                  {keysSaved ? (
-                    <>
-                      <Check size={15} /> Saqlandi!
-                    </>
-                  ) : (
-                    keysSaving ? 'Saqlanmoqda...' : 'Saqlash'
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* SLIDE 3: TAB 4 - Chiqish */}
-            <div style={{ width: '25%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* SLIDE 2: TAB 3 - Chiqish */}
+            <div style={{ width: '33.3333%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                 Hisobdan chiqish
               </div>
@@ -484,31 +359,27 @@ export default function SettingsModal({ onClose }) {
   )
 }
 
-function Field({ label, hint, value, onChange, placeholder }) {
+/* Gemini API key field kept for future agent re-enablement:
+function GeminiKeyField({ value, onChange, hasGemini }) {
   return (
     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>{hint}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+        Gemini API kaliti (AI agent va izlash uchun)
+      </div>
       <input
         type="password"
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder="AIza..."
         style={{
-          width: '100%',
-          background: 'var(--bg-input)',
-          border: '1px solid var(--border)',
-          borderRadius: 8,
-          padding: '10px 14px',
-          color: 'var(--text-primary)',
-          fontSize: 13,
-          outline: 'none',
-          fontFamily: 'inherit',
+          width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)',
+          borderRadius: 8, padding: '10px 14px', color: 'var(--text-primary)', fontSize: 13,
         }}
       />
     </div>
   )
 }
+*/
 
 export function Modal({ title, onClose, children }) {
   return ReactDOM.createPortal(

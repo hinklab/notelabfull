@@ -83,6 +83,9 @@ function writeDB(db) {
   fs.writeFileSync(getDbPath(), JSON.stringify(db, null, 2), 'utf-8');
 }
 
+const SYSTEM_DEFAULT_OMDB_KEY = process.env.OMDB_KEY || '563e076e';
+const SYSTEM_DEFAULT_TMDB_KEY = process.env.TMDB_KEY || 'c34d44f722c298573a97a32fc4df383a';
+
 function getUserSettings(userId, inputDb) {
   const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
   const targetId = userId || DEFAULT_USER_ID;
@@ -102,9 +105,9 @@ function getUserSettings(userId, inputDb) {
   return {
     ...globalSettings,
     ...(userSpecific || {}),
-    gemini_key: userSpecific?.gemini_key !== undefined ? userSpecific.gemini_key : (globalSettings.gemini_key || ''),
-    omdb_key: userSpecific?.omdb_key !== undefined ? userSpecific.omdb_key : (globalSettings.omdb_key || ''),
-    tmdb_key: userSpecific?.tmdb_key !== undefined ? userSpecific.tmdb_key : (globalSettings.tmdb_key || ''),
+    gemini_key: userSpecific?.gemini_key || globalSettings.gemini_key || '',
+    omdb_key: SYSTEM_DEFAULT_OMDB_KEY,
+    tmdb_key: SYSTEM_DEFAULT_TMDB_KEY,
   };
 }
 
