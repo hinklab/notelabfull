@@ -16,9 +16,12 @@ router.get('/', async (req, res) => {
     
     // Auto-create Movies note for user if not exists
     let movieNote = notes.find(n => n.is_movie || n.type === 'movie');
+    let dbChanged = false;
+
     if (!movieNote) {
+      const nextNoteId = db.notes && db.notes.length ? Math.max(...db.notes.map(n => n.id)) + 1 : 1;
       movieNote = {
-        id: db.notes.length ? Math.max(...db.notes.map(n => n.id)) + 1 : 1,
+        id: nextNoteId,
         user_id: userId,
         name: 'Movies',
         icon: '🎬',
@@ -26,8 +29,41 @@ router.get('/', async (req, res) => {
         is_movie: true,
         created_at: new Date().toISOString(),
       };
+      if (!db.notes) db.notes = [];
       db.notes.push(movieNote);
       notes.push(movieNote);
+      dbChanged = true;
+    }
+
+    // Auto-create 4 default movie groups if user has a Movies note with 0 groups
+    if (!db.note_groups) db.note_groups = [];
+    const userMovieGroups = db.note_groups.filter(g => (g.user_id || DEFAULT_USER_ID) === userId && g.note_id === movieNote.id);
+    if (userMovieGroups.length === 0) {
+      const defaultGroups = [
+        { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
+        { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
+        { name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
+        { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
+      ];
+
+      for (const dg of defaultGroups) {
+        const nextGroupId = db.note_groups.length ? Math.max(...db.note_groups.map(g => g.id)) + 1 : 1;
+        const newG = {
+          id: nextGroupId,
+          note_id: movieNote.id,
+          user_id: userId,
+          name: dg.name,
+          color: dg.color,
+          section_key: dg.section_key,
+          position: dg.position,
+        };
+        db.note_groups.push(newG);
+        groups.push(newG);
+      }
+      dbChanged = true;
+    }
+
+    if (dbChanged) {
       writeDB(db);
     }
 

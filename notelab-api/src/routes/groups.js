@@ -17,7 +17,37 @@ router.get('/', async (req, res) => {
     let groups = (db.note_groups || []).filter(g => (g.user_id || DEFAULT_USER_ID) === userId);
     
     if (note_id) {
-      groups = groups.filter(g => g.note_id === parseInt(note_id));
+      const parsedNoteId = parseInt(note_id);
+      let noteGroups = groups.filter(g => g.note_id === parsedNoteId);
+
+      const note = (db.notes || []).find(n => n.id === parsedNoteId && (n.user_id || DEFAULT_USER_ID) === userId);
+      if (noteGroups.length === 0 && note && (note.is_movie || note.type === 'movie')) {
+        const defaultGroups = [
+          { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
+          { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
+          { name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
+          { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
+        ];
+
+        if (!db.note_groups) db.note_groups = [];
+        for (const dg of defaultGroups) {
+          const nextGroupId = db.note_groups.length ? Math.max(...db.note_groups.map(g => g.id)) + 1 : 1;
+          const newG = {
+            id: nextGroupId,
+            note_id: parsedNoteId,
+            user_id: userId,
+            name: dg.name,
+            color: dg.color,
+            section_key: dg.section_key,
+            position: dg.position,
+          };
+          db.note_groups.push(newG);
+          noteGroups.push(newG);
+        }
+        writeDB(db);
+      }
+
+      groups = noteGroups;
     }
     
     groups.sort((a, b) => a.position - b.position);
