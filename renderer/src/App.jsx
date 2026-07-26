@@ -141,6 +141,22 @@ function MainApp({ user, onLogout }) {
     initMoviesNote()
   }, [initMoviesNote])
 
+  // Silent background auto-refresh on app load if > 24h since last run
+  useEffect(() => {
+    if (!activeNote) return
+    const silentAutoRefresh = async () => {
+      try {
+        const res = await window.api.refreshAllMovies({ auto: true })
+        if (res && res.success && !res.skipped) {
+          setBoardKey(k => k + 1)
+        }
+      } catch (err) {
+        console.warn('Silent auto refresh background error:', err.message)
+      }
+    }
+    silentAutoRefresh()
+  }, [activeNote])
+
   const handleRefreshMovies = async () => {
     if (refreshing) return
     setRefreshing(true)

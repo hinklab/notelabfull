@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { readDB, writeDB, getUserSettings } = require('../services/database');
+const { readDB, writeDB, getUserSettings, saveUserSettings } = require('../services/database');
 const { createReleaseAlert, generateRecommendations } = require('../services/notifications');
 
 function nextId(movies) {
@@ -289,7 +289,22 @@ router.post('/refresh-all', async (req, res) => {
     const settings = getUserSettings(userId, db);
     const tmdbKey = settings.tmdb_key;
     const omdbKey = settings.omdb_key;
-    
+
+    const isAuto = req.query.auto === 'true' || req.body?.auto === true;
+    const lastRefreshKey = `last_refresh_all_${userId}`;
+    const lastRefreshStr = settings[lastRefreshKey];
+
+    if (isAuto && lastRefreshStr) {
+      const lastTime = new Date(lastRefreshStr).getTime();
+      const now = Date.now();
+      if (now - lastTime < 24 * 60 * 60 * 1000) {
+        console.log(`[REFRESH-ALL] Auto refresh skipped for userId ${userId}: < 24h passed since ${lastRefreshStr}`);
+        return res.json({ success: true, skipped: true, message: 'Auto refresh skipped (< 24h)' });
+      }
+    }
+
+    saveUserSettings(userId, { [lastRefreshKey]: new Date().toISOString() });
+
     let updatedCount = 0;
     let mismatchesCorrected = 0;
     let failedTitles = [];
