@@ -505,11 +505,33 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
     await window.api.updateGroup(group.id, { name: nameVal.trim() })
     setEditingName(false)
   }
+  const handleTouchDragMove = (item, clientX, clientY) => {
+    updateMarker(clientY)
+  }
+
+  const handleTouchDragEnd = async (item, clientX, clientY) => {
+    setDragMarker(null)
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+
+    const el = document.elementFromPoint(clientX, clientY)
+    const colEl = el?.closest('.note-column')
+    const targetGroupId = colEl?.dataset?.groupId ? parseInt(colEl.dataset.groupId) : group.id
+
+    const dropInfo = getDropPosition(items, clientY, cardsRef)
+    if (targetGroupId === group.id) {
+      if (dropInfo.targetId != null) {
+        await onReorderItem(item.id, dropInfo.targetId, dropInfo.position, group.id)
+      }
+    } else {
+      await onMoveItem(item.id, targetGroupId, dropInfo.insertIndex)
+    }
+  }
 
   const colBtnStyle = { background: 'transparent', border: 'none', borderRadius: 5, color: 'var(--text-muted)', width: 22, height: 22, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'color 0.12s, background 0.12s' }
 
   return (
     <div
+      data-group-id={group.id}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('groupdrag')) {
           e.preventDefault()
@@ -597,6 +619,8 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
                   e.dataTransfer.setData('fromGroup', String(group.id))
                   e.dataTransfer.effectAllowed = 'move'
                 }}
+                onTouchDragMove={(movie, x, y) => handleTouchDragMove(item, x, y)}
+                onTouchDragEnd={(movie, x, y) => handleTouchDragEnd(item, x, y)}
               />
             ) : (
               <NoteItemCard
@@ -605,6 +629,8 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
                 accentColor={color}
                 onClick={() => onItemClick(item)}
                 onContextMenu={(e) => onItemContextMenu(e, item)}
+                onTouchDragMove={(itm, x, y) => handleTouchDragMove(item, x, y)}
+                onTouchDragEnd={(itm, x, y) => handleTouchDragEnd(item, x, y)}
               />
             )}
             {dragMarker?.targetId === item.id && dragMarker.position === 'after' && (
@@ -620,7 +646,19 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
   )
 }
 
-function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu }) {
+function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTouchDragStart, onTouchDragMove, onTouchDragEnd }) {
+  const [isTouchDragging, setIsTouchDragging] = useState(false)
+  const touchStartPos = useRef({ x: 0, y: 0, time: 0 })
+  const dragTimerRef = useRef(null)
+  const contextTimerRef = useRef(null)
+  const isTouchDraggingRef = useRef(false)
+  const contextOpenedRef = useRef(false)
+
+  const clearTimers = () => {
+    if (dragTimerRef.current) { clearTimeout(dragTimerRef.current); dragTimerRef.current = null }
+    if (contextTimerRef.current) { clearTimeout(contextTimerRef.current); contextTimerRef.current = null }
+  }
+
   const handleDragStart = (e) => {
     e.dataTransfer.setData('itemId', String(item.id))
     e.dataTransfer.setData('fromGroup', String(groupId))
@@ -629,6 +667,90 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu }) {
   }
   const handleDragEnd = (e) => { e.currentTarget.style.opacity = '1' }
 
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0]
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: Date.now() }
+    isTouchDraggingRef.current = false
+    contextOpenedRef.current = false
+    clearTimers()
+
+    dragTimerRef.current = setTimeout(() => {
+      isTouchDraggingRef.current = true
+      setIsTouchDragging(true)
+      if (navigator.vibrate) navigator.vibrate(50)
+      onTouchDragStart?.(item, touch.clientX, touch.clientY)
+    }, 1000)
+
+    if (onContextMenu) {
+      contextTimerRef.current = setTimeout(() => {
+        contextOpenedRef.current = true
+        if (dragTimerRef.current) clearTimeout(dragTimerRef.current)
+        isTouchDraggingRef.current = false
+        setIsTouchDragging(false)
+        if (navigator.vibrate) navigator.vibrate([40, 30, 40])
+        onContextMenu({
+          preventDefault: () => {},
+          stopPropagation: () => {},
+          clientX: touchStartPos.current.x,
+          clientY: touchStartPos.current.y
+        })
+      }, 3000)
+    }
+  }
+
+  const handleTouchMove = (e) => {
+    const touch = e.touches[0]
+    const dx = touch.clientX - touchStartPos.current.x
+    const dy = touch.clientY - touchStartPos.current.y
+    const dist = Math.hypot(dx, dy)
+
+    if (!isTouchDraggingRef.current && !contextOpenedRef.current) {
+      if (dist > 8) {
+        clearTimers()
+      }
+    }
+
+    if (isTouchDraggingRef.current) {
+      if (e.cancelable) e.preventDefault()
+      onTouchDragMove?.(item, touch.clientX, touch.clientY)
+    }
+  }
+
+  const handleTouchEnd = (e) => {
+    clearTimers()
+    const touch = e.changedTouches[0] || e.touches[0]
+
+    if (contextOpenedRef.current) {
+      contextOpenedRef.current = false
+      return
+    }
+
+    if (isTouchDraggingRef.current) {
+      isTouchDraggingRef.current = false
+      setIsTouchDragging(false)
+      onTouchDragEnd?.(item, touch?.clientX || touchStartPos.current.x, touch?.clientY || touchStartPos.current.y)
+      return
+    }
+
+    const dx = (touch?.clientX || touchStartPos.current.x) - touchStartPos.current.x
+    const dy = (touch?.clientY || touchStartPos.current.y) - touchStartPos.current.y
+    const dist = Math.hypot(dx, dy)
+    const duration = Date.now() - touchStartPos.current.time
+
+    if (dist < 8 && duration < 500) {
+      onClick?.()
+    }
+  }
+
+  const handleTouchCancel = () => {
+    clearTimers()
+    if (isTouchDraggingRef.current) {
+      isTouchDraggingRef.current = false
+      setIsTouchDragging(false)
+      onTouchDragEnd?.(item, touchStartPos.current.x, touchStartPos.current.y)
+    }
+  }
+
   return (
     <div
       draggable
@@ -636,15 +758,24 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu }) {
       onDragEnd={handleDragEnd}
       onContextMenu={onContextMenu}
       onClick={onClick}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
       style={{
-        background: 'var(--bg-card)', border: '1px solid var(--border)',
+        background: isTouchDragging ? 'var(--bg-card-hover)' : 'var(--bg-card)',
+        border: isTouchDragging ? '1.5px solid var(--accent, #7c3aed)' : '1px solid var(--border)',
         borderRadius: 8, padding: '10px 12px',
-        cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s, transform 0.15s',
+        cursor: 'pointer', transition: isTouchDragging ? 'none' : 'border-color 0.15s, background 0.15s, transform 0.15s',
         position: 'relative', overflow: 'hidden', userSelect: 'none',
         minHeight: 52,
+        transform: isTouchDragging ? 'scale(1.04)' : 'none',
+        boxShadow: isTouchDragging ? '0 14px 35px rgba(0,0,0,0.6)' : 'none',
+        zIndex: isTouchDragging ? 50 : 1,
+        opacity: isTouchDragging ? 0.9 : 1,
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.transform = 'translateY(0)' }}
+      onMouseEnter={e => { if (!isTouchDragging) { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
+      onMouseLeave={e => { if (!isTouchDragging) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.transform = 'translateY(0)' } }}
     >
       {/* Cover xira background */}
       {item.cover_url && (

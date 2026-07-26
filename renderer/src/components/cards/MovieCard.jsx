@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
 import { Star, Calendar, Clapperboard, X, Trash2 } from 'lucide-react'
 
@@ -19,11 +19,29 @@ function formatReleaseDate(dateStr) {
   }
 }
 
-export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag, onDragStart, onDragEnd, onDelete }) {
+export default function MovieCard({
+  movie,
+  sectionKey,
+  onContextMenu,
+  noDrag,
+  onDragStart,
+  onDragEnd,
+  onDelete,
+  onTouchDragStart,
+  onTouchDragMove,
+  onTouchDragEnd
+}) {
   const [expanded, setExpanded] = useState(false)
   const [animateOpen, setAnimateOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
+  const [isTouchDragging, setIsTouchDragging] = useState(false)
   const isFuture = movie.section === 'futured' && !movie.rating
+
+  const touchStartPos = useRef({ x: 0, y: 0, time: 0 })
+  const dragTimerRef = useRef(null)
+  const contextTimerRef = useRef(null)
+  const isTouchDraggingRef = useRef(false)
+  const contextOpenedRef = useRef(false)
 
   useEffect(() => {
     if (!expanded) {
@@ -34,6 +52,11 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag, on
     const id = requestAnimationFrame(() => setAnimateOpen(true))
     return () => cancelAnimationFrame(id)
   }, [expanded])
+
+  const clearTimers = () => {
+    if (dragTimerRef.current) { clearTimeout(dragTimerRef.current); dragTimerRef.current = null }
+    if (contextTimerRef.current) { clearTimeout(contextTimerRef.current); contextTimerRef.current = null }
+  }
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('movieId', String(movie.id))
@@ -59,6 +82,95 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag, on
     setTimeout(() => setExpanded(false), 240)
   }
 
+  // Touch gesture handlers for mobile (1s hold = drag, 3s hold = context menu)
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0]
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: Date.now() }
+    isTouchDraggingRef.current = false
+    contextOpenedRef.current = false
+    clearTimers()
+
+    // 1 second hold for Drag (1000ms)
+    if (!noDrag) {
+      dragTimerRef.current = setTimeout(() => {
+        isTouchDraggingRef.current = true
+        setIsTouchDragging(true)
+        if (navigator.vibrate) navigator.vibrate(50)
+        onTouchDragStart?.(movie, touch.clientX, touch.clientY)
+      }, 1000)
+    }
+
+    // 3 seconds hold for Context Menu (3000ms)
+    if (onContextMenu) {
+      contextTimerRef.current = setTimeout(() => {
+        contextOpenedRef.current = true
+        if (dragTimerRef.current) clearTimeout(dragTimerRef.current)
+        isTouchDraggingRef.current = false
+        setIsTouchDragging(false)
+        if (navigator.vibrate) navigator.vibrate([40, 30, 40])
+        onContextMenu({
+          preventDefault: () => {},
+          stopPropagation: () => {},
+          clientX: touchStartPos.current.x,
+          clientY: touchStartPos.current.y
+        })
+      }, 3000)
+    }
+  }
+
+  const handleTouchMove = (e) => {
+    const touch = e.touches[0]
+    const dx = touch.clientX - touchStartPos.current.x
+    const dy = touch.clientY - touchStartPos.current.y
+    const dist = Math.hypot(dx, dy)
+
+    if (!isTouchDraggingRef.current && !contextOpenedRef.current) {
+      if (dist > 8) {
+        clearTimers()
+      }
+    }
+
+    if (isTouchDraggingRef.current) {
+      if (e.cancelable) e.preventDefault()
+      onTouchDragMove?.(movie, touch.clientX, touch.clientY)
+    }
+  }
+
+  const handleTouchEnd = (e) => {
+    clearTimers()
+    const touch = e.changedTouches[0] || e.touches[0]
+
+    if (contextOpenedRef.current) {
+      contextOpenedRef.current = false
+      return
+    }
+
+    if (isTouchDraggingRef.current) {
+      isTouchDraggingRef.current = false
+      setIsTouchDragging(false)
+      onTouchDragEnd?.(movie, touch?.clientX || touchStartPos.current.x, touch?.clientY || touchStartPos.current.y)
+      return
+    }
+
+    const dx = (touch?.clientX || touchStartPos.current.x) - touchStartPos.current.x
+    const dy = (touch?.clientY || touchStartPos.current.y) - touchStartPos.current.y
+    const dist = Math.hypot(dx, dy)
+    const duration = Date.now() - touchStartPos.current.time
+
+    if (dist < 8 && duration < 500) {
+      handleCardClick()
+    }
+  }
+
+  const handleTouchCancel = () => {
+    clearTimers()
+    if (isTouchDraggingRef.current) {
+      isTouchDraggingRef.current = false
+      setIsTouchDragging(false)
+      onTouchDragEnd?.(movie, touchStartPos.current.x, touchStartPos.current.y)
+    }
+  }
+
   const preview = (
     <div
       draggable={!noDrag}
@@ -66,19 +178,31 @@ export default function MovieCard({ movie, sectionKey, onContextMenu, noDrag, on
       onDragEnd={noDrag ? undefined : handleDragEnd}
       onContextMenu={onContextMenu ? (e) => onContextMenu(e) : undefined}
       onClick={handleCardClick}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
       style={{
-        background: 'var(--bg-card)', border: '1px solid var(--border)',
+        background: isTouchDragging ? 'var(--bg-card-hover)' : 'var(--bg-card)',
+        border: isTouchDragging ? '1.5px solid var(--accent, #7c3aed)' : '1px solid var(--border)',
         borderRadius: 8, padding: '10px 12px',
-        cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s, transform 0.15s',
+        cursor: 'pointer',
+        transition: isTouchDragging ? 'none' : 'border-color 0.15s, background 0.15s, transform 0.15s',
         position: 'relative', overflow: 'hidden', userSelect: 'none',
+        transform: isTouchDragging ? 'scale(1.04)' : 'none',
+        boxShadow: isTouchDragging ? '0 14px 35px rgba(0,0,0,0.6)' : 'none',
+        zIndex: isTouchDragging ? 50 : 1,
+        opacity: isTouchDragging ? 0.9 : 1,
       }}
       onMouseEnter={e => {
+        if (isTouchDragging) return
         setHovered(true)
         e.currentTarget.style.borderColor = 'var(--border-hover)'
         e.currentTarget.style.background = 'var(--bg-card-hover)'
         e.currentTarget.style.transform = 'translateY(-1px)'
       }}
       onMouseLeave={e => {
+        if (isTouchDragging) return
         setHovered(false)
         e.currentTarget.style.borderColor = 'var(--border)'
         e.currentTarget.style.background = 'var(--bg-card)'
