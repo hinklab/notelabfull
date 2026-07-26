@@ -32,4 +32,4 @@ CREATE POLICY "Users can delete own notifications"
 CREATE POLICY "Service or user can insert notifications"
   ON public.notifications
   FOR INSERT
-  WITH CHECK (true);
+  WITH CHECK (auth.uid() = user_id OR auth.uid() IS NULL);

@@ -87,10 +87,12 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const db = readDB();
-    const idx = (db.notes || []).findIndex(n => n.id === parseInt(req.params.id));
+    const userId = req.userId || DEFAULT_USER_ID;
+    const idx = (db.notes || []).findIndex(n => n.id === parseInt(req.params.id) && (n.user_id || DEFAULT_USER_ID) === userId);
     if (idx === -1) return res.status(404).json({ error: 'Note not found' });
     
     const safeBody = { ...req.body };
+    delete safeBody.user_id;
     if (safeBody.icon !== undefined) {
       safeBody.icon = normalizeNoteIcon(safeBody.icon, db.notes[idx]?.is_movie ? '🎬' : '📝');
     }
@@ -106,19 +108,23 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const db = readDB();
+    const userId = req.userId || DEFAULT_USER_ID;
     const id = parseInt(req.params.id);
-    const note = (db.notes || []).find(n => n.id === id);
+    const note = (db.notes || []).find(n => n.id === id && (n.user_id || DEFAULT_USER_ID) === userId);
     
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
     if (note?.is_movie) {
       return res.status(400).json({ error: 'Movie note o\'chirilmaydi' });
     }
     
-    db.notes = (db.notes || []).filter(n => n.id !== id);
-    db.movies = (db.movies || []).filter(m => m.note_id !== id);
+    db.notes = (db.notes || []).filter(n => !(n.id === id && (n.user_id || DEFAULT_USER_ID) === userId));
+    db.movies = (db.movies || []).filter(m => !(m.note_id === id && (m.user_id || DEFAULT_USER_ID) === userId));
     
-    const deletedGroups = (db.note_groups || []).filter(g => g.note_id === id).map(g => g.id);
-    db.note_groups = (db.note_groups || []).filter(g => g.note_id !== id);
-    db.note_items = (db.note_items || []).filter(i => !deletedGroups.includes(i.group_id));
+    const deletedGroups = (db.note_groups || []).filter(g => g.note_id === id && (g.user_id || DEFAULT_USER_ID) === userId).map(g => g.id);
+    db.note_groups = (db.note_groups || []).filter(g => !(g.note_id === id && (g.user_id || DEFAULT_USER_ID) === userId));
+    db.note_items = (db.note_items || []).filter(i => !(i.group_id && deletedGroups.includes(i.group_id) && (i.user_id || DEFAULT_USER_ID) === userId));
     
     writeDB(db);
     res.json({ success: true });
