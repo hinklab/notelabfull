@@ -90,7 +90,9 @@ export default function MovieCard({
   // 3. Hold still for 3s = Context menu
   const handleTouchStart = (e) => {
     const touch = e.touches[0]
-    touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: Date.now() }
+    const now = Date.now()
+    console.log('[TouchStart] x:', touch.clientX.toFixed(0), 'y:', touch.clientY.toFixed(0), 'timeSinceLastTap:', now - lastTapTimeRef.current)
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: now }
     isTouchDraggingRef.current = false
     contextOpenedRef.current = false
     setTouchDelta({ x: 0, y: 0 })
@@ -114,6 +116,9 @@ export default function MovieCard({
 
   const handleTouchMove = (e) => {
     const touch = e.touches[0]
+    const _dist = Math.hypot(touch.clientX - touchStartPos.current.x, touch.clientY - touchStartPos.current.y)
+    const _held = Date.now() - touchStartPos.current.time
+    console.log('[TouchMove] dist:', _dist.toFixed(1), 'heldMs:', _held, 'dragging:', isTouchDraggingRef.current)
     const dx = touch.clientX - touchStartPos.current.x
     const dy = touch.clientY - touchStartPos.current.y
     const dist = Math.hypot(dx, dy)
@@ -136,11 +141,8 @@ export default function MovieCard({
   }
 
     const handleTouchEnd = (e) => {
-      console.log('handleTouchEnd ->', {
-        contextOpened: contextOpenedRef.current,
-        dragging: isTouchDraggingRef.current,
-        timeSinceLastTap: Date.now() - lastTapTimeRef.current
-      });
+      const _now = Date.now()
+      console.log('[TouchEnd] contextOpened:', contextOpenedRef.current, '| dragging:', isTouchDraggingRef.current, '| timeSinceLastTap:', _now - lastTapTimeRef.current, '| willOpenModal:', (!contextOpenedRef.current && !isTouchDraggingRef.current && (_now - lastTapTimeRef.current) < 300))
       clearTimers()
       const touch = e.changedTouches[0] || e.touches[0]
 
