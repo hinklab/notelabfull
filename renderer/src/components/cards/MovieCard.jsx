@@ -43,6 +43,7 @@ export default function MovieCard({
   const contextTimerRef = useRef(null)
   const isTouchDraggingRef = useRef(false)
   const contextOpenedRef = useRef(false)
+  const touchOpenedAtRef = useRef(0) // timestamp when modal was opened by touch (to block ghost click)
 
   useEffect(() => {
     if (!expanded) {
@@ -79,6 +80,8 @@ export default function MovieCard({
   }
 
   const handleClose = (e) => {
+    // Block ghost clicks synthesized by mobile browser within 400ms of touch-open
+    if (Date.now() - touchOpenedAtRef.current < 400) return
     e?.stopPropagation()
     setAnimateOpen(false)
     setTimeout(() => setExpanded(false), 240)
@@ -164,11 +167,14 @@ export default function MovieCard({
       // Double-tap detection for opening detail modal
       const now = Date.now()
       if (now - lastTapTimeRef.current < 300) {
+        // Suppress the browser's synthetic click event that would immediately
+        // hit the modal backdrop and close the modal (ghost click)
+        if (e.cancelable) e.preventDefault()
+        touchOpenedAtRef.current = now
         setExpanded(true)
+        console.log('[TouchEnd] ✅ Modal opened by double-tap')
       }
       lastTapTimeRef.current = now
-
-
     }
 
   const handleTouchCancel = () => {
