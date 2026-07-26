@@ -40,9 +40,8 @@ export default function MovieCard({
 
   const touchStartPos = useRef({ x: 0, y: 0, time: 0 })
   const lastTapTimeRef = useRef(0)
-  const contextTimerRef = useRef(null)
   const isTouchDraggingRef = useRef(false)
-  const contextOpenedRef = useRef(false)
+  const isTouchSessionRef = useRef(false) // true while finger is on screen; blocks mouse-hover after touch
   const touchOpenedAtRef = useRef(0) // timestamp when modal was opened by touch (to block ghost click)
 
   useEffect(() => {
@@ -55,9 +54,6 @@ export default function MovieCard({
     return () => cancelAnimationFrame(id)
   }, [expanded])
 
-  const clearTimers = () => {
-    if (contextTimerRef.current) { clearTimeout(contextTimerRef.current); contextTimerRef.current = null }
-  }
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('movieId', String(movie.id))
@@ -88,33 +84,18 @@ export default function MovieCard({
   }
 
   // Touch gesture handlers for mobile:
-  // 1. Movement (> 8px) = Immediate Drag (translates card with finger)
+  // 1. Movement (> 10px after 80ms) = Drag
   // 2. Double-tap (two taps < 300ms) = Open detail modal
-  // 3. Hold still for 3s = Context menu
   const handleTouchStart = (e) => {
     const touch = e.touches[0]
     const now = Date.now()
     console.log('[TouchStart] x:', touch.clientX.toFixed(0), 'y:', touch.clientY.toFixed(0), 'timeSinceLastTap:', now - lastTapTimeRef.current)
+    isTouchSessionRef.current = true
     touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: now }
     isTouchDraggingRef.current = false
-    contextOpenedRef.current = false
     setTouchDelta({ x: 0, y: 0 })
-    clearTimers()
-
-    if (onContextMenu) {
-      contextTimerRef.current = setTimeout(() => {
-        contextOpenedRef.current = true
-        isTouchDraggingRef.current = false
-        setIsTouchDragging(false)
-        setTouchDelta({ x: 0, y: 0 })
-        onContextMenu({
-          preventDefault: () => {},
-          stopPropagation: () => {},
-          clientX: touchStartPos.current.x,
-          clientY: touchStartPos.current.y
-        })
-      }, 3000)
-    }
+    // Reset hover state so no hover/trash icon appears from touch
+    setHovered(false)
   }
 
   const handleTouchMove = (e) => {
@@ -145,15 +126,9 @@ export default function MovieCard({
 
     const handleTouchEnd = (e) => {
       const _now = Date.now()
-      console.log('[TouchEnd] contextOpened:', contextOpenedRef.current, '| dragging:', isTouchDraggingRef.current, '| timeSinceLastTap:', _now - lastTapTimeRef.current, '| willOpenModal:', (!contextOpenedRef.current && !isTouchDraggingRef.current && (_now - lastTapTimeRef.current) < 300))
-      clearTimers()
+      console.log('[TouchEnd] dragging:', isTouchDraggingRef.current, '| timeSinceLastTap:', _now - lastTapTimeRef.current, '| willOpenModal:', (!isTouchDraggingRef.current && (_now - lastTapTimeRef.current) < 300))
+      isTouchSessionRef.current = false
       const touch = e.changedTouches[0] || e.touches[0]
-
-      if (contextOpenedRef.current) {
-        contextOpenedRef.current = false
-        setTouchDelta({ x: 0, y: 0 })
-        return
-      }
 
       if (isTouchDraggingRef.current) {
         // End drag operation
@@ -178,7 +153,7 @@ export default function MovieCard({
     }
 
   const handleTouchCancel = () => {
-    clearTimers()
+    isTouchSessionRef.current = false
     if (isTouchDraggingRef.current) {
       isTouchDraggingRef.current = false
       setIsTouchDragging(false)
@@ -212,7 +187,8 @@ export default function MovieCard({
         touchAction: 'none',
       }}
       onMouseEnter={e => {
-        if (isTouchDragging) return
+        // Don't show hover state during or immediately after touch
+        if (isTouchDragging || isTouchSessionRef.current) return
         setHovered(true)
         e.currentTarget.style.borderColor = 'var(--border-hover)'
         e.currentTarget.style.background = 'var(--bg-card-hover)'
