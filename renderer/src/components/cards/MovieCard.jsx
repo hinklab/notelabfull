@@ -107,9 +107,8 @@ export default function MovieCard({
     const dy = touch.clientY - touchStartPos.current.y
     const dist = Math.hypot(dx, dy)
 
-    if (!isTouchDraggingRef.current && !contextOpenedRef.current) {
+    if (!isTouchDraggingRef.current) {
       if (dist > 10 && (Date.now() - touchStartPos.current.time) > 80 && !noDrag) {
-        clearTimers()
         isTouchDraggingRef.current = true
         setIsTouchDragging(true)
         setTouchDelta({ x: dx, y: dy })
