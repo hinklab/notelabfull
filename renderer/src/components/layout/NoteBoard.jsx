@@ -649,13 +649,11 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
 function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTouchDragStart, onTouchDragMove, onTouchDragEnd }) {
   const [isTouchDragging, setIsTouchDragging] = useState(false)
   const touchStartPos = useRef({ x: 0, y: 0, time: 0 })
-  const dragTimerRef = useRef(null)
   const contextTimerRef = useRef(null)
   const isTouchDraggingRef = useRef(false)
   const contextOpenedRef = useRef(false)
 
   const clearTimers = () => {
-    if (dragTimerRef.current) { clearTimeout(dragTimerRef.current); dragTimerRef.current = null }
     if (contextTimerRef.current) { clearTimeout(contextTimerRef.current); contextTimerRef.current = null }
   }
 
@@ -674,17 +672,9 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
     contextOpenedRef.current = false
     clearTimers()
 
-    dragTimerRef.current = setTimeout(() => {
-      isTouchDraggingRef.current = true
-      setIsTouchDragging(true)
-      if (navigator.vibrate) navigator.vibrate(50)
-      onTouchDragStart?.(item, touch.clientX, touch.clientY)
-    }, 1000)
-
     if (onContextMenu) {
       contextTimerRef.current = setTimeout(() => {
         contextOpenedRef.current = true
-        if (dragTimerRef.current) clearTimeout(dragTimerRef.current)
         isTouchDraggingRef.current = false
         setIsTouchDragging(false)
         if (navigator.vibrate) navigator.vibrate([40, 30, 40])
@@ -707,6 +697,10 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
     if (!isTouchDraggingRef.current && !contextOpenedRef.current) {
       if (dist > 8) {
         clearTimers()
+        isTouchDraggingRef.current = true
+        setIsTouchDragging(true)
+        if (navigator.vibrate) navigator.vibrate(30)
+        onTouchDragStart?.(item, touch.clientX, touch.clientY)
       }
     }
 
@@ -735,9 +729,8 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
     const dx = (touch?.clientX || touchStartPos.current.x) - touchStartPos.current.x
     const dy = (touch?.clientY || touchStartPos.current.y) - touchStartPos.current.y
     const dist = Math.hypot(dx, dy)
-    const duration = Date.now() - touchStartPos.current.time
 
-    if (dist < 8 && duration < 500) {
+    if (dist <= 8) {
       onClick?.()
     }
   }

@@ -38,7 +38,6 @@ export default function MovieCard({
   const isFuture = movie.section === 'futured' && !movie.rating
 
   const touchStartPos = useRef({ x: 0, y: 0, time: 0 })
-  const dragTimerRef = useRef(null)
   const contextTimerRef = useRef(null)
   const isTouchDraggingRef = useRef(false)
   const contextOpenedRef = useRef(false)
@@ -54,7 +53,6 @@ export default function MovieCard({
   }, [expanded])
 
   const clearTimers = () => {
-    if (dragTimerRef.current) { clearTimeout(dragTimerRef.current); dragTimerRef.current = null }
     if (contextTimerRef.current) { clearTimeout(contextTimerRef.current); contextTimerRef.current = null }
   }
 
@@ -82,7 +80,10 @@ export default function MovieCard({
     setTimeout(() => setExpanded(false), 240)
   }
 
-  // Touch gesture handlers for mobile (1s hold = drag, 3s hold = context menu)
+  // Trello-style touch controls:
+  // 1. Immediate movement (> 8px) = Drag
+  // 2. Simple tap without movement = Open detail modal
+  // 3. Hold still for 3s = Context menu
   const handleTouchStart = (e) => {
     const touch = e.touches[0]
     touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: Date.now() }
@@ -90,21 +91,9 @@ export default function MovieCard({
     contextOpenedRef.current = false
     clearTimers()
 
-    // 1 second hold for Drag (1000ms)
-    if (!noDrag) {
-      dragTimerRef.current = setTimeout(() => {
-        isTouchDraggingRef.current = true
-        setIsTouchDragging(true)
-        if (navigator.vibrate) navigator.vibrate(50)
-        onTouchDragStart?.(movie, touch.clientX, touch.clientY)
-      }, 1000)
-    }
-
-    // 3 seconds hold for Context Menu (3000ms)
     if (onContextMenu) {
       contextTimerRef.current = setTimeout(() => {
         contextOpenedRef.current = true
-        if (dragTimerRef.current) clearTimeout(dragTimerRef.current)
         isTouchDraggingRef.current = false
         setIsTouchDragging(false)
         if (navigator.vibrate) navigator.vibrate([40, 30, 40])
@@ -125,8 +114,13 @@ export default function MovieCard({
     const dist = Math.hypot(dx, dy)
 
     if (!isTouchDraggingRef.current && !contextOpenedRef.current) {
-      if (dist > 8) {
+      // If movement exceeds threshold (> 8px), trigger DRAG mode immediately
+      if (dist > 8 && !noDrag) {
         clearTimers()
+        isTouchDraggingRef.current = true
+        setIsTouchDragging(true)
+        if (navigator.vibrate) navigator.vibrate(30)
+        onTouchDragStart?.(movie, touch.clientX, touch.clientY)
       }
     }
 
@@ -155,9 +149,9 @@ export default function MovieCard({
     const dx = (touch?.clientX || touchStartPos.current.x) - touchStartPos.current.x
     const dy = (touch?.clientY || touchStartPos.current.y) - touchStartPos.current.y
     const dist = Math.hypot(dx, dy)
-    const duration = Date.now() - touchStartPos.current.time
 
-    if (dist < 8 && duration < 500) {
+    // Tap without drag movement -> open detail modal
+    if (dist <= 8) {
       handleCardClick()
     }
   }
