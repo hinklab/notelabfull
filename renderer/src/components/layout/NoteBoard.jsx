@@ -506,6 +506,13 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
     setEditingName(false)
   }
   const handleTouchDragMove = (item, clientX, clientY) => {
+    // DEBUG: log what element is under the finger and what drop position is calculated
+    const elUnder = document.elementFromPoint(clientX, clientY)
+    const dropInfo = getDropPosition(items, clientY, cardsRef)
+    console.log('[DragMove] finger:(' + clientX.toFixed(0) + ',' + clientY.toFixed(0) + ')',
+      '| elUnder:', elUnder?.tagName, elUnder?.className?.slice?.(0,40) || elUnder?.dataset?.itemId,
+      '| closest .note-column groupId:', elUnder?.closest?.('.note-column')?.dataset?.groupId,
+      '| dropInfo:', JSON.stringify(dropInfo))
     updateMarker(clientY)
   }
 
@@ -518,6 +525,26 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
     const targetGroupId = colEl?.dataset?.groupId ? parseInt(colEl.dataset.groupId) : group.id
 
     const dropInfo = getDropPosition(items, clientY, cardsRef)
+
+    // DEBUG logging
+    console.log('[DragEnd] =============================')
+    console.log('[DragEnd] dragging item.id:', item.id, 'title:', item._movie?.title || item.title)
+    console.log('[DragEnd] finger at:', clientX.toFixed(0), clientY.toFixed(0))
+    console.log('[DragEnd] elementFromPoint ->', el?.tagName, '| class:', el?.className?.slice?.(0, 60), '| data-item-id:', el?.dataset?.itemId)
+    console.log('[DragEnd] closest .note-column ->', colEl ? 'found, groupId:' + colEl.dataset.groupId : 'NOT FOUND')
+    console.log('[DragEnd] targetGroupId:', targetGroupId, '| this column group.id:', group.id, '| same column?', targetGroupId === group.id)
+    console.log('[DragEnd] getDropPosition result:', JSON.stringify(dropInfo))
+    // Log ALL card rects so we can see if the dragged card DOM is blocking
+    if (cardsRef.current) {
+      const cardEls = cardsRef.current.querySelectorAll('[data-item-id]')
+      console.log('[DragEnd] card rects in this column:')
+      cardEls.forEach(el => {
+        const r = el.getBoundingClientRect()
+        console.log('  data-item-id:', el.dataset.itemId, '| top:', r.top.toFixed(0), 'bottom:', r.bottom.toFixed(0), 'midY:', ((r.top + r.bottom) / 2).toFixed(0))
+      })
+    }
+    console.log('[DragEnd] =============================')
+
     if (targetGroupId === group.id) {
       if (dropInfo.targetId != null) {
         await onReorderItem(item.id, dropInfo.targetId, dropInfo.position, group.id)
