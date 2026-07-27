@@ -43,6 +43,7 @@ export default function MovieCard({
   const isTouchDraggingRef = useRef(false)
   const isTouchSessionRef = useRef(false) // true while finger is on screen; blocks mouse-hover after touch
   const touchOpenedAtRef = useRef(0) // timestamp when modal was opened by touch (to block ghost click)
+  const cardRef = useRef(null) // ref to card DOM node for non-passive touchmove listener
 
   useEffect(() => {
     if (!expanded) {
@@ -98,30 +99,41 @@ export default function MovieCard({
     setHovered(false)
   }
 
-  const handleTouchMove = (e) => {
-    const touch = e.touches[0]
-    const _dist = Math.hypot(touch.clientX - touchStartPos.current.x, touch.clientY - touchStartPos.current.y)
-    const _held = Date.now() - touchStartPos.current.time
-    console.log('[TouchMove] dist:', _dist.toFixed(1), 'heldMs:', _held, 'dragging:', isTouchDraggingRef.current)
-    const dx = touch.clientX - touchStartPos.current.x
-    const dy = touch.clientY - touchStartPos.current.y
-    const dist = Math.hypot(dx, dy)
+  // Attach touchmove with { passive: false } so e.preventDefault() actually works
+  // (React's synthetic onTouchMove is passive by default on mobile, making preventDefault a no-op)
+  useEffect(() => {
+    const el = cardRef.current
+    if (!el) return
+    const onMove = (e) => {
+      const touch = e.touches[0]
+      if (!touch) return
+      const dx = touch.clientX - touchStartPos.current.x
+      const dy = touch.clientY - touchStartPos.current.y
+      const dist = Math.hypot(dx, dy)
+      const held = Date.now() - touchStartPos.current.time
+      console.log('[TouchMove] dist:', dist.toFixed(1), 'heldMs:', held, 'dragging:', isTouchDraggingRef.current)
 
-    if (!isTouchDraggingRef.current) {
-      if (dist > 10 && (Date.now() - touchStartPos.current.time) > 80 && !noDrag) {
-        isTouchDraggingRef.current = true
-        setIsTouchDragging(true)
+      if (!isTouchDraggingRef.current) {
+        if (dist > 10 && held > 80 && !noDrag) {
+          isTouchDraggingRef.current = true
+          setIsTouchDragging(true)
+          setTouchDelta({ x: dx, y: dy })
+          console.log('[TouchMove] 🟡 Drag START — calling onTouchDragStart')
+          onTouchDragStart?.(movie, touch.clientX, touch.clientY)
+        }
+      }
+
+      if (isTouchDraggingRef.current) {
+        e.preventDefault() // works because listener is non-passive
         setTouchDelta({ x: dx, y: dy })
-        onTouchDragStart?.(movie, touch.clientX, touch.clientY)
+        console.log('[TouchMove] 🟢 Drag MOVE — calling onTouchDragMove', touch.clientX.toFixed(0), touch.clientY.toFixed(0))
+        onTouchDragMove?.(movie, touch.clientX, touch.clientY)
       }
     }
+    el.addEventListener('touchmove', onMove, { passive: false })
+    return () => el.removeEventListener('touchmove', onMove)
+  }, [noDrag, movie, onTouchDragStart, onTouchDragMove])
 
-    if (isTouchDraggingRef.current) {
-      if (e.cancelable) e.preventDefault()
-      setTouchDelta({ x: dx, y: dy })
-      onTouchDragMove?.(movie, touch.clientX, touch.clientY)
-    }
-  }
 
     const handleTouchEnd = (e) => {
       const _now = Date.now()
@@ -134,7 +146,10 @@ export default function MovieCard({
         isTouchDraggingRef.current = false
         setIsTouchDragging(false)
         setTouchDelta({ x: 0, y: 0 })
-        onTouchDragEnd?.(movie, touch?.clientX || touchStartPos.current.x, touch?.clientY || touchStartPos.current.y)
+        const finalX = touch?.clientX || touchStartPos.current.x
+        const finalY = touch?.clientY || touchStartPos.current.y
+        console.log('[TouchEnd] 🔴 Drag END — calling onTouchDragEnd at', finalX.toFixed(0), finalY.toFixed(0))
+        onTouchDragEnd?.(movie, finalX, finalY)
         return
       }
 
@@ -163,6 +178,7 @@ export default function MovieCard({
 
   const preview = (
     <div
+      ref={cardRef}
       draggable={!noDrag}
       onDragStart={noDrag ? undefined : handleDragStart}
       onDragEnd={noDrag ? undefined : handleDragEnd}
@@ -176,7 +192,6 @@ export default function MovieCard({
       } : (e) => e.preventDefault()}
       onClick={handleCardClick}
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
       style={{
