@@ -193,6 +193,7 @@ export default function MovieCard({
         touchAction: 'none',
         WebkitTouchCallout: 'none',  // kills iOS long-press callout/context menu
         WebkitUserSelect: 'none',
+        pointerEvents: isTouchDragging ? 'none' : 'auto', // allow elementFromPoint to see through card while dragging
       }}
       onMouseEnter={e => {
         // Don't show hover state during or immediately after touch
