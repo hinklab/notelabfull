@@ -31,6 +31,20 @@ function getSupabase() {
   }
 }
 
+function sanitizeForSupabase(obj) {
+  const allowed = [
+    'id', 'user_id', 'note_id', 'title', 'section', 'position',
+    'tmdb_id', 'imdb_id', 'media_type', 'poster_path', 'rating',
+    'vote_count', 'genre', 'director', 'overview', 'release_date',
+    'release_year', 'seasons', 'note', 'updated_at'
+  ];
+  const clean = {};
+  for (const k of allowed) {
+    if (obj && obj[k] !== undefined) clean[k] = obj[k];
+  }
+  return clean;
+}
+
 const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
 
 // GET /api/movies?note_id=123
@@ -189,7 +203,6 @@ router.post('/', async (req, res) => {
       section,
       position,
       note_id,
-      manual_section: true,
       note: (data.note && data.note !== overview && data.note.trim() !== (overview || '').trim()) ? data.note : '',
     };
     
@@ -199,7 +212,7 @@ router.post('/', async (req, res) => {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('movies').upsert([movie], { onConflict: 'id' });
+        await supabase.from('movies').upsert([sanitizeForSupabase(movie)], { onConflict: 'id' });
       } catch (e) {}
     }
 
@@ -218,14 +231,14 @@ router.put('/:id', async (req, res) => {
     let idx = (db.movies || []).findIndex(m => String(m.id) === String(targetId) && (m.user_id || DEFAULT_USER_ID) === userId);
     
     if (idx !== -1) {
-      db.movies[idx] = { ...db.movies[idx], ...req.body, manual_section: true };
+      db.movies[idx] = { ...db.movies[idx], ...req.body };
       await writeDB(db);
     }
 
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const updatePayload = { ...req.body, manual_section: true, updated_at: new Date().toISOString() };
+        const updatePayload = sanitizeForSupabase({ ...req.body, updated_at: new Date().toISOString() });
         delete updatePayload.id;
         await supabase.from('movies').update(updatePayload).eq('id', targetId);
       } catch (e) {}
@@ -272,7 +285,6 @@ router.post('/move', async (req, res) => {
     
     if (idx !== -1) {
       db.movies[idx].section = section;
-      db.movies[idx].manual_section = true;
       
       if (position !== null && position !== undefined) {
         db.movies
@@ -290,13 +302,19 @@ router.post('/move', async (req, res) => {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('movies').update({
+        const { data: moveRes, error: moveErr } = await supabase.from('movies').update({
           section,
-          manual_section: true,
           position: position ?? 0,
           updated_at: new Date().toISOString()
-        }).eq('id', id);
-      } catch (e) {}
+        }).eq('id', id).select();
+        if (moveErr) {
+          console.error('Supabase movie move error:', moveErr);
+        } else {
+          console.log('Supabase movie move success:', moveRes);
+        }
+      } catch (e) {
+        console.error('Supabase movie move exception:', e.message);
+      }
     }
 
     if (idx !== -1) {
@@ -338,54 +356,9 @@ router.post('/reorder', async (req, res) => {
   }
 });
 
-// POST /api/movies/reorder
-router.post('/reorder', async (req, res) => {
-  try {
-    const db = readDB();
-    const userId = req.userId || DEFAULT_USER_ID;
-    const { section, ids } = req.body;
-    
-    ids.forEach((id, position) => {
-      const idx = (db.movies || []).findIndex(m => m.id === id && (m.user_id || DEFAULT_USER_ID) === userId);
-      if (idx !== -1) db.movies[idx].position = position;
-    });
-    
-    await writeDB(db);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 function autoMigrateFuturedMovies(db) {
-  let migratedCount = 0;
-  const today = new Date().toISOString().slice(0, 10);
-  const movies = db.movies || [];
-
-  for (const m of movies) {
-    if (m.section === 'futured' && m.release_date && !m.manual_section) {
-      if (m.release_date <= today) {
-        const todoMovies = movies.filter(
-          x => (x.user_id || DEFAULT_USER_ID) === (m.user_id || DEFAULT_USER_ID) && x.section === 'todo' && (x.note_id ?? null) === (m.note_id ?? null)
-        );
-        m.section = 'todo';
-        m.position = todoMovies.length;
-        migratedCount++;
-        console.log(`[AUTO-MIGRATE] Movie "${m.title}" (release: ${m.release_date}) moved from 'futured' to 'todo'`);
-        try {
-          createReleaseAlert(m.user_id || '0d3da195-1d0e-458b-9f88-2879561e0da6', m);
-        } catch (e) {
-          console.error('Error creating release alert:', e.message);
-        }
-      }
-    }
-  }
-
-  if (migratedCount > 0) {
-    writeDB(db);
-    console.log(`[AUTO-MIGRATE] Total ${migratedCount} movie(s) migrated from 'futured' to 'todo'`);
-  }
-  return migratedCount;
+  // Disabled force auto-migration so user manual section moves are 100% respected and never reverted!
+  return 0;
 }
 
 // POST /api/movies/refresh-all
