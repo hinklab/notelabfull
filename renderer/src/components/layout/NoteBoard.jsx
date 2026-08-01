@@ -815,9 +815,12 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
     e.dataTransfer.setData('itemId', String(item.id))
     e.dataTransfer.setData('fromGroup', String(groupId))
     e.dataTransfer.effectAllowed = 'move'
-    e.currentTarget.style.opacity = '0.5'
+    const el = e.currentTarget
+    setTimeout(() => {
+      if (el) el.style.opacity = '0'
+    }, 0)
   }
-  const handleDragEnd = (e) => { e.currentTarget.style.opacity = '1' }
+  const handleDragEnd = (e) => { if (e.currentTarget) e.currentTarget.style.opacity = '1' }
 
   const handleTouchStart = (e) => {
     const touch = e.touches[0]

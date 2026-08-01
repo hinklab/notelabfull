@@ -61,12 +61,17 @@ export default function MovieCard({
     e.dataTransfer.setData('itemId', String(movie.id))
     if (sectionKey) e.dataTransfer.setData('fromSection', sectionKey)
     e.dataTransfer.effectAllowed = 'move'
-    e.currentTarget.style.opacity = '0.5'
+    
+    const el = e.currentTarget
+    setTimeout(() => {
+      if (el) el.style.opacity = '0'
+    }, 0)
+
     if (onDragStart) onDragStart(e)
   }
 
   const handleDragEnd = (e) => {
-    e.currentTarget.style.opacity = '1'
+    if (e.currentTarget) e.currentTarget.style.opacity = '1'
     if (onDragEnd) onDragEnd(e)
   }
 
