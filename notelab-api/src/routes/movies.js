@@ -313,6 +313,14 @@ router.post('/refresh-all', async (req, res) => {
     for (const m of movies) {
       let changed = false;
 
+      // Skip manually created movies with no identifiers or explicit is_manual flag
+      if (m.is_manual && !m.tmdb_id && !m.imdb_id) {
+        console.log(`  -> Skipped manual movie "${m.title}"`);
+        continue;
+      }
+
+      const isTv = m.media_type === 'tv' || (m.seasons && m.seasons !== '-');
+
       // Prefer OMDB when imdb_id is available
       if (m.imdb_id && omdbKey) {
         try {
@@ -321,25 +329,32 @@ router.post('/refresh-all', async (req, res) => {
           console.log(`  -> OMDB API response status for "${m.title}": ${omdbRes.status}`);
           if (omdbRes.ok) {
             const data = await omdbRes.json();
-            console.log(`  -> OMDB data fetched:`, data);
             if (data.Response !== 'False') {
               const newTitle = data.Title;
-              const newRating = data.imdbRating && data.imdbRating !== 'N/A' ? parseFloat(data.imdbRating) : m.rating;
-              const newVoteCount = data.imdbVotes && data.imdbVotes !== 'N/A' ? parseInt(data.imdbVotes.replace(/,/g, '').replace(/\./g, '')) : m.vote_count;
-              const newPosterPath = data.Poster && data.Poster !== 'N/A' ? data.Poster : m.poster_path;
-              const newGenre = data.Genre && data.Genre !== 'N/A' ? data.Genre : (m.genre || '-');
-              const newDirector = data.Director && data.Director !== 'N/A' ? data.Director : (m.director || '-');
-              const newReleaseYear = data.Year && data.Year !== 'N/A' ? data.Year : (m.release_year || '-');
+              const titleMatches = !m.title || (newTitle && (
+                newTitle.toLowerCase().includes(m.title.toLowerCase()) ||
+                m.title.toLowerCase().includes(newTitle.toLowerCase())
+              ));
 
-              if (newTitle && newTitle !== m.title) { mismatchesCorrected++; m.title = newTitle; changed = true; }
-              if (newRating !== m.rating) { m.rating = newRating; changed = true; }
-              if (newVoteCount !== m.vote_count) { m.vote_count = newVoteCount; changed = true; }
-              if (newPosterPath !== m.poster_path) { m.poster_path = newPosterPath; changed = true; }
-              if (newGenre !== m.genre) { m.genre = newGenre; changed = true; }
-              if (newDirector !== m.director) { m.director = newDirector; changed = true; }
-              if (newReleaseYear !== m.release_year) { m.release_year = newReleaseYear; changed = true; }
+              if (titleMatches) {
+                const newRating = data.imdbRating && data.imdbRating !== 'N/A' ? parseFloat(data.imdbRating) : m.rating;
+                const newVoteCount = data.imdbVotes && data.imdbVotes !== 'N/A' ? parseInt(data.imdbVotes.replace(/,/g, '').replace(/\./g, '')) : m.vote_count;
+                const newPosterPath = data.Poster && data.Poster !== 'N/A' ? data.Poster : m.poster_path;
+                const newGenre = data.Genre && data.Genre !== 'N/A' ? data.Genre : (m.genre || '-');
+                const newDirector = data.Director && data.Director !== 'N/A' ? data.Director : (m.director || '-');
+                const newReleaseYear = data.Year && data.Year !== 'N/A' ? data.Year : (m.release_year || '-');
 
-              console.log(`  -> OMDB data applied for "${m.title}"`);
+                if (newRating !== m.rating) { m.rating = newRating; changed = true; }
+                if (newVoteCount !== m.vote_count) { m.vote_count = newVoteCount; changed = true; }
+                if (newPosterPath !== m.poster_path && data.Poster !== 'N/A') { m.poster_path = newPosterPath; changed = true; }
+                if (newGenre !== m.genre) { m.genre = newGenre; changed = true; }
+                if (newDirector !== m.director) { m.director = newDirector; changed = true; }
+                if (newReleaseYear !== m.release_year) { m.release_year = newReleaseYear; changed = true; }
+
+                console.log(`  -> OMDB data applied for "${m.title}"`);
+              } else {
+                console.warn(`  -> Skipped OMDB update for "${m.title}" due to title mismatch with "${newTitle}"`);
+              }
             } else {
               failedTitles.push(m.title);
             }
@@ -352,31 +367,44 @@ router.post('/refresh-all', async (req, res) => {
       } else if (m.tmdb_id && tmdbKey) {
         // Fallback to TMDB when no imdb_id
         try {
-          const primaryUrl = `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
-          const fallbackUrl = `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
+          let primaryUrl = isTv
+            ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
+            : `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
+          let fallbackUrl = isTv
+            ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
+            : `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
+
           let tmdbRes = await fetch(primaryUrl);
           if (!tmdbRes.ok && tmdbRes.status === 404) {
             tmdbRes = await fetch(fallbackUrl);
           }
           if (tmdbRes.ok) {
             const data = await tmdbRes.json();
-            const newReleaseDate = data.release_date || data.first_air_date || m.release_date || null;
-            const newReleaseYear = newReleaseDate ? newReleaseDate.split('-')[0] : (m.release_year || '-');
             const newTitle = data.title || data.name;
-            const newRating = data.vote_average ? Number(data.vote_average.toFixed(1)) : m.rating;
-            const newVoteCount = data.vote_count ?? m.vote_count;
-            const newPosterPath = data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : m.poster_path;
-            const newGenre = data.genres && data.genres.length ? data.genres.map(g => g.name).join(', ') : (m.genre || '-');
+            const titleMatches = !m.title || (newTitle && (
+              newTitle.toLowerCase().includes(m.title.toLowerCase()) ||
+              m.title.toLowerCase().includes(newTitle.toLowerCase())
+            ));
 
-            if (newTitle && newTitle !== m.title) { mismatchesCorrected++; m.title = newTitle; changed = true; }
-            if (newReleaseDate !== m.release_date) { m.release_date = newReleaseDate; changed = true; }
-            if (newReleaseYear !== m.release_year) { m.release_year = newReleaseYear; changed = true; }
-            if (newRating !== m.rating) { m.rating = newRating; changed = true; }
-            if (newVoteCount !== m.vote_count) { m.vote_count = newVoteCount; changed = true; }
-            if (newPosterPath !== m.poster_path) { m.poster_path = newPosterPath; changed = true; }
-            if (newGenre !== m.genre) { m.genre = newGenre; changed = true; }
+            if (titleMatches) {
+              const newReleaseDate = data.release_date || data.first_air_date || m.release_date || null;
+              const newReleaseYear = newReleaseDate ? newReleaseDate.split('-')[0] : (m.release_year || '-');
+              const newRating = data.vote_average ? Number(data.vote_average.toFixed(1)) : m.rating;
+              const newVoteCount = data.vote_count ?? m.vote_count;
+              const newPosterPath = data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : m.poster_path;
+              const newGenre = data.genres && data.genres.length ? data.genres.map(g => g.name).join(', ') : (m.genre || '-');
 
-            console.log(`  -> TMDB data applied for "${m.title}"`);
+              if (newReleaseDate !== m.release_date) { m.release_date = newReleaseDate; changed = true; }
+              if (newReleaseYear !== m.release_year) { m.release_year = newReleaseYear; changed = true; }
+              if (newRating !== m.rating) { m.rating = newRating; changed = true; }
+              if (newVoteCount !== m.vote_count) { m.vote_count = newVoteCount; changed = true; }
+              if (newPosterPath !== m.poster_path && data.poster_path) { m.poster_path = newPosterPath; changed = true; }
+              if (newGenre !== m.genre) { m.genre = newGenre; changed = true; }
+
+              console.log(`  -> TMDB data applied for "${m.title}"`);
+            } else {
+              console.warn(`  -> Skipped TMDB update for "${m.title}" due to title mismatch with "${newTitle}"`);
+            }
           } else {
             failedTitles.push(m.title);
           }
