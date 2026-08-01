@@ -50,14 +50,19 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'User ID talab qilinadi.' });
   }
 
+  const formatField = (val) => {
+    if (Array.isArray(val)) return val.join(', ');
+    return val ? String(val) : '';
+  };
+
   const record = {
     id: user_id,
     user_id: user_id,
-    favorite_genres: favorite_genres || [],
-    priority_factor: priority_factor || '',
-    mood_preference: mood_preference || '',
-    movie_length_preference: movie_length_preference || '',
-    era_preference: era_preference || '',
+    favorite_genres: Array.isArray(favorite_genres) ? favorite_genres : [favorite_genres].filter(Boolean),
+    priority_factor: formatField(priority_factor),
+    mood_preference: formatField(mood_preference),
+    movie_length_preference: formatField(movie_length_preference),
+    era_preference: formatField(era_preference),
     completed_at: new Date().toISOString()
   };
 

@@ -43,16 +43,20 @@ const STEP5_ERA = [
 export default function OnboardingSurvey({ userId, onComplete }) {
   const [step, setStep] = useState(1)
   const [selectedGenres, setSelectedGenres] = useState([])
-  const [priorityFactor, setPriorityFactor] = useState(STEP2_PRIORITY[0])
-  const [moodPref, setMoodPref] = useState(STEP3_MOOD[0])
-  const [movieLength, setMovieLength] = useState(STEP4_LENGTH[2])
-  const [eraPref, setEraPref] = useState(STEP5_ERA[2])
+  const [priorityFactors, setPriorityFactors] = useState([STEP2_PRIORITY[0]])
+  const [moodPrefs, setMoodPrefs] = useState([STEP3_MOOD[0]])
+  const [movieLengths, setMovieLengths] = useState([STEP4_LENGTH[2]])
+  const [eraPrefs, setEraPrefs] = useState([STEP5_ERA[2]])
   const [submitting, setSubmitting] = useState(false)
 
-  const toggleGenre = (genre) => {
-    setSelectedGenres(prev =>
-      prev.includes(genre) ? prev.filter(g => g !== genre) : [...prev, genre]
-    )
+  const toggleItem = (item, list, setList) => {
+    setList(prev => {
+      if (prev.includes(item)) {
+        return prev.length > 1 ? prev.filter(i => i !== item) : prev
+      } else {
+        return [...prev, item]
+      }
+    })
   }
 
   const handleSubmit = async () => {
@@ -62,10 +66,10 @@ export default function OnboardingSurvey({ userId, onComplete }) {
     const payload = {
       user_id: userId,
       favorite_genres: selectedGenres,
-      priority_factor: priorityFactor,
-      mood_preference: moodPref,
-      movie_length_preference: movieLength,
-      era_preference: eraPref,
+      priority_factor: priorityFactors,
+      mood_preference: moodPrefs,
+      movie_length_preference: movieLengths,
+      era_preference: eraPrefs,
     }
 
     try {
@@ -92,11 +96,11 @@ export default function OnboardingSurvey({ userId, onComplete }) {
   }
 
   const stepDescriptions = {
-    1: "Mos va aniq tavsiyalar olish uchun bir nechta janr tanlang (ko'p tanlash mumkin).",
-    2: "Filmni baxolashdagi asosiy e'tiboringizni ko'rsating.",
-    3: "Bugungi yoki umumiy kayfiyatingizga mos yo'nalishni tanlang.",
-    4: "Film davomiyligi bo'yicha afzalligingizni belgilang.",
-    5: "Davr bo'yicha afzalligingizni belgilang."
+    1: "Mos va aniq tavsiyalar olish uchun janrlarni tanlang (ko'p tanlash mumkin).",
+    2: "Filmni baxolashdagi asosiy e'tiboringizni ko'rsating (ko'p tanlash mumkin).",
+    3: "Bugungi yoki umumiy kayfiyatingizga mos yo'nalishlarni tanlang (ko'p tanlash mumkin).",
+    4: "Film davomiyligi bo'yicha afzalligingizni belgilang (ko'p tanlash mumkin).",
+    5: "Davr bo'yicha afzalligingizni belgilang (ko'p tanlash mumkin)."
   }
 
   return ReactDOM.createPortal(
@@ -162,7 +166,7 @@ export default function OnboardingSurvey({ userId, onComplete }) {
                 return (
                   <button
                     key={g}
-                    onClick={() => toggleGenre(g)}
+                    onClick={() => toggleItem(g, selectedGenres, setSelectedGenres)}
                     style={{
                       background: active ? 'var(--accent)' : 'var(--bg-card)',
                       color: active ? '#fff' : 'var(--text-primary)',
@@ -190,11 +194,11 @@ export default function OnboardingSurvey({ userId, onComplete }) {
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
               {STEP2_PRIORITY.map(opt => {
-                const active = priorityFactor === opt
+                const active = priorityFactors.includes(opt)
                 return (
                   <button
                     key={opt}
-                    onClick={() => setPriorityFactor(opt)}
+                    onClick={() => toggleItem(opt, priorityFactors, setPriorityFactors)}
                     style={{
                       background: active ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
                       color: active ? 'var(--accent)' : 'var(--text-primary)',
@@ -222,11 +226,11 @@ export default function OnboardingSurvey({ userId, onComplete }) {
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
               {STEP3_MOOD.map(opt => {
-                const active = moodPref === opt
+                const active = moodPrefs.includes(opt)
                 return (
                   <button
                     key={opt}
-                    onClick={() => setMoodPref(opt)}
+                    onClick={() => toggleItem(opt, moodPrefs, setMoodPrefs)}
                     style={{
                       background: active ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
                       color: active ? 'var(--accent)' : 'var(--text-primary)',
@@ -254,11 +258,11 @@ export default function OnboardingSurvey({ userId, onComplete }) {
           {step === 4 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
               {STEP4_LENGTH.map(opt => {
-                const active = movieLength === opt
+                const active = movieLengths.includes(opt)
                 return (
                   <button
                     key={opt}
-                    onClick={() => setMovieLength(opt)}
+                    onClick={() => toggleItem(opt, movieLengths, setMovieLengths)}
                     style={{
                       background: active ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
                       color: active ? 'var(--accent)' : 'var(--text-primary)',
@@ -286,11 +290,11 @@ export default function OnboardingSurvey({ userId, onComplete }) {
           {step === 5 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
               {STEP5_ERA.map(opt => {
-                const active = eraPref === opt
+                const active = eraPrefs.includes(opt)
                 return (
                   <button
                     key={opt}
-                    onClick={() => setEraPref(opt)}
+                    onClick={() => toggleItem(opt, eraPrefs, setEraPrefs)}
                     style={{
                       background: active ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
                       color: active ? 'var(--accent)' : 'var(--text-primary)',
