@@ -81,18 +81,24 @@ function readDB() {
   }
 }
 
-function writeDB(db) {
+function writeDB(db, deletedInfo = null) {
   try {
     fs.writeFileSync(getDbPath(), JSON.stringify(db, null, 2), 'utf-8');
   } catch (err) {
     console.error('Error writing local DB:', err.message);
   }
 
-  // Background Cloud Sync to Supabase so data is NEVER lost on server redeploys
+  // Cloud Sync to Supabase PostgreSQL so data is NEVER lost on server redeploys
   if (supabase) {
     Promise.resolve().then(async () => {
       try {
         const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
+
+        // Delete movie from Supabase if explicit deletion occurred
+        if (deletedInfo?.deletedMovieId) {
+          await supabase.from('movies').delete().eq('id', deletedInfo.deletedMovieId).catch(() => {});
+        }
+
         if (db.notes && db.notes.length) {
           const notesPayload = db.notes.map(n => ({
             id: n.id,
@@ -133,7 +139,7 @@ function writeDB(db) {
           await supabase.from('movies').upsert(moviesPayload, { onConflict: 'id' }).catch(() => {});
         }
       } catch (err) {
-        // Silent catch for background cloud sync
+        console.warn('Background Supabase cloud sync warning:', err.message);
       }
     });
   }

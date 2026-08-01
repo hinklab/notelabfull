@@ -192,10 +192,9 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/movies/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const db = readDB();
-    const userId = req.userId || DEFAULT_USER_ID;
-    db.movies = (db.movies || []).filter(m => !(m.id === parseInt(req.params.id) && (m.user_id || DEFAULT_USER_ID) === userId));
-    writeDB(db);
+    const targetId = parseInt(req.params.id);
+    db.movies = (db.movies || []).filter(m => !(m.id === targetId && (m.user_id || DEFAULT_USER_ID) === userId));
+    writeDB(db, { deletedMovieId: targetId });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
