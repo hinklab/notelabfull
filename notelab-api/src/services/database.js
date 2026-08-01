@@ -94,81 +94,91 @@ async function writeDB(db, deletedInfo = null) {
       const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
 
       // Delete entity from Supabase if explicit deletion occurred
-      if (deletedInfo?.deletedMovieId) {
-        await supabase.from('movies').delete().eq('id', deletedInfo.deletedMovieId).catch(() => {});
-      }
-      if (deletedInfo?.deletedGroupId) {
-        await supabase.from('note_groups').delete().eq('id', deletedInfo.deletedGroupId).catch(() => {});
-      }
-      if (deletedInfo?.deletedItemId) {
-        await supabase.from('note_items').delete().eq('id', deletedInfo.deletedItemId).catch(() => {});
-      }
+      try {
+        if (deletedInfo?.deletedMovieId) {
+          await supabase.from('movies').delete().eq('id', deletedInfo.deletedMovieId);
+        }
+        if (deletedInfo?.deletedGroupId) {
+          await supabase.from('note_groups').delete().eq('id', deletedInfo.deletedGroupId);
+        }
+        if (deletedInfo?.deletedItemId) {
+          await supabase.from('note_items').delete().eq('id', deletedInfo.deletedItemId);
+        }
+      } catch (e) {}
 
       if (db.notes && db.notes.length) {
-        const notesPayload = db.notes.map(n => ({
-          id: n.id,
-          user_id: n.user_id || DEFAULT_USER_ID,
-          title: n.title || n.name || 'Untitled',
-          icon: typeof n.icon === 'string' ? n.icon : '📝',
-          type: n.type || (n.is_movie ? 'movie' : 'kanban'),
-          is_movie: Boolean(n.is_movie),
-          position: n.position || 0,
-          updated_at: new Date().toISOString()
-        }));
-        await supabase.from('notes').upsert(notesPayload, { onConflict: 'id' }).catch(() => {});
+        try {
+          const notesPayload = db.notes.map(n => ({
+            id: n.id,
+            user_id: n.user_id || DEFAULT_USER_ID,
+            title: n.title || n.name || 'Untitled',
+            icon: typeof n.icon === 'string' ? n.icon : '📝',
+            type: n.type || (n.is_movie ? 'movie' : 'kanban'),
+            is_movie: Boolean(n.is_movie),
+            position: n.position || 0,
+            updated_at: new Date().toISOString()
+          }));
+          await supabase.from('notes').upsert(notesPayload, { onConflict: 'id' });
+        } catch (e) {}
       }
 
       if (db.note_groups && db.note_groups.length) {
-        const groupsPayload = db.note_groups.map(g => ({
-          id: g.id,
-          user_id: g.user_id || DEFAULT_USER_ID,
-          note_id: g.note_id,
-          name: g.name || 'Untitled',
-          position: g.position || 0,
-          updated_at: new Date().toISOString()
-        }));
-        await supabase.from('note_groups').upsert(groupsPayload, { onConflict: 'id' }).catch(() => {});
+        try {
+          const groupsPayload = db.note_groups.map(g => ({
+            id: g.id,
+            user_id: g.user_id || DEFAULT_USER_ID,
+            note_id: g.note_id,
+            name: g.name || 'Untitled',
+            position: g.position || 0,
+            updated_at: new Date().toISOString()
+          }));
+          await supabase.from('note_groups').upsert(groupsPayload, { onConflict: 'id' });
+        } catch (e) {}
       }
 
       if (db.note_items && db.note_items.length) {
-        const itemsPayload = db.note_items.map(i => ({
-          id: i.id,
-          user_id: i.user_id || DEFAULT_USER_ID,
-          group_id: i.group_id,
-          title: i.title || 'Untitled',
-          subtitle: i.subtitle || '',
-          cover_url: i.cover_url || null,
-          note: i.note || '',
-          position: i.position || 0,
-          updated_at: new Date().toISOString()
-        }));
-        await supabase.from('note_items').upsert(itemsPayload, { onConflict: 'id' }).catch(() => {});
+        try {
+          const itemsPayload = db.note_items.map(i => ({
+            id: i.id,
+            user_id: i.user_id || DEFAULT_USER_ID,
+            group_id: i.group_id,
+            title: i.title || 'Untitled',
+            subtitle: i.subtitle || '',
+            cover_url: i.cover_url || null,
+            note: i.note || '',
+            position: i.position || 0,
+            updated_at: new Date().toISOString()
+          }));
+          await supabase.from('note_items').upsert(itemsPayload, { onConflict: 'id' });
+        } catch (e) {}
       }
 
       if (db.movies && db.movies.length) {
-        const moviesPayload = db.movies.map(m => ({
-          id: m.id,
-          user_id: m.user_id || DEFAULT_USER_ID,
-          note_id: m.note_id || null,
-          title: m.title || '',
-          section: m.section || 'todo',
-          position: m.position || 0,
-          tmdb_id: m.tmdb_id || null,
-          imdb_id: m.imdb_id || null,
-          media_type: m.media_type || 'movie',
-          poster_path: m.poster_path || null,
-          rating: m.rating || null,
-          vote_count: m.vote_count || null,
-          genre: m.genre || '-',
-          director: m.director || '-',
-          overview: m.overview || '',
-          release_date: m.release_date || null,
-          release_year: m.release_year || '-',
-          seasons: m.seasons || '-',
-          note: m.note || '',
-          updated_at: new Date().toISOString()
-        }));
-        await supabase.from('movies').upsert(moviesPayload, { onConflict: 'id' }).catch(() => {});
+        try {
+          const moviesPayload = db.movies.map(m => ({
+            id: m.id,
+            user_id: m.user_id || DEFAULT_USER_ID,
+            note_id: m.note_id || null,
+            title: m.title || '',
+            section: m.section || 'todo',
+            position: m.position || 0,
+            tmdb_id: m.tmdb_id || null,
+            imdb_id: m.imdb_id || null,
+            media_type: m.media_type || 'movie',
+            poster_path: m.poster_path || null,
+            rating: m.rating || null,
+            vote_count: m.vote_count || null,
+            genre: m.genre || '-',
+            director: m.director || '-',
+            overview: m.overview || '',
+            release_date: m.release_date || null,
+            release_year: m.release_year || '-',
+            seasons: m.seasons || '-',
+            note: m.note || '',
+            updated_at: new Date().toISOString()
+          }));
+          await supabase.from('movies').upsert(moviesPayload, { onConflict: 'id' });
+        } catch (e) {}
       }
     } catch (err) {
       console.warn('Supabase cloud write warning:', err.message);

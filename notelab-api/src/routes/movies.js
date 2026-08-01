@@ -198,7 +198,9 @@ router.post('/', async (req, res) => {
 
     const supabase = getSupabase();
     if (supabase) {
-      await supabase.from('movies').upsert([movie], { onConflict: 'id' }).catch(() => {});
+      try {
+        await supabase.from('movies').upsert([movie], { onConflict: 'id' });
+      } catch (e) {}
     }
 
     res.json(movie);
@@ -221,7 +223,9 @@ router.put('/:id', async (req, res) => {
 
     const supabase = getSupabase();
     if (supabase) {
-      await supabase.from('movies').upsert([db.movies[idx]], { onConflict: 'id' }).catch(() => {});
+      try {
+        await supabase.from('movies').upsert([db.movies[idx]], { onConflict: 'id' });
+      } catch (e) {}
     }
 
     res.json(db.movies[idx]);
@@ -241,7 +245,9 @@ router.delete('/:id', async (req, res) => {
 
     const supabase = getSupabase();
     if (supabase) {
-      await supabase.from('movies').delete().eq('id', targetId).catch(() => {});
+      try {
+        await supabase.from('movies').delete().eq('id', targetId);
+      } catch (e) {}
     }
 
     res.json({ success: true });
@@ -277,7 +283,9 @@ router.post('/move', async (req, res) => {
 
     const supabase = getSupabase();
     if (supabase) {
-      await supabase.from('movies').upsert([db.movies[idx]], { onConflict: 'id' }).catch(() => {});
+      try {
+        await supabase.from('movies').upsert([db.movies[idx]], { onConflict: 'id' });
+      } catch (e) {}
     }
 
     res.json(db.movies[idx]);
