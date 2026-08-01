@@ -1,3 +1,7 @@
+const express = require('express');
+const router = express.Router();
+const { readDB, writeDB } = require('../services/database');
+
 function getSupabase() {
   try {
     return require('../services/supabase');
