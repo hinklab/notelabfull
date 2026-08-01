@@ -28,16 +28,35 @@ const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
 // GET /api/movies?note_id=123
 router.get('/', async (req, res) => {
   try {
-    const db = readDB();
     const { note_id } = req.query;
     const userId = req.userId || DEFAULT_USER_ID;
-    let movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
-    
-    if (note_id) {
-      movies = movies.filter(m => (m.note_id ?? null) === (note_id ? parseInt(note_id) : null));
+    let movies = null;
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        let query = supabase.from('movies').select('*').eq('user_id', userId);
+        if (note_id) {
+          query = query.eq('note_id', parseInt(note_id));
+        }
+        const { data: cloudMovies, error: cloudErr } = await query;
+        if (!cloudErr && Array.isArray(cloudMovies) && cloudMovies.length > 0) {
+          movies = cloudMovies;
+        }
+      } catch (cloudEx) {
+        console.warn('Cloud fetch for movies failed, falling back to local DB:', cloudEx.message);
+      }
     }
-    
-    movies.sort((a, b) => a.position - b.position);
+
+    if (!movies) {
+      const db = readDB();
+      movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
+      if (note_id) {
+        movies = movies.filter(m => (m.note_id ?? null) === (note_id ? parseInt(note_id) : null));
+      }
+    }
+
+    movies.sort((a, b) => (a.position || 0) - (b.position || 0));
     res.json(movies);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -166,7 +185,7 @@ router.post('/', async (req, res) => {
     };
     
     db.movies.push(movie);
-    writeDB(db);
+    await writeDB(db);
     res.json(movie);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -182,7 +201,7 @@ router.put('/:id', async (req, res) => {
     if (idx === -1) return res.status(404).json({ error: 'Movie not found' });
     
     db.movies[idx] = { ...db.movies[idx], ...req.body };
-    writeDB(db);
+    await writeDB(db);
     res.json(db.movies[idx]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -193,8 +212,10 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const targetId = parseInt(req.params.id);
+    const userId = req.userId || DEFAULT_USER_ID;
+    const db = readDB();
     db.movies = (db.movies || []).filter(m => !(m.id === targetId && (m.user_id || DEFAULT_USER_ID) === userId));
-    writeDB(db, { deletedMovieId: targetId });
+    await writeDB(db, { deletedMovieId: targetId });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -223,7 +244,7 @@ router.post('/move', async (req, res) => {
       db.movies[idx].position = db.movies.filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === section && m.id !== id).length;
     }
     
-    writeDB(db);
+    await writeDB(db);
     res.json(db.movies[idx]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -242,7 +263,7 @@ router.post('/reorder', async (req, res) => {
       if (idx !== -1) db.movies[idx].position = position;
     });
     
-    writeDB(db);
+    await writeDB(db);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
