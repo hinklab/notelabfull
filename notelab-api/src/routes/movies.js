@@ -23,6 +23,14 @@ function normalizeSection(section) {
   return ['futured', 'todo', 'doing', 'done'].includes(s) ? s : 'todo';
 }
 
+function getSupabase() {
+  try {
+    return require('../services/supabase');
+  } catch {
+    return null;
+  }
+}
+
 const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
 
 // GET /api/movies?note_id=123
