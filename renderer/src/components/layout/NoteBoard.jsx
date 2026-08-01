@@ -276,7 +276,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
     // 1. Optimistic UI update: move item instantly in local state
     let fromGroupId = null
     Object.keys(itemsByGroup).forEach(gId => {
-      if ((itemsByGroup[gId] || []).some(item => item.id === itemId)) {
+      if ((itemsByGroup[gId] || []).some(item => String(item.id) === String(itemId))) {
         fromGroupId = gId
       }
     })
@@ -286,7 +286,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
         const sourceItems = [...(prev[fromGroupId] || [])]
         const targetItems = String(fromGroupId) === String(toGroupId) ? sourceItems : [...(prev[toGroupId] || [])]
 
-        const itemIdx = sourceItems.findIndex(i => i.id === itemId)
+        const itemIdx = sourceItems.findIndex(i => String(i.id) === String(itemId))
         if (itemIdx === -1) return prev
         const [movedItem] = sourceItems.splice(itemIdx, 1)
 
@@ -304,7 +304,8 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
     // 2. Perform API call in background
     try {
       if (isMovieNote) {
-        const sectionKey = getGroupSectionKey(toGroupId)
+        const targetGroup = groups.find(g => String(g.id) === String(toGroupId))
+        const sectionKey = targetGroup?.section_key || (String(toGroupId) === '1' ? 'futured' : String(toGroupId) === '2' ? 'todo' : String(toGroupId) === '3' ? 'doing' : 'done')
         await window.api.moveMovie(itemId, sectionKey, insertIndex)
       } else {
         await window.api.moveItem(itemId, toGroupId, insertIndex)
@@ -318,15 +319,15 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   const handleReorderItem = async (itemId, targetId, position, groupId) => {
     const items = itemsByGroup[groupId] || []
     const ids = items.map(i => i.id)
-    const fromIdx = ids.indexOf(itemId)
-    const targetIdx = ids.indexOf(targetId)
+    const fromIdx = ids.findIndex(id => String(id) === String(itemId))
+    const targetIdx = ids.findIndex(id => String(id) === String(targetId))
     if (fromIdx === -1) return
 
     // 1. Optimistic UI update
     setItemsByGroup(prev => {
       const currentList = [...(prev[groupId] || [])]
-      const from = currentList.findIndex(i => i.id === itemId)
-      const target = currentList.findIndex(i => i.id === targetId)
+      const from = currentList.findIndex(i => String(i.id) === String(itemId))
+      const target = currentList.findIndex(i => String(i.id) === String(targetId))
       if (from === -1 || target === -1) return prev
 
       const [moved] = currentList.splice(from, 1)
@@ -343,7 +344,8 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
       ids.splice(Math.max(0, insertIdx), 0, itemId)
 
       if (isMovieNote) {
-        const sectionKey = getGroupSectionKey(groupId)
+        const targetGroup = groups.find(g => String(g.id) === String(groupId))
+        const sectionKey = targetGroup?.section_key || (String(groupId) === '1' ? 'futured' : String(groupId) === '2' ? 'todo' : String(groupId) === '3' ? 'doing' : 'done')
         await window.api.reorderMovies(sectionKey, ids)
       } else {
         await window.api.reorderItems(groupId, ids)
