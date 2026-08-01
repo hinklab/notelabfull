@@ -45,6 +45,13 @@ export default function App() {
       return
     }
 
+    // Fast check: if completed flag is already saved in localStorage for this user, skip survey
+    if (localStorage.getItem('notelab_survey_completed_' + user.id) === 'true') {
+      setShowSurvey(false)
+      setCheckingSurvey(false)
+      return
+    }
+
     let isMounted = true
     setCheckingSurvey(true)
     const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -59,14 +66,16 @@ export default function App() {
       })
       .then(data => {
         if (!isMounted) return
-        if (!data?.completed) {
-          setShowSurvey(true)
-        } else {
+        if (data?.completed) {
+          localStorage.setItem('notelab_survey_completed_' + user.id, 'true')
           setShowSurvey(false)
+        } else {
+          setShowSurvey(true)
         }
       })
       .catch(err => {
         console.error('Failed to check user preferences:', err)
+        setShowSurvey(false)
       })
       .finally(() => {
         if (isMounted) setCheckingSurvey(false)

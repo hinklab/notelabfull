@@ -61,6 +61,10 @@ export default function OnboardingSurvey({ userId, onComplete }) {
     if (submitting) return
     setSubmitting(true)
 
+    if (userId) {
+      localStorage.setItem('notelab_survey_completed_' + userId, 'true')
+    }
+
     const payload = {
       user_id: userId,
       favorite_genres: selectedGenres,
