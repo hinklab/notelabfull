@@ -134,48 +134,142 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   const getGroupSectionKey = (groupId) => (groups.find(g => g.id === groupId) || {}).section_key
 
   const handleAddItem = async (groupId, data) => {
-    if (isMovieNote) {
-      const sectionKey = getGroupSectionKey(groupId)
-      await window.api.addMovie({
+    const tempId = 'temp_' + Date.now()
+    const sectionKey = getGroupSectionKey(groupId)
+
+    // 1. Optimistic UI update: render new card instantly!
+    const tempItem = isMovieNote ? {
+      id: tempId,
+      title: data.title,
+      section: sectionKey,
+      note_id: noteId,
+      poster_path: data.poster_path || data.cover_url || null,
+      rating: data.rating || null,
+      vote_count: data.vote_count || 0,
+      genre: data.genre || '-',
+      director: data.director || '-',
+      overview: data.overview || '',
+      release_year: data.release_year || '-',
+      media_type: data.media_type || 'movie',
+      position: 0,
+      _movie: {
+        id: tempId,
         title: data.title,
-        release_date: data.release_date || null,
-        release_year: data.release_year || '-',
+        section: sectionKey,
+        poster_path: data.poster_path || data.cover_url || null,
         rating: data.rating || null,
         vote_count: data.vote_count || 0,
-        poster_path: data.poster_path || data.cover_url || null,
         genre: data.genre || '-',
         director: data.director || '-',
-        tmdb_id: data.tmdb_id || null,
-        imdb_id: data.imdb_id || null,
-        media_type: data.media_type || null,
-        note: data.note || '',
-        section: sectionKey,
-        note_id: noteId,
-      })
-    } else {
-      await window.api.addItem(groupId, data)
+        overview: data.overview || '',
+        release_year: data.release_year || '-',
+        media_type: data.media_type || 'movie',
+      }
+    } : {
+      id: tempId,
+      group_id: groupId,
+      title: data.title,
+      subtitle: data.subtitle || '',
+      cover_url: data.cover_url || null,
+      note: data.note || '',
+      position: 0,
     }
+
+    setItemsByGroup(prev => ({
+      ...prev,
+      [groupId]: [tempItem, ...(prev[groupId] || [])]
+    }))
     setAddItemGroup(null)
-    await reloadGroup(groupId)
+
+    // 2. Perform API call in background and replace temp item
+    try {
+      if (isMovieNote) {
+        await window.api.addMovie({
+          title: data.title,
+          release_date: data.release_date || null,
+          release_year: data.release_year || '-',
+          rating: data.rating || null,
+          vote_count: data.vote_count || 0,
+          poster_path: data.poster_path || data.cover_url || null,
+          genre: data.genre || '-',
+          director: data.director || '-',
+          tmdb_id: data.tmdb_id || null,
+          imdb_id: data.imdb_id || null,
+          media_type: data.media_type || null,
+          note: data.note || '',
+          section: sectionKey,
+          note_id: noteId,
+        })
+      } else {
+        await window.api.addItem(groupId, data)
+      }
+      await reloadGroup(groupId)
+    } catch (err) {
+      console.error('Failed to add item:', err)
+      await reloadGroup(groupId)
+    }
   }
 
   const handleUpdateItem = async (id, data, groupId) => {
-    if (isMovieNote) {
-      await window.api.updateMovie(id, { title: data.title, note: data.note, poster_path: data.cover_url })
-    } else {
-      await window.api.updateItem(id, data)
-    }
+    // 1. Optimistic UI update
+    setItemsByGroup(prev => {
+      const list = [...(prev[groupId] || [])]
+      const idx = list.findIndex(i => i.id === id)
+      if (idx !== -1) {
+        list[idx] = {
+          ...list[idx],
+          title: data.title !== undefined ? data.title : list[idx].title,
+          note: data.note !== undefined ? data.note : list[idx].note,
+          cover_url: data.cover_url !== undefined ? data.cover_url : list[idx].cover_url,
+          poster_path: data.cover_url !== undefined ? data.cover_url : list[idx].poster_path,
+          _movie: list[idx]._movie ? {
+            ...list[idx]._movie,
+            title: data.title !== undefined ? data.title : list[idx]._movie.title,
+            note: data.note !== undefined ? data.note : list[idx]._movie.note,
+            poster_path: data.cover_url !== undefined ? data.cover_url : list[idx]._movie.poster_path,
+          } : null
+        }
+      }
+      return { ...prev, [groupId]: list }
+    })
     setEditItem(null)
-    await reloadGroup(groupId)
+
+    // 2. Perform API call in background
+    try {
+      if (isMovieNote) {
+        await window.api.updateMovie(id, { title: data.title, note: data.note, poster_path: data.cover_url })
+      } else {
+        await window.api.updateItem(id, data)
+      }
+    } catch (err) {
+      console.error('Failed to update item:', err)
+      await reloadGroup(groupId)
+    }
   }
 
   const handleDeleteItem = async (item) => {
-    if (isMovieNote) {
-      await window.api.deleteMovie(item.id)
-    } else {
-      await window.api.deleteItem(item.id)
+    const groupId = item.group_id || (isMovieNote ? (groups.find(g => g.section_key === item.section) || {}).id : null)
+
+    // 1. Optimistic UI update: remove card instantly
+    if (groupId) {
+      setItemsByGroup(prev => ({
+        ...prev,
+        [groupId]: (prev[groupId] || []).filter(i => i.id !== item.id)
+      }))
     }
-    await reloadGroup(item.group_id)
+    setEditItem(null)
+
+    // 2. Perform API call in background
+    try {
+      if (isMovieNote) {
+        await window.api.deleteMovie(item.id)
+      } else {
+        await window.api.deleteItem(item.id)
+      }
+    } catch (err) {
+      console.error('Failed to delete item:', err)
+      if (groupId) await reloadGroup(groupId)
+    }
   }
 
   const handleMoveItem = async (itemId, toGroupId, insertIndex) => {
