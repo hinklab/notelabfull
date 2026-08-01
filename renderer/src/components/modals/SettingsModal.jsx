@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom'
 import { User, Sun, Moon, LogOut, X, Check } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 
-export default function SettingsModal({ onClose }) {
+export default function SettingsModal({ onClose, onOpenSurvey }) {
   const { user, updateUser, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('profile') // 'profile' | 'appearance' | 'logout'
 
@@ -260,6 +260,40 @@ export default function SettingsModal({ onClose }) {
                   ) : (
                     profileSaving ? 'Saqlanmoqda...' : 'Saqlash'
                   )}
+                </button>
+              </div>
+
+              {/* Qiziqishlar so'rovnomasi bo'limi */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 6 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  Qiziqishlar so'rovnomasi
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                  Film va serial tavsiyalarini yangilash uchun so'rovnomani qayta o'tishingiz mumkin.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose()
+                    onOpenSurvey?.()
+                  }}
+                  style={{
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '10px 16px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <User size={15} color="var(--accent)" />
+                  <span>Qiziqishlar so'rovnomasini qayta o'tish</span>
                 </button>
               </div>
             </div>

@@ -310,109 +310,109 @@ router.post('/refresh-all', async (req, res) => {
     let failedTitles = [];
     const movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
 
-    for (const m of movies) {
-      let changed = false;
-      const isTv = m.media_type === 'tv' || (m.seasons && m.seasons !== '-');
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < movies.length; i += BATCH_SIZE) {
+      const batch = movies.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async (m) => {
+        let changed = false;
+        const isTv = m.media_type === 'tv' || (m.seasons && m.seasons !== '-');
 
-      // 1. Fetch TMDB Poster (TMDB is the primary source for posters)
-      if (m.tmdb_id && tmdbKey) {
-        try {
-          const primaryUrl = isTv
-            ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
-            : `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
-          const fallbackUrl = isTv
-            ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
-            : `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
+        // 1. Fetch TMDB Poster (TMDB is the primary source for posters)
+        if (m.tmdb_id && tmdbKey) {
+          try {
+            const primaryUrl = isTv
+              ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
+              : `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
+            const fallbackUrl = isTv
+              ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
+              : `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
 
-          let tmdbRes = await fetch(primaryUrl);
-          if (!tmdbRes.ok && tmdbRes.status === 404) {
-            tmdbRes = await fetch(fallbackUrl);
-          }
-          if (tmdbRes.ok) {
-            const tmdbData = await tmdbRes.json();
-            if (tmdbData.poster_path) {
-              const freshTmdbPoster = `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`;
-              if (m.poster_path !== freshTmdbPoster) {
-                m.poster_path = freshTmdbPoster;
-                changed = true;
+            let tmdbRes = await fetch(primaryUrl);
+            if (!tmdbRes.ok && tmdbRes.status === 404) {
+              tmdbRes = await fetch(fallbackUrl);
+            }
+            if (tmdbRes.ok) {
+              const tmdbData = await tmdbRes.json();
+              if (tmdbData.poster_path) {
+                const freshTmdbPoster = `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`;
+                if (m.poster_path !== freshTmdbPoster) {
+                  m.poster_path = freshTmdbPoster;
+                  changed = true;
+                }
+              }
+              if (!m.release_date) {
+                m.release_date = tmdbData.release_date || tmdbData.first_air_date || null;
               }
             }
-            if (!m.release_date) {
-              m.release_date = tmdbData.release_date || tmdbData.first_air_date || null;
-            }
+          } catch (e) {
+            console.warn(`TMDB poster fetch warning for "${m.title}":`, e.message);
           }
-        } catch (e) {
-          console.warn(`TMDB poster fetch warning for "${m.title}":`, e.message);
         }
-      }
 
-      // 2. Fetch All Metadata & Ratings from IMDb (via OMDB API)
-      const omdbQuery = m.imdb_id
-        ? `i=${encodeURIComponent(m.imdb_id)}`
-        : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
+        // 2. Fetch All Metadata & Ratings from IMDb (via OMDB API)
+        const omdbQuery = m.imdb_id
+          ? `i=${encodeURIComponent(m.imdb_id)}`
+          : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
 
-      if (omdbKey && (m.imdb_id || m.title)) {
-        try {
-          const omdbUrl = `http://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&${omdbQuery}`;
-          const omdbRes = await fetch(omdbUrl);
-          if (omdbRes.ok) {
-            const omdbData = await omdbRes.json();
-            if (omdbData.Response !== 'False') {
-              // Save IMDb ID if missing
-              if (omdbData.imdbID && !m.imdb_id) {
-                m.imdb_id = omdbData.imdbID;
-                changed = true;
+        if (omdbKey && (m.imdb_id || m.title)) {
+          try {
+            const omdbUrl = `http://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&${omdbQuery}`;
+            const omdbRes = await fetch(omdbUrl);
+            if (omdbRes.ok) {
+              const omdbData = await omdbRes.json();
+              if (omdbData.Response !== 'False') {
+                if (omdbData.imdbID && !m.imdb_id) {
+                  m.imdb_id = omdbData.imdbID;
+                  changed = true;
+                }
+
+                if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') {
+                  const newRating = parseFloat(omdbData.imdbRating);
+                  if (m.rating !== newRating) { m.rating = newRating; changed = true; }
+                }
+
+                if (omdbData.imdbVotes && omdbData.imdbVotes !== 'N/A') {
+                  const newVotes = parseInt(omdbData.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+                  if (m.vote_count !== newVotes) { m.vote_count = newVotes; changed = true; }
+                }
+
+                if (omdbData.Genre && omdbData.Genre !== 'N/A' && m.genre !== omdbData.Genre) {
+                  m.genre = omdbData.Genre; changed = true;
+                }
+
+                if (omdbData.Director && omdbData.Director !== 'N/A' && m.director !== omdbData.Director) {
+                  m.director = omdbData.Director; changed = true;
+                }
+
+                if (omdbData.Year && omdbData.Year !== 'N/A' && m.release_year !== omdbData.Year) {
+                  m.release_year = omdbData.Year; changed = true;
+                }
+
+                if (omdbData.Plot && omdbData.Plot !== 'N/A' && (!m.overview || m.overview.length < omdbData.Plot.length)) {
+                  m.overview = omdbData.Plot; changed = true;
+                }
+
+                if (!m.poster_path && omdbData.Poster && omdbData.Poster !== 'N/A') {
+                  m.poster_path = omdbData.Poster; changed = true;
+                }
+
+                console.log(`  -> IMDb (OMDb) data & TMDB poster refreshed for "${m.title}"`);
+              } else {
+                failedTitles.push(m.title);
               }
-
-              // Update IMDb rating and votes
-              if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') {
-                const newRating = parseFloat(omdbData.imdbRating);
-                if (m.rating !== newRating) { m.rating = newRating; changed = true; }
-              }
-
-              if (omdbData.imdbVotes && omdbData.imdbVotes !== 'N/A') {
-                const newVotes = parseInt(omdbData.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
-                if (m.vote_count !== newVotes) { m.vote_count = newVotes; changed = true; }
-              }
-
-              // Update metadata from IMDb
-              if (omdbData.Genre && omdbData.Genre !== 'N/A' && m.genre !== omdbData.Genre) {
-                m.genre = omdbData.Genre; changed = true;
-              }
-
-              if (omdbData.Director && omdbData.Director !== 'N/A' && m.director !== omdbData.Director) {
-                m.director = omdbData.Director; changed = true;
-              }
-
-              if (omdbData.Year && omdbData.Year !== 'N/A' && m.release_year !== omdbData.Year) {
-                m.release_year = omdbData.Year; changed = true;
-              }
-
-              if (omdbData.Plot && omdbData.Plot !== 'N/A' && (!m.overview || m.overview.length < omdbData.Plot.length)) {
-                m.overview = omdbData.Plot; changed = true;
-              }
-
-              // Fallback poster from OMDB if TMDB poster was missing
-              if (!m.poster_path && omdbData.Poster && omdbData.Poster !== 'N/A') {
-                m.poster_path = omdbData.Poster; changed = true;
-              }
-
-              console.log(`  -> IMDb (OMDb) data & TMDB poster refreshed for "${m.title}"`);
             } else {
               failedTitles.push(m.title);
             }
-          } else {
+          } catch (e) {
+            console.warn(`IMDb (OMDb) refresh error for "${m.title}":`, e.message);
             failedTitles.push(m.title);
           }
-        } catch (e) {
-          console.warn(`IMDb (OMDb) refresh error for "${m.title}":`, e.message);
-          failedTitles.push(m.title);
         }
-      }
 
-      if (changed) {
-        updatedCount++;
-      }
+        if (changed) {
+          updatedCount++;
+        }
+      }));
     }
 
     // Auto-migrate futured movies whose release dates have passed
