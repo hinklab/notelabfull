@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { RefreshCw, Settings, Power, Film, Bell } from 'lucide-react'
+import { RefreshCw, Settings, Power, Film, Bell, HelpCircle } from 'lucide-react'
 import NotificationPanel from './NotificationPanel.jsx'
 
-export default function Topbar({ search, onSearch, onSettings, onRefresh, refreshing, noteLabel, user, onLogout, onAddMovieSuccess }) {
+export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onRefresh, refreshing, noteLabel, user, onLogout, onAddMovieSuccess }) {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
   const panelRef = useRef(null)
@@ -231,6 +231,29 @@ export default function Topbar({ search, onSearch, onSettings, onRefresh, refres
             />
           )}
         </div>
+
+        {/* Qiziqishlar so'rovnomasi tugmasi */}
+        {onOpenSurvey && (
+          <button
+            onClick={onOpenSurvey}
+            title="Qiziqishlar so'rovnomasini qayta o'tish"
+            style={{
+              WebkitAppRegion: 'no-drag',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: 7,
+              color: 'var(--text-secondary)',
+              width: 34, height: 34,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'border-color 0.15s, color 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.color = 'var(--text-primary)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+          >
+            <HelpCircle size={15} />
+          </button>
+        )}
 
         {/* Settings tugmasi */}
         <button

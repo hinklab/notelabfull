@@ -1878,39 +1878,7 @@
       "user_id": "0d3da195-1d0e-458b-9f88-2879561e0da6"
     }
   ],
-  "user_preferences": [
-    {
-      "id": "dfe448b0-b55a-4c11-b014-3b8af39c8854",
-      "favorite_genres": [
-        "Komediya",
-        "Jangari",
-        "Qo'rqinchli",
-        "Triller"
-      ],
-      "watch_frequency": "weekly",
-      "preferred_platform": "Torrent / Onlayn",
-      "movie_length_preference": "no_preference",
-      "era_preference": "new",
-      "completed_at": "2026-07-26T10:10:01.601Z"
-    },
-    {
-      "id": "0d3da195-1d0e-458b-9f88-2879561e0da6",
-      "favorite_genres": [
-        "Jangari",
-        "Komediya",
-        "Ilmiy-fantastik",
-        "Qo'rqinchli",
-        "Romantik",
-        "Animatsiya",
-        "Triller"
-      ],
-      "watch_frequency": "",
-      "preferred_platform": "",
-      "movie_length_preference": "Farqi yo'q",
-      "era_preference": "Ikkalasi ham",
-      "completed_at": "2026-07-26T13:34:23.560Z"
-    }
-  ],
+  "user_preferences": [],
   "users": [
     {
       "id": "0d3da195-1d0e-458b-9f88-2879561e0da6",

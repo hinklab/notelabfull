@@ -103,10 +103,10 @@ export default function App() {
     )
   }
 
-  return <MainApp user={user} onLogout={logout} />
+  return <MainApp user={user} onLogout={logout} onOpenSurvey={() => setShowSurvey(true)} />
 }
 
-function MainApp({ user, onLogout }) {
+function MainApp({ user, onLogout, onOpenSurvey }) {
   const [search, setSearch] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [activeNote, setActiveNote] = useState(null)
@@ -186,6 +186,7 @@ function MainApp({ user, onLogout }) {
         search={search}
         onSearch={setSearch}
         onSettings={() => setShowSettings(true)}
+        onOpenSurvey={onOpenSurvey}
         noteLabel={noteLabel}
         onRefresh={handleRefreshMovies}
         refreshing={refreshing}
