@@ -126,6 +126,24 @@ async function markAllAsRead(userId) {
 
 async function deleteNotification(userId, id) {
   if (!userId) return;
+
+  const db = readDB();
+  const notif = (db.notifications || []).find(n => n.id === id && n.user_id === userId);
+
+  if (notif) {
+    const settings = getUserSettings(userId, db);
+    const ignoredKey = `ignored_recs_${userId}`;
+    const ignoredList = settings[ignoredKey] || [];
+
+    const movieTmdbId = notif.movie_data?.tmdb_id;
+    const movieTitle = notif.movie_data?.title || notif.title;
+
+    if (movieTmdbId) ignoredList.push(movieTmdbId);
+    if (movieTitle) ignoredList.push(movieTitle.toLowerCase().trim());
+
+    saveUserSettings(userId, { [ignoredKey]: Array.from(new Set(ignoredList)) }, db);
+  }
+
   if (supabase) {
     try {
       await supabase
@@ -138,7 +156,6 @@ async function deleteNotification(userId, id) {
     }
   }
 
-  const db = readDB();
   if (db.notifications) {
     db.notifications = db.notifications.filter(n => !(n.id === id && n.user_id === userId));
     writeDB(db);
@@ -146,7 +163,25 @@ async function deleteNotification(userId, id) {
 }
 
 async function createReleaseAlert(userId, movie) {
-  if (!userId) return null;
+  if (!userId || !movie) return null;
+
+  const existingNotifs = await getNotifications(userId);
+  const movieTitle = (movie.title || '').toLowerCase().trim();
+
+  // Guard: check if release alert for this movie was ALREADY sent
+  const alreadyAlerted = existingNotifs.some(n =>
+    n.type === 'release_alert' && (
+      (movie.tmdb_id && n.movie_data?.tmdb_id === movie.tmdb_id) ||
+      (movieTitle && (n.movie_data?.title || '').toLowerCase().trim() === movieTitle) ||
+      (movieTitle && (n.title || '').toLowerCase().trim().includes(movieTitle))
+    )
+  );
+
+  if (alreadyAlerted) {
+    console.log(`[RELEASE ALERT] Skipped duplicate alert for movie "${movie.title}"`);
+    return null;
+  }
+
   const title = `${movie.title || 'Kino'} chiqdi!`;
   const message = `"${movie.title || 'Film'}" filmi endi 'To Do' bo'limida`;
   const movie_data = {
@@ -326,16 +361,21 @@ async function generateRecommendations(userId) {
     const results = data.results || [];
     console.log(`[DEBUG RECOMMENDATIONS] TMDB returned ${results.length} movie result(s).`);
 
-    // Filter existing user movies AND existing notifications
+    // Filter existing user movies, existing notifications, AND ignored/dismissed recommendations
     const userMovies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
     const userNotifications = (db.notifications || []).filter(n => n.user_id === userId);
+    const ignoredKey = `ignored_recs_${userId}`;
+    const ignoredList = settings[ignoredKey] || [];
+
     const existingTmdbIds = new Set([
       ...userMovies.map(m => m.tmdb_id).filter(Boolean),
-      ...userNotifications.map(n => n.movie_data?.tmdb_id).filter(Boolean)
+      ...userNotifications.map(n => n.movie_data?.tmdb_id).filter(Boolean),
+      ...ignoredList.filter(x => typeof x === 'number')
     ]);
     const existingTitles = new Set([
       ...userMovies.map(m => (m.title || '').toLowerCase().trim()),
-      ...userNotifications.map(n => (n.movie_data?.title || n.title || '').toLowerCase().trim())
+      ...userNotifications.map(n => (n.movie_data?.title || n.title || '').toLowerCase().trim()),
+      ...ignoredList.filter(x => typeof x === 'string')
     ]);
 
     const candidates = results.filter(m => {
