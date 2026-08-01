@@ -45,14 +45,16 @@ app.use((err, req, res, next) => {
 const { readDB } = require('./services/database');
 const { autoMigrateFuturedMovies } = require('./routes/movies');
 
-app.listen(PORT, () => {
-  console.log(`Notelab API running on http://localhost:${PORT}`);
-  try {
-    const db = readDB();
-    autoMigrateFuturedMovies(db);
-  } catch (err) {
-    console.error('Error running startup movie migration:', err.message);
-  }
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Notelab API running on http://localhost:${PORT}`);
+    try {
+      const db = readDB();
+      autoMigrateFuturedMovies(db);
+    } catch (err) {
+      console.error('Error running startup movie migration:', err.message);
+    }
+  });
+}
 
 module.exports = app;

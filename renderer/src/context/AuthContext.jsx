@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 
 const AuthContext = createContext(null)
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 const SUPABASE_REST_URL = 'https://spntzkotmgsghoahqkne.supabase.co/rest/v1'
 const SUPABASE_KEY = ['sb_secret_ILO1', 'JHGlLGsmNTpwptBG9Q_', 'g3IkDJ7I'].join('')
