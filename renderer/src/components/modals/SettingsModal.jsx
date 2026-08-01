@@ -155,18 +155,18 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
         </div>
 
         {/* Fixed Height Viewport with Horizontal Sliding Track */}
-        <div style={{ height: 350, overflow: 'hidden', position: 'relative', width: '100%' }}>
+        <div style={{ minHeight: 440, maxHeight: '65vh', overflowY: 'auto', position: 'relative', width: '100%' }}>
           <div
             style={{
               display: 'flex',
               width: '300%',
-              height: '100%',
+              minHeight: 440,
               transform: `translateX(-${activeIndex * (100 / 3)}%)`,
               transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
             {/* SLIDE 0: TAB 1 - Profil */}
-            <div style={{ width: '33.3333%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ width: '33.3333%', padding: 24, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
                   Elektron pochta (faqat ko'rish uchun)
@@ -233,7 +233,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
                 <button
                   onClick={handleSaveProfile}
                   disabled={profileSaving}
@@ -264,7 +264,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
               </div>
 
               {/* Qiziqishlar so'rovnomasi bo'limi */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 6 }}>
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
                   Qiziqishlar so'rovnomasi
                 </div>
@@ -278,21 +278,24 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                     onOpenSurvey?.()
                   }}
                   style={{
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    padding: '10px 16px',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: 'var(--text-primary)',
+                    width: '100%',
+                    background: 'rgba(124, 58, 237, 0.1)',
+                    border: '1.5px solid var(--accent)',
+                    borderRadius: 10,
+                    padding: '12px 18px',
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: 'var(--accent)',
                     cursor: 'pointer',
-                    display: 'inline-flex',
+                    display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: 8,
                     transition: 'all 0.15s ease',
+                    boxShadow: '0 4px 14px rgba(124, 58, 237, 0.15)',
                   }}
                 >
-                  <User size={15} color="var(--accent)" />
+                  <User size={16} color="var(--accent)" />
                   <span>Qiziqishlar so'rovnomasini qayta o'tish</span>
                 </button>
               </div>
