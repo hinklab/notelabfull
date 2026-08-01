@@ -43,20 +43,18 @@ const STEP5_ERA = [
 export default function OnboardingSurvey({ userId, onComplete }) {
   const [step, setStep] = useState(1)
   const [selectedGenres, setSelectedGenres] = useState([])
-  const [priorityFactors, setPriorityFactors] = useState([STEP2_PRIORITY[0]])
-  const [moodPrefs, setMoodPrefs] = useState([STEP3_MOOD[0]])
-  const [movieLengths, setMovieLengths] = useState([STEP4_LENGTH[2]])
-  const [eraPrefs, setEraPrefs] = useState([STEP5_ERA[2]])
+  const [priorityFactors, setPriorityFactors] = useState([])
+  const [moodPrefs, setMoodPrefs] = useState([])
+  const [movieLengths, setMovieLengths] = useState([])
+  const [eraPrefs, setEraPrefs] = useState([])
   const [submitting, setSubmitting] = useState(false)
 
-  const toggleItem = (item, list, setList) => {
-    setList(prev => {
-      if (prev.includes(item)) {
-        return prev.length > 1 ? prev.filter(i => i !== item) : prev
-      } else {
-        return [...prev, item]
-      }
-    })
+  const toggleItem = (item, setList) => {
+    setList(prev =>
+      prev.includes(item)
+        ? prev.filter(i => i !== item)
+        : [...prev, item]
+    )
   }
 
   const handleSubmit = async () => {
@@ -96,12 +94,48 @@ export default function OnboardingSurvey({ userId, onComplete }) {
   }
 
   const stepDescriptions = {
-    1: "Mos va aniq tavsiyalar olish uchun janrlarni tanlang (ko'p tanlash mumkin).",
-    2: "Filmni baxolashdagi asosiy e'tiboringizni ko'rsating (ko'p tanlash mumkin).",
-    3: "Bugungi yoki umumiy kayfiyatingizga mos yo'nalishlarni tanlang (ko'p tanlash mumkin).",
-    4: "Film davomiyligi bo'yicha afzalligingizni belgilang (ko'p tanlash mumkin).",
-    5: "Davr bo'yicha afzalligingizni belgilang (ko'p tanlash mumkin)."
+    1: "Mos va aniq tavsiyalar olish uchun janrlarni tanlang (xohlagancha tanlashingiz mumkin).",
+    2: "Filmni baxolashdagi muhim jihatlarni belgilang (xohlagancha tanlashingiz mumkin).",
+    3: "Mos kayfiyat va yo'nalishlarni belgilang (xohlagancha tanlashingiz mumkin).",
+    4: "Film davomiyligi bo'yicha afzalliklarni belgilang (xohlagancha tanlashingiz mumkin).",
+    5: "Davr bo'yicha afzalliklarni belgilang (xohlagancha tanlashingiz mumkin)."
   }
+
+  const renderCheckboxRow = (opt, active, onClick) => (
+    <button
+      key={opt}
+      onClick={onClick}
+      style={{
+        background: active ? 'rgba(124, 58, 237, 0.12)' : 'var(--bg-card)',
+        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+        border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+        borderRadius: 12,
+        padding: '14px 18px',
+        fontSize: 13,
+        fontWeight: active ? 600 : 400,
+        cursor: 'pointer',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        transition: 'all 0.15s ease',
+        boxShadow: active ? '0 4px 14px rgba(124, 58, 237, 0.15)' : 'none',
+      }}
+    >
+      <span style={{ fontSize: 13.5 }}>{opt}</span>
+      <div style={{
+        width: 20, height: 20,
+        borderRadius: 6,
+        border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+        background: active ? 'var(--accent)' : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        transition: 'all 0.15s ease',
+      }}>
+        {active && <Check size={13} color="#ffffff" strokeWidth={3} />}
+      </div>
+    </button>
+  )
 
   return ReactDOM.createPortal(
     <div style={{
@@ -166,7 +200,7 @@ export default function OnboardingSurvey({ userId, onComplete }) {
                 return (
                   <button
                     key={g}
-                    onClick={() => toggleItem(g, selectedGenres, setSelectedGenres)}
+                    onClick={() => toggleItem(g, setSelectedGenres)}
                     style={{
                       background: active ? 'var(--accent)' : 'var(--bg-card)',
                       color: active ? '#fff' : 'var(--text-primary)',
@@ -193,129 +227,25 @@ export default function OnboardingSurvey({ userId, onComplete }) {
 
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
-              {STEP2_PRIORITY.map(opt => {
-                const active = priorityFactors.includes(opt)
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => toggleItem(opt, priorityFactors, setPriorityFactors)}
-                    style={{
-                      background: active ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
-                      color: active ? 'var(--accent)' : 'var(--text-primary)',
-                      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: 12,
-                      padding: '14px 18px',
-                      fontSize: 13,
-                      fontWeight: active ? 600 : 400,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <span>{opt}</span>
-                    {active && <Check size={16} color="var(--accent)" />}
-                  </button>
-                )
-              })}
+              {STEP2_PRIORITY.map(opt => renderCheckboxRow(opt, priorityFactors.includes(opt), () => toggleItem(opt, setPriorityFactors)))}
             </div>
           )}
 
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
-              {STEP3_MOOD.map(opt => {
-                const active = moodPrefs.includes(opt)
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => toggleItem(opt, moodPrefs, setMoodPrefs)}
-                    style={{
-                      background: active ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
-                      color: active ? 'var(--accent)' : 'var(--text-primary)',
-                      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: 12,
-                      padding: '14px 18px',
-                      fontSize: 13,
-                      fontWeight: active ? 600 : 400,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <span>{opt}</span>
-                    {active && <Check size={16} color="var(--accent)" />}
-                  </button>
-                )
-              })}
+              {STEP3_MOOD.map(opt => renderCheckboxRow(opt, moodPrefs.includes(opt), () => toggleItem(opt, setMoodPrefs)))}
             </div>
           )}
 
           {step === 4 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
-              {STEP4_LENGTH.map(opt => {
-                const active = movieLengths.includes(opt)
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => toggleItem(opt, movieLengths, setMovieLengths)}
-                    style={{
-                      background: active ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
-                      color: active ? 'var(--accent)' : 'var(--text-primary)',
-                      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: 12,
-                      padding: '14px 18px',
-                      fontSize: 13,
-                      fontWeight: active ? 600 : 400,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <span>{opt}</span>
-                    {active && <Check size={16} color="var(--accent)" />}
-                  </button>
-                )
-              })}
+              {STEP4_LENGTH.map(opt => renderCheckboxRow(opt, movieLengths.includes(opt), () => toggleItem(opt, setMovieLengths)))}
             </div>
           )}
 
           {step === 5 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
-              {STEP5_ERA.map(opt => {
-                const active = eraPrefs.includes(opt)
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => toggleItem(opt, eraPrefs, setEraPrefs)}
-                    style={{
-                      background: active ? 'rgba(124, 58, 237, 0.15)' : 'var(--bg-card)',
-                      color: active ? 'var(--accent)' : 'var(--text-primary)',
-                      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: 12,
-                      padding: '14px 18px',
-                      fontSize: 13,
-                      fontWeight: active ? 600 : 400,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <span>{opt}</span>
-                    {active && <Check size={16} color="var(--accent)" />}
-                  </button>
-                )
-              })}
+              {STEP5_ERA.map(opt => renderCheckboxRow(opt, eraPrefs.includes(opt), () => toggleItem(opt, setEraPrefs)))}
             </div>
           )}
         </div>
