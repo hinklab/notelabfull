@@ -35,28 +35,117 @@ router.post('/register', async (req, res) => {
   const supabase = getSupabase();
   if (supabase) {
     try {
-      const { data: existing, error: existingErr } = await supabase
+      // 1. Check if user already exists in public.users table
+      const { data: existing } = await supabase
         .from('users')
         .select('id')
         .eq('email', emailLower)
         .maybeSingle();
 
-      if (!existingErr && existing) {
+      if (existing) {
         return res.status(409).json({ error: 'Bu email allaqachon ro\'yxatdan o\'tgan.' });
       }
 
-      const { data, error } = await supabase
+      // 2. Try registering user in Supabase Auth (auth.users) so they show in Supabase Auth Dashboard
+      let authUserId = null;
+      if (supabase.auth?.admin?.createUser) {
+        try {
+          const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+            email: emailLower,
+            password: password,
+            email_confirm: true,
+            user_metadata: { first_name: firstNameVal, last_name: lastNameVal }
+          });
+          if (authErr) {
+            if (authErr.message && authErr.message.includes('already registered')) {
+              return res.status(409).json({ error: 'Bu email allaqachon ro\'yxatdan o\'tgan.' });
+            }
+            console.warn('Supabase auth.admin.createUser warning:', authErr.message);
+          } else if (authData?.user) {
+            authUserId = authData.user.id;
+          }
+        } catch (adminErr) {
+          console.warn('Supabase auth admin exception:', adminErr.message);
+        }
+      }
+
+      if (!authUserId && supabase.auth?.signUp) {
+        try {
+          const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+            email: emailLower,
+            password: password,
+            options: { data: { first_name: firstNameVal, last_name: lastNameVal } }
+          });
+          if (signUpErr && signUpErr.message && signUpErr.message.includes('already registered')) {
+            return res.status(409).json({ error: 'Bu email allaqachon ro\'yxatdan o\'tgan.' });
+          }
+          if (signUpData?.user) {
+            authUserId = signUpData.user.id;
+          }
+        } catch (signUpEx) {
+          console.warn('Supabase signUp exception:', signUpEx.message);
+        }
+      }
+
+      const newUserId = authUserId || crypto.randomUUID();
+
+      // 3. Insert into public.users table
+      let savedUser = null;
+
+      // Try inserting with first_name and last_name
+      const { data: insertedData, error: insertErr } = await supabase
         .from('users')
-        .insert([{ email: emailLower, password_hash, first_name: firstNameVal, last_name: lastNameVal }])
+        .insert([{
+          id: newUserId,
+          email: emailLower,
+          password_hash,
+          first_name: firstNameVal,
+          last_name: lastNameVal
+        }])
         .select('id, email, first_name, last_name, created_at')
         .single();
 
-      if (!error && data) {
-        return res.status(201).json({ success: true, user: data });
+      if (!insertErr && insertedData) {
+        savedUser = insertedData;
+      } else {
+        console.warn('Supabase public.users insert with names failed (retrying without name columns):', insertErr?.message);
+        // Fallback insert without first_name/last_name if table column doesn't exist
+        const { data: insertedData2, error: insertErr2 } = await supabase
+          .from('users')
+          .insert([{
+            id: newUserId,
+            email: emailLower,
+            password_hash
+          }])
+          .select('id, email, created_at')
+          .single();
+
+        if (!insertErr2 && insertedData2) {
+          savedUser = { ...insertedData2, first_name: firstNameVal, last_name: lastNameVal };
+        } else {
+          console.error('Supabase public.users fallback insert error:', insertErr2?.message);
+        }
       }
-      console.warn('Supabase insert failed, falling back to local DB:', error ? error.message : 'No data');
+
+      if (savedUser) {
+        return res.status(201).json({ success: true, user: savedUser });
+      }
+
+      // If user was created in Supabase Auth but public.users table insert had issue
+      if (authUserId) {
+        return res.status(201).json({
+          success: true,
+          user: {
+            id: authUserId,
+            email: emailLower,
+            first_name: firstNameVal,
+            last_name: lastNameVal,
+            created_at: new Date().toISOString()
+          }
+        });
+      }
     } catch (err) {
-      console.warn('Supabase register error, falling back to local DB:', err.message);
+      console.warn('Supabase register main exception, falling back to local DB:', err.message);
     }
   }
 
@@ -107,15 +196,41 @@ router.post('/login', async (req, res) => {
   const supabase = getSupabase();
   if (supabase) {
     try {
+      // 1. Try public.users table
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, first_name, last_name, created_at')
+        .select('id, email, first_name, last_name, created_at, password_hash')
         .eq('email', emailLower)
-        .eq('password_hash', password_hash)
         .maybeSingle();
 
       if (!error && data) {
-        return res.json({ success: true, user: data });
+        if (data.password_hash === password_hash) {
+          const { password_hash: _, ...userWithoutPass } = data;
+          return res.json({ success: true, user: userWithoutPass });
+        } else {
+          return res.status(401).json({ error: 'Email yoki parol noto\'g\'ri.' });
+        }
+      }
+
+      // 2. Try Supabase Auth signInWithPassword if public.users search didn't match
+      if (supabase.auth?.signInWithPassword) {
+        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+          email: emailLower,
+          password: password
+        });
+
+        if (!authErr && authData?.user) {
+          return res.json({
+            success: true,
+            user: {
+              id: authData.user.id,
+              email: authData.user.email,
+              first_name: authData.user.user_metadata?.first_name || null,
+              last_name: authData.user.user_metadata?.last_name || null,
+              created_at: authData.user.created_at
+            }
+          });
+        }
       }
     } catch (err) {
       console.warn('Supabase login error, falling back to local DB:', err.message);
