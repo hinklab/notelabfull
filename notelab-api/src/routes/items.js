@@ -48,7 +48,7 @@ router.post('/', async (req, res) => {
     };
     
     db.note_items.push(item);
-    writeDB(db);
+    await writeDB(db);
     res.json(item);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -69,7 +69,7 @@ router.put('/:id', async (req, res) => {
     delete safe.group_id;
     
     db.note_items[idx] = { ...db.note_items[idx], ...safe };
-    writeDB(db);
+    await writeDB(db);
     res.json(db.note_items[idx]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -79,10 +79,11 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/items/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const db = readDB();
+    const targetId = parseInt(req.params.id);
     const userId = req.userId || DEFAULT_USER_ID;
-    db.note_items = (db.note_items || []).filter(i => !(i.id === parseInt(req.params.id) && (i.user_id || DEFAULT_USER_ID) === userId));
-    writeDB(db);
+    const db = readDB();
+    db.note_items = (db.note_items || []).filter(i => !(i.id === targetId && (i.user_id || DEFAULT_USER_ID) === userId));
+    await writeDB(db, { deletedItemId: targetId });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -110,7 +111,7 @@ router.post('/move', async (req, res) => {
       db.note_items[idx].position = db.note_items.filter(i => (i.user_id || DEFAULT_USER_ID) === userId && i.group_id === to_group_id && i.id !== id).length;
     }
     
-    writeDB(db);
+    await writeDB(db);
     res.json(db.note_items[idx]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -129,7 +130,7 @@ router.post('/reorder', async (req, res) => {
       if (idx !== -1) db.note_items[idx].position = position;
     });
     
-    writeDB(db);
+    await writeDB(db);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

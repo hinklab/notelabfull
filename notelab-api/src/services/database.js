@@ -93,9 +93,15 @@ async function writeDB(db, deletedInfo = null) {
     try {
       const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
 
-      // Delete movie from Supabase if explicit deletion occurred
+      // Delete entity from Supabase if explicit deletion occurred
       if (deletedInfo?.deletedMovieId) {
         await supabase.from('movies').delete().eq('id', deletedInfo.deletedMovieId).catch(() => {});
+      }
+      if (deletedInfo?.deletedGroupId) {
+        await supabase.from('note_groups').delete().eq('id', deletedInfo.deletedGroupId).catch(() => {});
+      }
+      if (deletedInfo?.deletedItemId) {
+        await supabase.from('note_items').delete().eq('id', deletedInfo.deletedItemId).catch(() => {});
       }
 
       if (db.notes && db.notes.length) {
@@ -110,6 +116,33 @@ async function writeDB(db, deletedInfo = null) {
           updated_at: new Date().toISOString()
         }));
         await supabase.from('notes').upsert(notesPayload, { onConflict: 'id' }).catch(() => {});
+      }
+
+      if (db.note_groups && db.note_groups.length) {
+        const groupsPayload = db.note_groups.map(g => ({
+          id: g.id,
+          user_id: g.user_id || DEFAULT_USER_ID,
+          note_id: g.note_id,
+          name: g.name || 'Untitled',
+          position: g.position || 0,
+          updated_at: new Date().toISOString()
+        }));
+        await supabase.from('note_groups').upsert(groupsPayload, { onConflict: 'id' }).catch(() => {});
+      }
+
+      if (db.note_items && db.note_items.length) {
+        const itemsPayload = db.note_items.map(i => ({
+          id: i.id,
+          user_id: i.user_id || DEFAULT_USER_ID,
+          group_id: i.group_id,
+          title: i.title || 'Untitled',
+          subtitle: i.subtitle || '',
+          cover_url: i.cover_url || null,
+          note: i.note || '',
+          position: i.position || 0,
+          updated_at: new Date().toISOString()
+        }));
+        await supabase.from('note_items').upsert(itemsPayload, { onConflict: 'id' }).catch(() => {});
       }
 
       if (db.movies && db.movies.length) {
