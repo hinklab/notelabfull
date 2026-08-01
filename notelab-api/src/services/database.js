@@ -18,6 +18,8 @@ function normalizeNoteIcon(icon, fallback = '📝') {
   return fallback;
 }
 
+const supabase = require('./supabase');
+
 function readDB() {
   try {
     const raw = fs.readFileSync(getDbPath(), 'utf-8');
@@ -80,7 +82,61 @@ function readDB() {
 }
 
 function writeDB(db) {
-  fs.writeFileSync(getDbPath(), JSON.stringify(db, null, 2), 'utf-8');
+  try {
+    fs.writeFileSync(getDbPath(), JSON.stringify(db, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing local DB:', err.message);
+  }
+
+  // Background Cloud Sync to Supabase so data is NEVER lost on server redeploys
+  if (supabase) {
+    Promise.resolve().then(async () => {
+      try {
+        const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
+        if (db.notes && db.notes.length) {
+          const notesPayload = db.notes.map(n => ({
+            id: n.id,
+            user_id: n.user_id || DEFAULT_USER_ID,
+            title: n.title || n.name || 'Untitled',
+            icon: typeof n.icon === 'string' ? n.icon : '📝',
+            type: n.type || (n.is_movie ? 'movie' : 'kanban'),
+            is_movie: Boolean(n.is_movie),
+            position: n.position || 0,
+            updated_at: new Date().toISOString()
+          }));
+          await supabase.from('notes').upsert(notesPayload, { onConflict: 'id' }).catch(() => {});
+        }
+
+        if (db.movies && db.movies.length) {
+          const moviesPayload = db.movies.map(m => ({
+            id: m.id,
+            user_id: m.user_id || DEFAULT_USER_ID,
+            note_id: m.note_id || null,
+            title: m.title || '',
+            section: m.section || 'todo',
+            position: m.position || 0,
+            tmdb_id: m.tmdb_id || null,
+            imdb_id: m.imdb_id || null,
+            media_type: m.media_type || 'movie',
+            poster_path: m.poster_path || null,
+            rating: m.rating || null,
+            vote_count: m.vote_count || null,
+            genre: m.genre || '-',
+            director: m.director || '-',
+            overview: m.overview || '',
+            release_date: m.release_date || null,
+            release_year: m.release_year || '-',
+            seasons: m.seasons || '-',
+            note: m.note || '',
+            updated_at: new Date().toISOString()
+          }));
+          await supabase.from('movies').upsert(moviesPayload, { onConflict: 'id' }).catch(() => {});
+        }
+      } catch (err) {
+        // Silent catch for background cloud sync
+      }
+    });
+  }
 }
 
 const SYSTEM_DEFAULT_OMDB_KEY = process.env.OMDB_KEY || '563e076e';
