@@ -241,6 +241,7 @@ router.post('/move', async (req, res) => {
     if (idx === -1) return res.status(404).json({ error: 'Movie not found' });
     
     db.movies[idx].section = section;
+    db.movies[idx].manual_section = true;
     
     if (position !== null) {
       db.movies
@@ -284,7 +285,7 @@ function autoMigrateFuturedMovies(db) {
   const movies = db.movies || [];
 
   for (const m of movies) {
-    if (m.section === 'futured' && m.release_date) {
+    if (m.section === 'futured' && m.release_date && !m.manual_section) {
       if (m.release_date <= today) {
         const todoMovies = movies.filter(
           x => (x.user_id || DEFAULT_USER_ID) === (m.user_id || DEFAULT_USER_ID) && x.section === 'todo' && (x.note_id ?? null) === (m.note_id ?? null)
