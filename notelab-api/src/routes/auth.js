@@ -245,6 +245,29 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'Email yoki parol noto\'g\'ri.' });
   }
 
+  // Auto-sync user to Supabase if Supabase is connected and user wasn't synced yet
+  if (supabase) {
+    try {
+      if (supabase.auth?.admin?.createUser) {
+        await supabase.auth.admin.createUser({
+          id: user.id,
+          email: user.email,
+          email_confirm: true,
+          user_metadata: { first_name: user.first_name || null, last_name: user.last_name || null }
+        }).catch(() => {});
+      }
+      await supabase.from('users').upsert([{
+        id: user.id,
+        email: user.email,
+        password_hash: user.password_hash,
+        first_name: user.first_name || null,
+        last_name: user.last_name || null
+      }]).catch(() => {});
+    } catch (syncEx) {
+      console.warn('Auto-sync on login exception:', syncEx.message);
+    }
+  }
+
   res.json({
     success: true,
     user: {
