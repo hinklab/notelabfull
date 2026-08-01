@@ -101,40 +101,38 @@ export default function OnboardingSurvey({ userId, onComplete }) {
     5: "Davr bo'yicha afzalliklarni belgilang (xohlagancha tanlashingiz mumkin)."
   }
 
-  const renderCheckboxRow = (opt, active, onClick) => (
-    <button
-      key={opt}
-      onClick={onClick}
-      style={{
-        background: active ? 'rgba(124, 58, 237, 0.12)' : 'var(--bg-card)',
-        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-        border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-        borderRadius: 12,
-        padding: '14px 18px',
-        fontSize: 13,
-        fontWeight: active ? 600 : 400,
-        cursor: 'pointer',
-        textAlign: 'left',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        transition: 'all 0.15s ease',
-        boxShadow: active ? '0 4px 14px rgba(124, 58, 237, 0.15)' : 'none',
-      }}
-    >
-      <span style={{ fontSize: 13.5 }}>{opt}</span>
-      <div style={{
-        width: 20, height: 20,
-        borderRadius: 6,
-        border: `2px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-        background: active ? 'var(--accent)' : 'transparent',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-        transition: 'all 0.15s ease',
-      }}>
-        {active && <Check size={13} color="#ffffff" strokeWidth={3} />}
-      </div>
-    </button>
+  const renderMultiSelectGrid = (options, selectedList, setSelectedList) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '10px 0' }}>
+      {options.map(item => {
+        const active = selectedList.includes(item)
+        return (
+          <button
+            key={item}
+            type="button"
+            onClick={() => toggleItem(item, setSelectedList)}
+            style={{
+              background: active ? 'var(--accent)' : 'var(--bg-card)',
+              color: active ? '#ffffff' : 'var(--text-primary)',
+              border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+              borderRadius: 30,
+              padding: '11px 20px',
+              fontSize: 13.5,
+              fontWeight: active ? 600 : 400,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              transition: 'all 0.15s ease',
+              boxShadow: active ? '0 4px 14px rgba(124, 58, 237, 0.4)' : 'none',
+              userSelect: 'none',
+            }}
+          >
+            {active && <Check size={15} color="#ffffff" strokeWidth={2.5} />}
+            <span>{item}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 
   return ReactDOM.createPortal(
@@ -193,61 +191,11 @@ export default function OnboardingSurvey({ userId, onComplete }) {
 
         {/* Modal Body (One Question Per Screen) */}
         <div style={{ padding: '24px 28px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {step === 1 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '10px 0' }}>
-              {STEP1_GENRES.map(g => {
-                const active = selectedGenres.includes(g)
-                return (
-                  <button
-                    key={g}
-                    onClick={() => toggleItem(g, setSelectedGenres)}
-                    style={{
-                      background: active ? 'var(--accent)' : 'var(--bg-card)',
-                      color: active ? '#fff' : 'var(--text-primary)',
-                      border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-                      borderRadius: 30,
-                      padding: '10px 18px',
-                      fontSize: 13,
-                      fontWeight: active ? 600 : 400,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      transition: 'all 0.15s ease',
-                      boxShadow: active ? '0 4px 14px rgba(124, 58, 237, 0.4)' : 'none',
-                    }}
-                  >
-                    {active && <Check size={14} />}
-                    {g}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {step === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
-              {STEP2_PRIORITY.map(opt => renderCheckboxRow(opt, priorityFactors.includes(opt), () => toggleItem(opt, setPriorityFactors)))}
-            </div>
-          )}
-
-          {step === 3 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
-              {STEP3_MOOD.map(opt => renderCheckboxRow(opt, moodPrefs.includes(opt), () => toggleItem(opt, setMoodPrefs)))}
-            </div>
-          )}
-
-          {step === 4 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
-              {STEP4_LENGTH.map(opt => renderCheckboxRow(opt, movieLengths.includes(opt), () => toggleItem(opt, setMovieLengths)))}
-            </div>
-          )}
-
-          {step === 5 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 0' }}>
-              {STEP5_ERA.map(opt => renderCheckboxRow(opt, eraPrefs.includes(opt), () => toggleItem(opt, setEraPrefs)))}
-            </div>
-          )}
+          {step === 1 && renderMultiSelectGrid(STEP1_GENRES, selectedGenres, setSelectedGenres)}
+          {step === 2 && renderMultiSelectGrid(STEP2_PRIORITY, priorityFactors, setPriorityFactors)}
+          {step === 3 && renderMultiSelectGrid(STEP3_MOOD, moodPrefs, setMoodPrefs)}
+          {step === 4 && renderMultiSelectGrid(STEP4_LENGTH, movieLengths, setMovieLengths)}
+          {step === 5 && renderMultiSelectGrid(STEP5_ERA, eraPrefs, setEraPrefs)}
         </div>
 
         {/* Modal Footer Controls */}
