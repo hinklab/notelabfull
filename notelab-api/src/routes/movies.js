@@ -214,21 +214,27 @@ router.put('/:id', async (req, res) => {
   try {
     const db = readDB();
     const userId = req.userId || DEFAULT_USER_ID;
-    const movieId = parseInt(req.params.id);
-    const idx = (db.movies || []).findIndex(m => m.id === movieId && (m.user_id || DEFAULT_USER_ID) === userId);
-    if (idx === -1) return res.status(404).json({ error: 'Movie not found' });
+    const targetId = req.params.id;
+    let idx = (db.movies || []).findIndex(m => String(m.id) === String(targetId) && (m.user_id || DEFAULT_USER_ID) === userId);
     
-    db.movies[idx] = { ...db.movies[idx], ...req.body, manual_section: true };
-    await writeDB(db);
+    if (idx !== -1) {
+      db.movies[idx] = { ...db.movies[idx], ...req.body, manual_section: true };
+      await writeDB(db);
+    }
 
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('movies').upsert([db.movies[idx]], { onConflict: 'id' });
+        const updatePayload = { ...req.body, manual_section: true, updated_at: new Date().toISOString() };
+        delete updatePayload.id;
+        await supabase.from('movies').update(updatePayload).eq('id', targetId);
       } catch (e) {}
     }
 
-    res.json(db.movies[idx]);
+    if (idx !== -1) {
+      return res.json(db.movies[idx]);
+    }
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -237,10 +243,10 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/movies/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const targetId = parseInt(req.params.id);
+    const targetId = req.params.id;
     const userId = req.userId || DEFAULT_USER_ID;
     const db = readDB();
-    db.movies = (db.movies || []).filter(m => !(m.id === targetId && (m.user_id || DEFAULT_USER_ID) === userId));
+    db.movies = (db.movies || []).filter(m => !(String(m.id) === String(targetId) && (m.user_id || DEFAULT_USER_ID) === userId));
     await writeDB(db, { deletedMovieId: targetId });
 
     const supabase = getSupabase();
@@ -262,33 +268,71 @@ router.post('/move', async (req, res) => {
     const db = readDB();
     const userId = req.userId || DEFAULT_USER_ID;
     const { id, section, position } = req.body;
-    const idx = (db.movies || []).findIndex(m => m.id === id && (m.user_id || DEFAULT_USER_ID) === userId);
+    let idx = (db.movies || []).findIndex(m => String(m.id) === String(id) && (m.user_id || DEFAULT_USER_ID) === userId);
     
-    if (idx === -1) return res.status(404).json({ error: 'Movie not found' });
-    
-    db.movies[idx].section = section;
-    db.movies[idx].manual_section = true;
-    
-    if (position !== null) {
-      db.movies
-        .filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === section && m.id !== id)
-        .filter(m => m.position >= position)
-        .forEach(m => { m.position = (m.position || 0) + 1 });
-      db.movies[idx].position = position;
-    } else {
-      db.movies[idx].position = db.movies.filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === section && m.id !== id).length;
+    if (idx !== -1) {
+      db.movies[idx].section = section;
+      db.movies[idx].manual_section = true;
+      
+      if (position !== null && position !== undefined) {
+        db.movies
+          .filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === section && String(m.id) !== String(id))
+          .filter(m => m.position >= position)
+          .forEach(m => { m.position = (m.position || 0) + 1 });
+        db.movies[idx].position = position;
+      } else {
+        db.movies[idx].position = db.movies.filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === section && String(m.id) !== String(id)).length;
+      }
+      
+      await writeDB(db);
     }
-    
-    await writeDB(db);
 
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('movies').upsert([db.movies[idx]], { onConflict: 'id' });
+        await supabase.from('movies').update({
+          section,
+          manual_section: true,
+          position: position ?? 0,
+          updated_at: new Date().toISOString()
+        }).eq('id', id);
       } catch (e) {}
     }
 
-    res.json(db.movies[idx]);
+    if (idx !== -1) {
+      return res.json(db.movies[idx]);
+    }
+    res.json({ success: true, id, section, position });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/movies/reorder
+router.post('/reorder', async (req, res) => {
+  try {
+    const db = readDB();
+    const userId = req.userId || DEFAULT_USER_ID;
+    const { section, ids } = req.body;
+    
+    if (Array.isArray(ids)) {
+      ids.forEach((id, position) => {
+        const idx = (db.movies || []).findIndex(m => String(m.id) === String(id) && (m.user_id || DEFAULT_USER_ID) === userId);
+        if (idx !== -1) db.movies[idx].position = position;
+      });
+      await writeDB(db);
+
+      const supabase = getSupabase();
+      if (supabase) {
+        try {
+          for (let pos = 0; pos < ids.length; pos++) {
+            await supabase.from('movies').update({ position: pos }).eq('id', ids[pos]);
+          }
+        } catch (e) {}
+      }
+    }
+    
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
