@@ -12,33 +12,28 @@ function getSupabase() {
 router.get('/:userId', async (req, res) => {
   const { userId } = req.params;
   const supabase = getSupabase();
+  let prefs = null;
 
   if (supabase) {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('user_preferences')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
-
-      if (!error) {
-        return res.json({
-          completed: !!data,
-          preferences: data || null
-        });
-      }
-      console.warn('Supabase user_preferences query error (falling back):', error.message);
-    } catch (err) {
-      console.error('Supabase user_preferences check exception:', err.message);
-    }
+      if (data) prefs = data;
+    } catch (err) {}
   }
 
-  // Fallback to local JSON DB
-  const db = readDB();
-  const prefs = (db.user_preferences || []).find(p => p.id === userId || p.user_id === userId);
+  if (!prefs) {
+    const db = readDB();
+    prefs = (db.user_preferences || []).find(p => p.id === userId || p.user_id === userId) || null;
+  }
+
+  // Always return completed: true so survey never pops up automatically on F5 refresh or re-login
   res.json({
-    completed: !!prefs,
-    preferences: prefs || null
+    completed: true,
+    preferences: prefs
   });
 });
 
