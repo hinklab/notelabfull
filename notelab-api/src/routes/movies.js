@@ -189,11 +189,18 @@ router.post('/', async (req, res) => {
       section,
       position,
       note_id,
+      manual_section: true,
       note: (data.note && data.note !== overview && data.note.trim() !== (overview || '').trim()) ? data.note : '',
     };
     
     db.movies.push(movie);
     await writeDB(db);
+
+    const supabase = getSupabase();
+    if (supabase) {
+      await supabase.from('movies').upsert([movie], { onConflict: 'id' }).catch(() => {});
+    }
+
     res.json(movie);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -205,11 +212,18 @@ router.put('/:id', async (req, res) => {
   try {
     const db = readDB();
     const userId = req.userId || DEFAULT_USER_ID;
-    const idx = (db.movies || []).findIndex(m => m.id === parseInt(req.params.id) && (m.user_id || DEFAULT_USER_ID) === userId);
+    const movieId = parseInt(req.params.id);
+    const idx = (db.movies || []).findIndex(m => m.id === movieId && (m.user_id || DEFAULT_USER_ID) === userId);
     if (idx === -1) return res.status(404).json({ error: 'Movie not found' });
     
-    db.movies[idx] = { ...db.movies[idx], ...req.body };
+    db.movies[idx] = { ...db.movies[idx], ...req.body, manual_section: true };
     await writeDB(db);
+
+    const supabase = getSupabase();
+    if (supabase) {
+      await supabase.from('movies').upsert([db.movies[idx]], { onConflict: 'id' }).catch(() => {});
+    }
+
     res.json(db.movies[idx]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -224,6 +238,12 @@ router.delete('/:id', async (req, res) => {
     const db = readDB();
     db.movies = (db.movies || []).filter(m => !(m.id === targetId && (m.user_id || DEFAULT_USER_ID) === userId));
     await writeDB(db, { deletedMovieId: targetId });
+
+    const supabase = getSupabase();
+    if (supabase) {
+      await supabase.from('movies').delete().eq('id', targetId).catch(() => {});
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -254,6 +274,12 @@ router.post('/move', async (req, res) => {
     }
     
     await writeDB(db);
+
+    const supabase = getSupabase();
+    if (supabase) {
+      await supabase.from('movies').upsert([db.movies[idx]], { onConflict: 'id' }).catch(() => {});
+    }
+
     res.json(db.movies[idx]);
   } catch (err) {
     res.status(500).json({ error: err.message });
