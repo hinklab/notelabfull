@@ -4,6 +4,27 @@ const { readDB, writeDB, normalizeNoteIcon } = require('../services/database');
 
 const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
 
+function getSupabase() {
+  try {
+    return require('../services/supabase');
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeNoteForSupabase(n) {
+  return {
+    id: n.id,
+    user_id: n.user_id || DEFAULT_USER_ID,
+    title: n.name || n.title || 'Untitled',
+    icon: typeof n.icon === 'string' ? n.icon : '📝',
+    type: n.type || (n.is_movie ? 'movie' : 'kanban'),
+    is_movie: Boolean(n.is_movie),
+    position: n.position || 0,
+    updated_at: new Date().toISOString()
+  };
+}
+
 // GET /api/notes - with groups summary
 router.get('/', async (req, res) => {
   try {
@@ -19,7 +40,7 @@ router.get('/', async (req, res) => {
     let dbChanged = false;
 
     if (!movieNote) {
-      const nextNoteId = db.notes && db.notes.length ? Math.max(...db.notes.map(n => n.id)) + 1 : 1;
+      const nextNoteId = db.notes && db.notes.length ? Math.max(...db.notes.map(n => Number(n.id) || 0)) + 1 : 1;
       movieNote = {
         id: nextNoteId,
         user_id: userId,
@@ -37,7 +58,7 @@ router.get('/', async (req, res) => {
 
     // Auto-create 4 default movie groups if user has a Movies note with 0 groups
     if (!db.note_groups) db.note_groups = [];
-    const userMovieGroups = db.note_groups.filter(g => (g.user_id || DEFAULT_USER_ID) === userId && g.note_id === movieNote.id);
+    const userMovieGroups = db.note_groups.filter(g => (g.user_id || DEFAULT_USER_ID) === userId && String(g.note_id) === String(movieNote.id));
     if (userMovieGroups.length === 0) {
       const defaultGroups = [
         { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
@@ -47,7 +68,7 @@ router.get('/', async (req, res) => {
       ];
 
       for (const dg of defaultGroups) {
-        const nextGroupId = db.note_groups.length ? Math.max(...db.note_groups.map(g => g.id)) + 1 : 1;
+        const nextGroupId = db.note_groups.length ? Math.max(...db.note_groups.map(g => Number(g.id) || 0)) + 1 : 1;
         const newG = {
           id: nextGroupId,
           note_id: movieNote.id,
@@ -64,25 +85,25 @@ router.get('/', async (req, res) => {
     }
 
     if (dbChanged) {
-      writeDB(db);
+      await writeDB(db);
     }
 
     const result = notes.map(n => {
-      const noteGroups = groups.filter(g => g.note_id === n.id).sort((a, b) => a.position - b.position);
-      const groupIds = noteGroups.map(g => g.id);
+      const noteGroups = groups.filter(g => String(g.note_id) === String(n.id)).sort((a, b) => (a.position || 0) - (b.position || 0));
+      const groupIds = noteGroups.map(g => String(g.id));
       let item_count, groups_summary;
       
       if (n.is_movie) {
-        item_count = movies.filter(m => m.note_id === n.id).length;
+        item_count = movies.filter(m => String(m.note_id) === String(n.id) || m.note_id === null).length;
         groups_summary = noteGroups.map(g => ({
           id: g.id, name: g.name, color: g.color,
-          count: movies.filter(m => m.note_id === n.id && m.section === g.section_key).length,
+          count: movies.filter(m => (String(m.note_id) === String(n.id) || m.note_id === null) && m.section === g.section_key).length,
         }));
       } else {
-        item_count = items.filter(i => groupIds.includes(i.group_id)).length;
+        item_count = items.filter(i => groupIds.includes(String(i.group_id))).length;
         groups_summary = noteGroups.map(g => ({
           id: g.id, name: g.name, color: g.color,
-          count: items.filter(i => i.group_id === g.id).length,
+          count: items.filter(i => String(i.group_id) === String(g.id)).length,
         }));
       }
       
@@ -102,7 +123,7 @@ router.post('/', async (req, res) => {
     if (!db.notes) db.notes = [];
     
     const note = {
-      id: db.notes.length ? Math.max(...db.notes.map(n => n.id)) + 1 : 1,
+      id: db.notes.length ? Math.max(...db.notes.map(n => Number(n.id) || 0)) + 1 : 1,
       user_id: req.userId || DEFAULT_USER_ID,
       name: req.body.name || 'Note',
       icon: normalizeNoteIcon(req.body.icon),
@@ -112,7 +133,15 @@ router.post('/', async (req, res) => {
     };
     
     db.notes.push(note);
-    writeDB(db);
+    await writeDB(db);
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('notes').upsert([sanitizeNoteForSupabase(note)], { onConflict: 'id' });
+      } catch (e) {}
+    }
+
     res.json(note);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -124,17 +153,31 @@ router.put('/:id', async (req, res) => {
   try {
     const db = readDB();
     const userId = req.userId || DEFAULT_USER_ID;
-    const idx = (db.notes || []).findIndex(n => n.id === parseInt(req.params.id) && (n.user_id || DEFAULT_USER_ID) === userId);
-    if (idx === -1) return res.status(404).json({ error: 'Note not found' });
+    const targetId = req.params.id;
+    const idx = (db.notes || []).findIndex(n => String(n.id) === String(targetId) && (n.user_id || DEFAULT_USER_ID) === userId);
     
     const safeBody = { ...req.body };
     delete safeBody.user_id;
-    if (safeBody.icon !== undefined) {
-      safeBody.icon = normalizeNoteIcon(safeBody.icon, db.notes[idx]?.is_movie ? '🎬' : '📝');
+
+    if (idx !== -1) {
+      if (safeBody.icon !== undefined) {
+        safeBody.icon = normalizeNoteIcon(safeBody.icon, db.notes[idx]?.is_movie ? '🎬' : '📝');
+      }
+      db.notes[idx] = { ...db.notes[idx], ...safeBody };
+      await writeDB(db);
     }
-    db.notes[idx] = { ...db.notes[idx], ...safeBody };
-    writeDB(db);
-    res.json(db.notes[idx]);
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('notes').update(sanitizeNoteForSupabase(safeBody)).eq('id', targetId);
+      } catch (e) {}
+    }
+
+    if (idx !== -1) {
+      return res.json(db.notes[idx]);
+    }
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -145,8 +188,8 @@ router.delete('/:id', async (req, res) => {
   try {
     const db = readDB();
     const userId = req.userId || DEFAULT_USER_ID;
-    const id = parseInt(req.params.id);
-    const note = (db.notes || []).find(n => n.id === id && (n.user_id || DEFAULT_USER_ID) === userId);
+    const targetId = req.params.id;
+    const note = (db.notes || []).find(n => String(n.id) === String(targetId) && (n.user_id || DEFAULT_USER_ID) === userId);
     
     if (!note) {
       return res.status(404).json({ error: 'Note not found' });
@@ -155,18 +198,28 @@ router.delete('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Movie note o\'chirilmaydi' });
     }
     
-    db.notes = (db.notes || []).filter(n => !(n.id === id && (n.user_id || DEFAULT_USER_ID) === userId));
-    db.movies = (db.movies || []).filter(m => !(m.note_id === id && (m.user_id || DEFAULT_USER_ID) === userId));
+    db.notes = (db.notes || []).filter(n => !(String(n.id) === String(targetId) && (n.user_id || DEFAULT_USER_ID) === userId));
+    db.movies = (db.movies || []).filter(m => !(String(m.note_id) === String(targetId) && (m.user_id || DEFAULT_USER_ID) === userId));
     
-    const deletedGroups = (db.note_groups || []).filter(g => g.note_id === id && (g.user_id || DEFAULT_USER_ID) === userId).map(g => g.id);
-    db.note_groups = (db.note_groups || []).filter(g => !(g.note_id === id && (g.user_id || DEFAULT_USER_ID) === userId));
-    db.note_items = (db.note_items || []).filter(i => !(i.group_id && deletedGroups.includes(i.group_id) && (i.user_id || DEFAULT_USER_ID) === userId));
+    const deletedGroups = (db.note_groups || []).filter(g => String(g.note_id) === String(targetId) && (g.user_id || DEFAULT_USER_ID) === userId).map(g => String(g.id));
+    db.note_groups = (db.note_groups || []).filter(g => !(String(g.note_id) === String(targetId) && (g.user_id || DEFAULT_USER_ID) === userId));
+    db.note_items = (db.note_items || []).filter(i => !(i.group_id && deletedGroups.includes(String(i.group_id)) && (i.user_id || DEFAULT_USER_ID) === userId));
     
-    writeDB(db);
+    await writeDB(db);
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('notes').delete().eq('id', targetId);
+      } catch (e) {}
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+module.exports = router;
 
 module.exports = router;
