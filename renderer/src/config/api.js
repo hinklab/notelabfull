@@ -5,7 +5,14 @@ function getUserHeader() {
     const saved = localStorage.getItem('notelab_user')
     if (saved) {
       const u = JSON.parse(saved)
-      if (u && u.id) return { 'x-user-id': u.id }
+      if (u && u.id) {
+        return {
+          'x-user-id': u.id,
+          'x-user-email': u.email || '',
+          'x-user-first-name': u.first_name || '',
+          'x-user-last-name': u.last_name || ''
+        }
+      }
     }
   } catch {}
   return {}
