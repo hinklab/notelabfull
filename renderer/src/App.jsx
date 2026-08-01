@@ -39,53 +39,20 @@ export default function App() {
       return
     }
 
+    // Only show survey automatically if it's a brand new registration in this session
     if (isNewRegistration) {
       setShowSurvey(true)
       setCheckingSurvey(false)
       return
     }
 
-    // Fast check: if completed flag is already saved in localStorage for this user, skip survey
-    if (localStorage.getItem('notelab_survey_completed_' + user.id) === 'true') {
-      setShowSurvey(false)
-      setCheckingSurvey(false)
-      return
-    }
-
-    let isMounted = true
-    setCheckingSurvey(true)
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
-    fetch(`${API_BASE}/user-preferences/${encodeURIComponent(user.id)}`)
-      .then(async res => {
-        if (!res.ok) return { completed: true }
-        const contentType = res.headers.get('content-type')
-        if (contentType && contentType.includes('application/json')) {
-          return res.json()
-        }
-        return { completed: true }
-      })
-      .then(data => {
-        if (!isMounted) return
-        if (data?.completed) {
-          localStorage.setItem('notelab_survey_completed_' + user.id, 'true')
-          setShowSurvey(false)
-        } else {
-          setShowSurvey(true)
-        }
-      })
-      .catch(err => {
-        console.error('Failed to check user preferences:', err)
-        setShowSurvey(false)
-      })
-      .finally(() => {
-        if (isMounted) setCheckingSurvey(false)
-      })
-
-    return () => { isMounted = false }
+    // Existing users: default to NOT showing survey on refresh
+    setShowSurvey(false)
+    setCheckingSurvey(false)
   }, [user, isNewRegistration])
 
   // Auth loading spinner
-  if (authLoading || (user && checkingSurvey)) {
+  if (authLoading) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ color: 'var(--text-muted)', fontSize: 14 }}>Yuklanmoqda...</div>
@@ -100,19 +67,24 @@ export default function App() {
       : <RegisterPage onSwitch={() => setAuthPage('login')} />
   }
 
-  if (showSurvey) {
-    return (
-      <OnboardingSurvey
-        userId={user.id}
-        onComplete={() => {
-          setIsNewRegistration(false)
-          setShowSurvey(false)
-        }}
-      />
-    )
-  }
-
-  return <MainApp user={user} onLogout={logout} onOpenSurvey={() => setShowSurvey(true)} />
+  return (
+    <>
+      <MainApp user={user} onLogout={logout} onOpenSurvey={() => setShowSurvey(true)} />
+      {showSurvey && (
+        <OnboardingSurvey
+          userId={user.id}
+          onComplete={() => {
+            setIsNewRegistration(false)
+            setShowSurvey(false)
+            if (user.id) {
+              localStorage.setItem('notelab_survey_completed_' + user.id, 'true')
+              localStorage.setItem('notelab_survey_dismissed_' + user.id, 'true')
+            }
+          }}
+        />
+      )}
+    </>
+  )
 }
 
 function MainApp({ user, onLogout, onOpenSurvey }) {
