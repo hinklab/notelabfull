@@ -179,13 +179,46 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   }
 
   const handleMoveItem = async (itemId, toGroupId, insertIndex) => {
-    if (isMovieNote) {
-      const sectionKey = getGroupSectionKey(toGroupId)
-      await window.api.moveMovie(itemId, sectionKey, insertIndex)
-    } else {
-      await window.api.moveItem(itemId, toGroupId, insertIndex)
+    // 1. Optimistic UI update: move item instantly in local state
+    let fromGroupId = null
+    Object.keys(itemsByGroup).forEach(gId => {
+      if ((itemsByGroup[gId] || []).some(item => item.id === itemId)) {
+        fromGroupId = gId
+      }
+    })
+
+    if (fromGroupId) {
+      setItemsByGroup(prev => {
+        const sourceItems = [...(prev[fromGroupId] || [])]
+        const targetItems = String(fromGroupId) === String(toGroupId) ? sourceItems : [...(prev[toGroupId] || [])]
+
+        const itemIdx = sourceItems.findIndex(i => i.id === itemId)
+        if (itemIdx === -1) return prev
+        const [movedItem] = sourceItems.splice(itemIdx, 1)
+
+        const safeIndex = insertIndex != null ? Math.min(insertIndex, targetItems.length) : targetItems.length
+        targetItems.splice(Math.max(0, safeIndex), 0, movedItem)
+
+        return {
+          ...prev,
+          [fromGroupId]: sourceItems,
+          [toGroupId]: targetItems,
+        }
+      })
     }
-    await loadGroups()
+
+    // 2. Perform API call in background
+    try {
+      if (isMovieNote) {
+        const sectionKey = getGroupSectionKey(toGroupId)
+        await window.api.moveMovie(itemId, sectionKey, insertIndex)
+      } else {
+        await window.api.moveItem(itemId, toGroupId, insertIndex)
+      }
+    } catch (err) {
+      console.error('Failed to move item:', err)
+      await loadGroups()
+    }
   }
 
   const handleReorderItem = async (itemId, targetId, position, groupId) => {
@@ -194,16 +227,37 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
     const fromIdx = ids.indexOf(itemId)
     const targetIdx = ids.indexOf(targetId)
     if (fromIdx === -1) return
-    ids.splice(fromIdx, 1)
-    const insertIdx = position === 'before' ? targetIdx : targetIdx + 1
-    ids.splice(Math.max(0, insertIdx), 0, itemId)
-    if (isMovieNote) {
-      const sectionKey = getGroupSectionKey(groupId)
-      await window.api.reorderMovies(sectionKey, ids)
-    } else {
-      await window.api.reorderItems(groupId, ids)
+
+    // 1. Optimistic UI update
+    setItemsByGroup(prev => {
+      const currentList = [...(prev[groupId] || [])]
+      const from = currentList.findIndex(i => i.id === itemId)
+      const target = currentList.findIndex(i => i.id === targetId)
+      if (from === -1 || target === -1) return prev
+
+      const [moved] = currentList.splice(from, 1)
+      const insertIdx = position === 'before' ? target : target + 1
+      currentList.splice(Math.max(0, insertIdx), 0, moved)
+
+      return { ...prev, [groupId]: currentList }
+    })
+
+    // 2. Perform API call in background
+    try {
+      ids.splice(fromIdx, 1)
+      const insertIdx = position === 'before' ? targetIdx : targetIdx + 1
+      ids.splice(Math.max(0, insertIdx), 0, itemId)
+
+      if (isMovieNote) {
+        const sectionKey = getGroupSectionKey(groupId)
+        await window.api.reorderMovies(sectionKey, ids)
+      } else {
+        await window.api.reorderItems(groupId, ids)
+      }
+    } catch (err) {
+      console.error('Failed to reorder item:', err)
+      await reloadGroup(groupId)
     }
-    await reloadGroup(groupId)
   }
 
   const handleItemCut = (item) => { setItemClipboard({ ...item, _cut: true }); setItemContextMenu(null) }
