@@ -426,13 +426,6 @@ router.post('/refresh-all', async (req, res) => {
             }
             if (tmdbRes.ok) {
               const tmdbData = await tmdbRes.json();
-              if (tmdbData.poster_path) {
-                const freshTmdbPoster = `https://image.tmdb.org/t/p/w500${tmdbData.poster_path}`;
-                if (m.poster_path !== freshTmdbPoster) {
-                  m.poster_path = freshTmdbPoster;
-                  changed = true;
-                }
-              }
               if (!m.release_date) {
                 m.release_date = tmdbData.release_date || tmdbData.first_air_date || null;
               }
