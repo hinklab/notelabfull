@@ -169,6 +169,11 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
 
       <GroupBoard note={activeNote} refreshTrigger={boardKey} search={search} />
 
+      {/* Build verification marker badge */}
+      <div style={{ position: 'fixed', top: 4, right: 4, fontSize: 10, opacity: 0.7, zIndex: 9999, color: '#fff', background: '#7c3aed', padding: '2px 6px', borderRadius: 4, fontWeight: 700, pointerEvents: 'none' }}>
+        Build: v27 (2026-08-02)
+      </div>
+
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onOpenSurvey={onOpenSurvey} />}
     </div>
   )
