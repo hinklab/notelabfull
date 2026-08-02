@@ -76,6 +76,8 @@ export default function MovieCard({
   const [userRating, setUserRating] = useState(movie?.user_rating || null)
   const isFuture = movie.section === 'futured' && !movie.rating
 
+  const [toastMessage, setToastMessage] = useState(null)
+
   useEffect(() => {
     setUserRating(movie?.user_rating || null)
   }, [movie?.user_rating])
@@ -85,6 +87,8 @@ export default function MovieCard({
     if (movie) movie.user_rating = newRating
     try {
       await window.api.updateMovie(movie.id, { user_rating: newRating })
+      setToastMessage('Rahmat, bahoyingiz saqlandi! ✨')
+      setTimeout(() => setToastMessage(null), 2200)
     } catch (err) {
       console.error('Failed to save user rating:', err)
     }
@@ -589,6 +593,19 @@ export default function MovieCard({
               </div>
             </div>
           </div>
+        </div>,
+        document.body
+      )}
+      {toastMessage && ReactDOM.createPortal(
+        <div style={{
+          position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 9999999,
+          background: '#18181b', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.4)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)', borderRadius: 30, padding: '10px 20px',
+          fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <Star size={14} fill="#60a5fa" color="#60a5fa" />
+          <span>{toastMessage}</span>
         </div>,
         document.body
       )}

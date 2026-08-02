@@ -170,6 +170,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   const [renameGroupId, setRenameGroupId] = useState(null)
   const [draggingGroupId, setDraggingGroupId] = useState(null)
   const [ratePromptItem, setRatePromptItem] = useState(null)
+  const [toastMessage, setToastMessage] = useState(null)
   const groupDragOver = useRef(null)
   const [confirmState, setConfirmState] = useState(null)
   const boardCardPositionsRef = useRef(new Map())
@@ -279,7 +280,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
             id: m.id, group_id: g.id, title: m.title,
             subtitle: [m.genre, m.director].filter(Boolean).join(' · '),
             cover_url: m.poster_path || null,
-            note: m.note || '', _movie: m,
+            note: m.note || '',
+            user_rating: m.user_rating || null,
+            _movie: m,
           }))
       }
     } else {
@@ -829,10 +832,16 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Filmga baho bering 🎬</div>
-              <button
-                onClick={() => setRatePromptItem(null)}
-                style={{ border: 'none', background: '#252525', color: '#aaa', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              ><X size={15} /></button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  onClick={() => setRatePromptItem(null)}
+                  style={{ border: 'none', background: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, textDecoration: 'underline' }}
+                >Keyinroq</button>
+                <button
+                  onClick={() => setRatePromptItem(null)}
+                  style={{ border: 'none', background: '#252525', color: '#aaa', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                ><X size={15} /></button>
+              </div>
             </div>
             <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               <strong style={{ color: 'var(--text-primary)' }}>"{ratePromptItem.title || ratePromptItem._movie?.title || 'Film'}"</strong> tomosha qilindi! Necha ball berasiz?
@@ -843,12 +852,27 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
                 ratePromptItem.user_rating = newRating
                 try {
                   await window.api.updateMovie(ratePromptItem.id, { user_rating: newRating })
+                  setToastMessage('Rahmat, bahoyingiz saqlandi! ✨')
+                  setTimeout(() => setToastMessage(null), 2200)
                   await loadGroups()
                 } catch (err) { console.error('Failed to update rating:', err) }
                 setRatePromptItem(null)
               }}
             />
           </div>
+        </div>
+      )}
+
+      {toastMessage && (
+        <div style={{
+          position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 9999999,
+          background: '#18181b', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.4)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)', borderRadius: 30, padding: '10px 20px',
+          fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
+          animation: 'fadeIn 0.2s ease'
+        }}>
+          <Star size={14} fill="#60a5fa" color="#60a5fa" />
+          <span>{toastMessage}</span>
         </div>
       )}
     </div>
