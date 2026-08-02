@@ -80,22 +80,29 @@ router.get('/', async (req, res) => {
 
     movies.sort((a, b) => (a.position || 0) - (b.position || 0));
 
-    // Enrich with ratings from db.movie_ratings / db.movies
+    // Fetch movie ratings directly from Supabase Cloud PostgreSQL user_settings table!
+    let cloudRatingsMap = {};
+    if (supabase) {
+      try {
+        const { data: cloudSettings } = await supabase.from('user_settings').select('*').eq('id', 'movie_ratings').single();
+        if (cloudSettings && cloudSettings.settings) {
+          cloudRatingsMap = cloudSettings.settings;
+        }
+      } catch (e) {}
+    }
+
     movies = movies.map(m => {
       const localMovie = (db.movies || []).find(lm => String(lm.id) === String(m.id));
       const localRating = localMovie ? localMovie.user_rating : null;
-      const userR = (db.movie_ratings || []).find(r => String(r.movie_id) === String(m.id) && r.user_id === userId);
-      const allRatings = (db.movie_ratings || []).filter(r => String(r.movie_id) === String(m.id));
-      const avg = allRatings.length ? (allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length) : null;
+      const cloudRating = cloudRatingsMap[String(m.id)] !== undefined ? cloudRatingsMap[String(m.id)] : (cloudRatingsMap[m.id] !== undefined ? cloudRatingsMap[m.id] : null);
       
-      const finalUserRating = userR ? userR.rating : (m.user_rating != null ? Number(m.user_rating) : (localRating != null ? Number(localRating) : null));
-      const finalAvgRating = avg != null ? Number(avg.toFixed(1)) : finalUserRating;
+      const finalUserRating = cloudRating != null ? Number(cloudRating) : (m.user_rating != null ? Number(m.user_rating) : (localRating != null ? Number(localRating) : null));
 
       return {
         ...m,
         user_rating: finalUserRating,
-        avg_rating: finalAvgRating,
-        avg_user_rating: finalAvgRating
+        avg_rating: finalUserRating,
+        avg_user_rating: finalUserRating
       };
     });
 
@@ -273,8 +280,34 @@ router.put('/:id', async (req, res) => {
       try {
         const updatePayload = sanitizeForSupabase({ ...req.body, updated_at: new Date().toISOString() });
         delete updatePayload.id;
-        await supabase.from('movies').update(updatePayload).eq('id', targetId);
-      } catch (e) {}
+        if (Object.keys(updatePayload).length > 0) {
+          await supabase.from('movies').update(updatePayload).eq('id', targetId);
+        }
+
+        if (req.body.user_rating !== undefined) {
+          const { data: existingRow } = await supabase
+            .from('user_settings')
+            .select('*')
+            .eq('id', 'movie_ratings')
+            .single();
+
+          const ratingsMap = (existingRow && existingRow.settings) ? existingRow.settings : {};
+          if (req.body.user_rating === null) {
+            delete ratingsMap[String(targetId)];
+          } else {
+            ratingsMap[String(targetId)] = Number(req.body.user_rating);
+          }
+
+          await supabase.from('user_settings').upsert({
+            id: 'movie_ratings',
+            user_id: userId,
+            settings: ratingsMap,
+            updated_at: new Date().toISOString()
+          });
+        }
+      } catch (e) {
+        console.error('Supabase movie rating upsert error:', e.message);
+      }
     }
 
     if (idx !== -1) {
