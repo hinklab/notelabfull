@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffe
 import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard from '../cards/MovieCard.jsx'
-import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star } from 'lucide-react'
+import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2 } from 'lucide-react'
 
 function hexToRgba(hex, alpha) {
   if (!hex || hex.length < 7) return `rgba(124,58,237,${alpha})`
@@ -156,7 +156,7 @@ function RatingStars10({ value, onChange }) {
   )
 }
 
-export default function NoteBoard({ note, refreshTrigger, search = '' }) {
+export default function NoteBoard({ note, refreshTrigger, search = '', onSearch }) {
   const [groups, setGroups] = useState([])
   const [itemsByGroup, setItemsByGroup] = useState({})
   const [showCreateGroup, setShowCreateGroup] = useState(false)
@@ -745,6 +745,16 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
     return result
   }, [itemsByGroup, search])
 
+  const totalFilteredCount = useMemo(() => {
+    const q = (search || '').trim()
+    if (!q) return 1
+    let count = 0
+    for (const items of Object.values(filteredItemsByGroup)) {
+      count += (items || []).length
+    }
+    return count
+  }, [filteredItemsByGroup, search])
+
   const renderColumn = (group) => (
     <NoteColumn
       key={group.id}
@@ -772,9 +782,24 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   )
 
   const activeGroup = isCompact ? groups.find(g => g.section_key === activeSection) : null
+  const showTmdbFallback = (search || '').trim().length >= 2 && totalFilteredCount === 0
 
   return (
     <div ref={boardRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      {showTmdbFallback && (
+        <TmdbFallbackSearchPanel
+          search={search}
+          itemsByGroup={itemsByGroup}
+          groups={groups}
+          onAddItem={async (groupId, data, groupName) => {
+            await handleAddItem(groupId, data)
+            setToastMessage(`"${data.title}" "${groupName || 'doska'}" bo'limiga qo'shildi! 🎬`)
+            setTimeout(() => setToastMessage(null), 2800)
+          }}
+          onSearch={onSearch}
+          noteType={note?.type || 'movie'}
+        />
+      )}
       {isCompact ? (
         <div className="board-responsive">
           {/* Sidebar */}
@@ -1912,4 +1937,217 @@ function btnS(bg, color, disabled) {
     fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
     opacity: disabled ? 0.4 : 1,
   }
+}
+
+function TmdbFallbackSearchPanel({ search, itemsByGroup, groups, onAddItem, onSearch, noteType = 'movie' }) {
+  const [results, setResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState(null)
+
+  const existingMap = useMemo(() => {
+    const map = {}
+    Object.values(itemsByGroup || {}).flat().forEach(item => {
+      const m = item._movie || item
+      if (m?.tmdb_id) map['tmdb_' + m.tmdb_id] = m
+      if (m?.imdb_id) map['imdb_' + m.imdb_id] = m
+    })
+    return map
+  }, [itemsByGroup])
+
+  const findExisting = (r) => {
+    if (r.tmdb_id && existingMap['tmdb_' + r.tmdb_id]) return existingMap['tmdb_' + r.tmdb_id]
+    if (r.imdb_id && existingMap['imdb_' + r.imdb_id]) return existingMap['imdb_' + r.imdb_id]
+    return null
+  }
+
+  useEffect(() => {
+    const q = (search || '').trim()
+    if (!q || q.length < 2) {
+      setResults([])
+      setSearching(false)
+      setSearchError(null)
+      return
+    }
+
+    setSearching(true)
+    setSearchError(null)
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await window.api.searchContent(noteType, q)
+        setSearching(false)
+        if (res?.error) {
+          setSearchError(res.error)
+        } else {
+          setResults(Array.isArray(res) ? res : [])
+        }
+      } catch (err) {
+        setSearching(false)
+        setSearchError(err.message || 'Xatolik yuz berdi')
+      }
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [search, noteType])
+
+  const handleAdd = async (r) => {
+    const releaseDateStr = r.release_date || null
+    const releaseYearInt = parseInt(r.release_year || r.year || '0', 10)
+    const currentYear = new Date().getFullYear()
+    const todayStr = new Date().toISOString().split('T')[0]
+
+    let isFuture = false
+    if (releaseDateStr && releaseDateStr > todayStr) {
+      isFuture = true
+    } else if (!releaseDateStr && releaseYearInt > currentYear) {
+      isFuture = true
+    }
+
+    const targetSectionKey = isFuture ? 'futured' : 'todo'
+    const targetGroup = groups.find(g => g.section_key === targetSectionKey) || groups.find(g => g.section_key === 'todo') || groups[0]
+
+    const data = {
+      title: r.title,
+      release_date: r.release_date || null,
+      release_year: r.release_year || r.year || '-',
+      rating: r.rating || null,
+      vote_count: r.vote_count || 0,
+      poster_path: r.poster_path || r.cover_url || null,
+      cover_url: r.cover_url || r.poster_path || null,
+      genre: r.genre || '-',
+      director: r.director || '-',
+      tmdb_id: r.tmdb_id || null,
+      imdb_id: r.imdb_id || null,
+      media_type: r.media_type || null,
+      note: r.note || '',
+    }
+
+    await onAddItem(targetGroup.id, data, targetGroup.name)
+    if (onSearch) onSearch('')
+  }
+
+  return (
+    <div style={{
+      margin: '12px 16px 8px 16px',
+      padding: '16px 20px',
+      background: 'var(--bg-surface)',
+      border: '1px solid rgba(124, 58, 237, 0.35)',
+      borderRadius: 16,
+      boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 12
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+          <Search size={15} color="var(--accent)" />
+          <span>"{search}" doskangizda topilmadi — TMDB bazasidan global natijalar:</span>
+        </div>
+        {searching && (
+          <span style={{ fontSize: 12, color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Loader2 size={13} style={{ animation: 'spin 0.8s linear infinite' }} /> Qidirilmoqda...
+          </span>
+        )}
+      </div>
+
+      {searchError && (
+        <div style={{ fontSize: 13, color: '#ef4444', padding: '8px 0' }}>{searchError}</div>
+      )}
+
+      {!searching && results.length === 0 && !searchError && (
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>
+          TMDB global bazasida ham hech qanday film topilmadi.
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: 10,
+          maxHeight: 320,
+          overflowY: 'auto',
+          paddingRight: 4
+        }}>
+          {results.map(r => {
+            const existing = findExisting(r)
+            const releaseDateStr = r.release_date || null
+            const releaseYearInt = parseInt(r.release_year || r.year || '0', 10)
+            const currentYear = new Date().getFullYear()
+            const todayStr = new Date().toISOString().split('T')[0]
+            let isFuture = false
+            if (releaseDateStr && releaseDateStr > todayStr) {
+              isFuture = true
+            } else if (!releaseDateStr && releaseYearInt > currentYear) {
+              isFuture = true
+            }
+            const destName = isFuture ? 'Futured' : 'To Do'
+
+            return (
+              <div
+                key={r.tmdb_id || r.id || r.title}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '8px 12px',
+                  background: 'var(--bg-base)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10
+                }}
+              >
+                <img
+                  src={r.poster_path || r.cover_url || 'https://via.placeholder.com/60x90?text=No+Image'}
+                  alt={r.title}
+                  style={{ width: 40, height: 60, objectFit: 'cover', borderRadius: 6, flexShrink: 0, background: '#111' }}
+                  onError={(e) => { e.target.src = 'https://via.placeholder.com/60x90?text=No+Image' }}
+                />
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {r.title}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>{r.release_year || r.year || '—'}</span>
+                    {r.rating ? <span style={{ color: '#fbbf24', fontWeight: 600 }}>★ {r.rating}</span> : null}
+                    <span style={{ background: isFuture ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: isFuture ? '#c084fc' : '#60a5fa', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600 }}>
+                      ➔ {destName}
+                    </span>
+                  </div>
+                </div>
+
+                {existing ? (
+                  <span style={{ fontSize: 11, color: '#10b981', fontWeight: 600, flexShrink: 0, padding: '4px 8px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: 6 }}>
+                    Qo'shilgan
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleAdd(r)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      background: 'var(--accent)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '6px 12px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      transition: 'opacity 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                  >
+                    <Plus size={13} /> Qo'shish
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }

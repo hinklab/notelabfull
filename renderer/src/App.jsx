@@ -167,7 +167,7 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
         </div>
       )}
 
-      <GroupBoard note={activeNote} refreshTrigger={boardKey} search={search} />
+      <GroupBoard note={activeNote} refreshTrigger={boardKey} search={search} onSearch={setSearch} />
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onOpenSurvey={onOpenSurvey} />}
     </div>
