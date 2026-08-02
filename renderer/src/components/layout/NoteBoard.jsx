@@ -58,12 +58,14 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
       const id = String(el.dataset.itemId)
       posMap.set(id, el.getBoundingClientRect())
     })
+    console.log('[FLIP Snapshot] Captured positions count:', posMap.size)
     boardCardPositionsRef.current = posMap
   }, [])
 
   // Board-level FLIP Layout Sliding Animation for Cross-Column and In-Column Moves
   useLayoutEffect(() => {
     const firstPositions = boardCardPositionsRef.current
+    console.log('FLIP effect ran, firstPositions.size:', firstPositions ? firstPositions.size : 0)
     if (!firstPositions || firstPositions.size === 0) return
 
     const cardElements = Array.from(document.querySelectorAll('[data-item-id]'))
