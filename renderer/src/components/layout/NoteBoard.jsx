@@ -626,20 +626,25 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
         if (Math.abs(deltaY) > 1) {
           el.style.transform = `translate3d(0, ${deltaY}px, 0)`
           el.style.transition = 'none'
+          
+          // Force layout reflow so browser registers inverted starting position
+          void el.offsetHeight
 
           requestAnimationFrame(() => {
-            el.style.transition = 'transform 0.28s cubic-bezier(0.2, 0, 0, 1)'
+            el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
             el.style.transform = 'translate3d(0, 0, 0)'
           })
         }
       } else {
         // New item entering column: slide & scale in
-        el.style.transform = 'translate3d(0, -12px, 0) scale(0.96)'
+        el.style.transform = 'translate3d(0, -16px, 0) scale(0.94)'
         el.style.opacity = '0'
         el.style.transition = 'none'
 
+        void el.offsetHeight
+
         requestAnimationFrame(() => {
-          el.style.transition = 'transform 0.28s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s ease'
+          el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
           el.style.transform = 'translate3d(0, 0, 0) scale(1)'
           el.style.opacity = '1'
         })
