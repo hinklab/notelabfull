@@ -210,7 +210,7 @@ export default function MovieCard({
       style={{
         background: isTouchDragging ? 'var(--bg-card-hover)' : 'var(--bg-card)',
         border: isTouchDragging ? '1.5px solid var(--accent, #7c3aed)' : '1px solid var(--border)',
-        borderRadius: 8, padding: '10px 12px',
+        borderRadius: 10, padding: 0,
         cursor: 'pointer',
         transition: isTouchDragging ? 'none' : 'border-color 0.15s, background 0.15s, transform 0.15s',
         position: 'relative', overflow: 'hidden', userSelect: 'none',
@@ -219,12 +219,15 @@ export default function MovieCard({
         zIndex: isTouchDragging ? 99999 : 1,
         opacity: isTouchDragging ? 0.95 : 1,
         touchAction: 'none',
-        WebkitTouchCallout: 'none',  // kills iOS long-press callout/context menu
+        WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
-        pointerEvents: isTouchDragging ? 'none' : 'auto', // allow elementFromPoint to see through card while dragging
+        pointerEvents: isTouchDragging ? 'none' : 'auto',
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        minHeight: 100,
       }}
       onMouseEnter={e => {
-        // Don't show hover state during or immediately after touch
         if (isTouchDragging || isTouchSessionRef.current) return
         setHovered(true)
         e.currentTarget.style.borderColor = 'var(--border-hover)'
@@ -272,23 +275,49 @@ export default function MovieCard({
           <Trash2 size={12} />
         </button>
       )}
-      {/* Poster background */}
-      {movie.poster_path && (
-        <>
-          <div style={{
-            position: 'absolute', right: 0, top: 0, width: 70, height: '100%',
-            background: 'linear-gradient(to right, var(--bg-card) 0%, transparent 100%)',
-            zIndex: 1,
-          }} />
-          <img src={movie.poster_path} alt="" style={{
-            position: 'absolute', right: 0, top: 0,
-            height: '100%', width: 70, objectFit: 'cover', opacity: 0.15,
-          }} />
-        </>
+
+      {/* Left: Poster image — clear, fully opaque */}
+      {movie.poster_path ? (
+        <div style={{
+          width: 68,
+          minWidth: 68,
+          flexShrink: 0,
+          overflow: 'hidden',
+          borderRadius: '9px 0 0 9px',
+          background: '#0a0a0a',
+        }}>
+          <img
+            src={movie.poster_path}
+            alt=""
+            loading="lazy"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
+        </div>
+      ) : (
+        <div style={{
+          width: 68,
+          minWidth: 68,
+          flexShrink: 0,
+          borderRadius: '9px 0 0 9px',
+          background: '#141414',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--text-muted)',
+          fontSize: 20,
+        }}>
+          🎬
+        </div>
       )}
 
-      <div style={{ position: 'relative', zIndex: 2 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 4 }}>
+      {/* Right: Text info */}
+      <div style={{ flex: 1, padding: '10px 12px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
           {movie.title}
           {movie.year && movie.year !== '—' && (
             <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 5, fontSize: 12 }}>
@@ -298,35 +327,35 @@ export default function MovieCard({
         </div>
 
         {isFuture && movie.release_date ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
             <Calendar size={11} color="#a78bfa" />
-            <span style={{ color: '#a78bfa', fontSize: 12, fontWeight: 500 }}>
+            <span style={{ color: '#a78bfa', fontSize: 11, fontWeight: 500 }}>
               {formatReleaseDate(movie.release_date)}
             </span>
           </div>
         ) : isFuture && movie.release_year && movie.release_year !== '—' ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
             <Calendar size={11} color="#a78bfa" />
-            <span style={{ color: '#a78bfa', fontSize: 12, fontWeight: 500 }}>
+            <span style={{ color: '#a78bfa', fontSize: 11, fontWeight: 500 }}>
               {movie.release_year}
             </span>
           </div>
         ) : null}
 
         {!isFuture && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
             <Star size={11} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} fill={movie.rating ? "#fbbf24" : "none"} />
-            <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 12, fontWeight: 600 }}>
+            <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>
               {movie.rating ? movie.rating : '0/10'}
             </span>
             {movie.vote_count ? (
-              <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>({formatVotes(movie.vote_count)})</span>
             ) : null}
           </div>
         )}
 
         {((movie.genre && movie.genre !== '—' && movie.genre !== '-') || (movie.director && movie.director !== '—' && movie.director !== '-')) && (
-          <div style={{ color: 'var(--text-secondary)', fontSize: 11, marginBottom: 2, lineHeight: 1.4 }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 10, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {movie.genre && movie.genre !== '—' && movie.genre !== '-' && <span>{movie.genre}</span>}
             {movie.director && movie.director !== '—' && movie.director !== '-' && (
               <span style={{ color: 'var(--text-muted)' }}>
@@ -337,7 +366,7 @@ export default function MovieCard({
         )}
 
         {movie.seasons && movie.seasons !== '—' && movie.seasons !== '-' && (
-          <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{movie.seasons}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>{movie.seasons}</div>
         )}
       </div>
     </div>
