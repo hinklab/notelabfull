@@ -38,6 +38,67 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showNotifications])
 
+  const SAMPLE_TITLES = [
+    'Inception',
+    'Interstellar',
+    'The Dark Knight',
+    'Breaking Bad',
+    'The Mentalist',
+    'Oppenheimer',
+    'Game of Thrones',
+    'Stranger Things',
+    'Avengers: Endgame',
+    'Sherlock'
+  ]
+
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const [animatedPlaceholder, setAnimatedPlaceholder] = useState('Qidirish...')
+
+  useEffect(() => {
+    if (isSearchFocused || search) {
+      setAnimatedPlaceholder('Qidirish...')
+      return
+    }
+
+    let titleIdx = 0
+    let charIdx = 0
+    let isDeleting = false
+    let timer = null
+
+    const tick = () => {
+      const currentTitle = SAMPLE_TITLES[titleIdx % SAMPLE_TITLES.length]
+
+      if (!isDeleting) {
+        charIdx++
+        setAnimatedPlaceholder(`Qidirish: "${currentTitle.slice(0, charIdx)}"`)
+
+        if (charIdx >= currentTitle.length) {
+          isDeleting = true
+          timer = setTimeout(tick, 1800)
+        } else {
+          timer = setTimeout(tick, 70)
+        }
+      } else {
+        charIdx--
+        setAnimatedPlaceholder(charIdx > 0 ? `Qidirish: "${currentTitle.slice(0, charIdx)}"` : 'Qidirish...')
+
+        if (charIdx <= 0) {
+          isDeleting = false
+          titleIdx++
+          timer = setTimeout(tick, 400)
+        } else {
+          timer = setTimeout(tick, 45)
+        }
+      }
+    }
+
+    timer = setTimeout(tick, 400)
+
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [isSearchFocused, search])
+
   const handleMarkRead = async (id) => {
     try {
       await window.api.markNotificationRead(id)
@@ -112,6 +173,8 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
           data-lpignore="true"
           data-form-type="other"
           value={search || ''}
+          onFocus={() => setIsSearchFocused(true)}
+          onBlur={() => setIsSearchFocused(false)}
           onChange={e => {
             const val = e.target.value
             if (user?.email && (val === user.email || val.trim() === user.email.trim())) {
@@ -119,7 +182,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
             }
             onSearch(val)
           }}
-          placeholder="Qidirish..."
+          placeholder={isSearchFocused || search ? "Qidirish..." : (animatedPlaceholder || "Qidirish...")}
           style={{
             WebkitAppRegion: 'no-drag',
             borderRadius: 9999,
