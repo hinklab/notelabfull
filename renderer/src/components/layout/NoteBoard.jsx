@@ -61,6 +61,54 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
     boardCardPositionsRef.current = posMap
   }, [])
 
+  // Board-level FLIP Layout Sliding Animation for Cross-Column and In-Column Moves
+  useLayoutEffect(() => {
+    const firstPositions = boardCardPositionsRef.current
+    if (!firstPositions || firstPositions.size === 0) return
+
+    const cardElements = Array.from(document.querySelectorAll('[data-item-id]'))
+
+    cardElements.forEach(el => {
+      const id = String(el.dataset.itemId)
+      const rect = el.getBoundingClientRect()
+
+      if (firstPositions.has(id)) {
+        const firstRect = firstPositions.get(id)
+        const deltaX = firstRect.left - rect.left
+        const deltaY = firstRect.top - rect.top
+
+        if (Math.abs(deltaY) > 1 || Math.abs(deltaX) > 1) {
+          el.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
+          el.style.transition = 'none'
+
+          // Synchronous reflow
+          void el.offsetHeight
+
+          requestAnimationFrame(() => {
+            el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
+            el.style.transform = 'translate3d(0, 0, 0)'
+          })
+        }
+      } else {
+        // Entering card: slide down & scale in
+        el.style.transform = 'translate3d(0, -16px, 0) scale(0.94)'
+        el.style.opacity = '0'
+        el.style.transition = 'none'
+
+        void el.offsetHeight
+
+        requestAnimationFrame(() => {
+          el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
+          el.style.transform = 'translate3d(0, 0, 0) scale(1)'
+          el.style.opacity = '1'
+        })
+      }
+    })
+
+    // Clear snapshot after animation triggers
+    boardCardPositionsRef.current = new Map()
+  }, [itemsByGroup])
+
   const showConfirm = (message) => new Promise(resolve => {
     setConfirmState({ message, resolve })
   })
