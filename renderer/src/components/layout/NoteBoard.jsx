@@ -790,17 +790,26 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
     e.preventDefault()
     if (cardsRef.current) cardsRef.current.style.outline = 'none'
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
+
+    // Instantly hide marker visually without triggering React state re-render
+    const markerEls = cardsRef.current?.querySelectorAll('.drag-marker-line')
+    markerEls?.forEach(m => { m.style.opacity = '0'; m.style.display = 'none' })
+
     const rawItemId = e.dataTransfer.getData('itemId')
     const rawFromGroup = e.dataTransfer.getData('fromGroup')
-    if (!rawItemId) { setDragMarker(null); return }
+    if (!rawItemId) {
+      setTimeout(() => setDragMarker(null), 0)
+      return
+    }
     const dropInfo = getDropPosition(items, e.clientY, cardsRef)
     if (String(rawFromGroup) === String(group.id)) {
       if (dropInfo.targetId != null) await onReorderItem(rawItemId, dropInfo.targetId, dropInfo.position, group.id)
     } else {
       await onMoveItem(rawItemId, group.id, dropInfo.insertIndex)
     }
-    console.log('[DragMarker Reset] re-render triggered at', performance.now())
-    setDragMarker(null)
+
+    // Delay React state clear by 340ms so state re-render fires AFTER 320ms FLIP animation completes
+    setTimeout(() => setDragMarker(null), 340)
   }
 
   const handleRename = async () => {
@@ -814,7 +823,10 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
   }
 
   const handleTouchDragEnd = async (item, clientX, clientY) => {
-    setDragMarker(null)
+    // Instantly hide marker visually
+    const markerEls = cardsRef.current?.querySelectorAll('.drag-marker-line')
+    markerEls?.forEach(m => { m.style.opacity = '0'; m.style.display = 'none' })
+
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
 
     const el = document.elementFromPoint(clientX, clientY)
@@ -830,6 +842,9 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
     } else {
       await onMoveItem(item.id, targetGroupId, dropInfo.insertIndex)
     }
+
+    // Delay React state clear by 340ms
+    setTimeout(() => setDragMarker(null), 340)
   }
 
   const colBtnStyle = { background: 'transparent', border: 'none', borderRadius: 5, color: 'var(--text-muted)', width: 22, height: 22, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'color 0.12s, background 0.12s' }
@@ -911,7 +926,7 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
         {items.map(item => (
           <div key={item.id} data-item-id={item.id} style={{ position: 'relative' }}>
             {dragMarker?.targetId === item.id && dragMarker.position === 'before' && (
-              <div style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
+              <div className="drag-marker-line" style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
             )}
             {item._movie ? (
               <MovieCard
@@ -939,7 +954,7 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
               />
             )}
             {dragMarker?.targetId === item.id && dragMarker.position === 'after' && (
-              <div style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
+              <div className="drag-marker-line" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
             )}
           </div>
         ))}

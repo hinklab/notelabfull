@@ -76,7 +76,10 @@ export default function MovieCard({
   }
 
   const handleDragEnd = (e) => {
-    if (e.currentTarget) e.currentTarget.style.opacity = '1'
+    if (e.currentTarget) {
+      e.currentTarget.style.transition = 'opacity 0.2s ease'
+      e.currentTarget.style.opacity = '1'
+    }
     if (onDragEnd) onDragEnd(e)
   }
 
