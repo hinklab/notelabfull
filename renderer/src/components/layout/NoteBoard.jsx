@@ -483,11 +483,39 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
     }
   }
 
+  const handleSaveMovieRating = useCallback(async (movieId, newRating) => {
+    setItemsByGroup(prev => {
+      const updated = { ...prev }
+      Object.keys(updated).forEach(gId => {
+        if (Array.isArray(updated[gId])) {
+          updated[gId] = updated[gId].map(item => {
+            if (String(item.id) === String(movieId)) {
+              return {
+                ...item,
+                user_rating: newRating,
+                _movie: item._movie ? { ...item._movie, user_rating: newRating } : { user_rating: newRating }
+              }
+            }
+            return item
+          })
+        }
+      })
+      return updated
+    })
+
+    setToastMessage('Rahmat, bahoyingiz saqlandi! ✨')
+    setTimeout(() => setToastMessage(null), 2200)
+
+    try {
+      await window.api.updateMovie(movieId, { user_rating: newRating })
+    } catch (err) {
+      console.error('Failed to update movie rating:', err)
+    }
+  }, [])
+
   const handleMoveItem = async (itemId, toGroupId, insertIndex) => {
-    // Capture pre-move positions of ALL cards across entire board for smooth cross-column FLIP animation
     snapshotAllCardPositions()
 
-    // 1. Optimistic UI update: move item instantly in local state
     let fromGroupId = null
     Object.keys(itemsByGroup).forEach(gId => {
       if ((itemsByGroup[gId] || []).some(item => String(item.id) === String(itemId))) {
@@ -515,18 +543,40 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
       })
     }
 
-    // 2. Perform API call in background
     try {
       if (isMovieNote) {
-        const targetGroup = groups.find(g => String(g.id) === String(toGroupId))
-        const sectionKey = targetGroup?.section_key || (String(toGroupId) === '1' ? 'futured' : String(toGroupId) === '2' ? 'todo' : String(toGroupId) === '3' ? 'doing' : 'done')
+        const fromGroup = groups.find(g => String(g.id) === String(fromGroupId))
+        const toGroup = groups.find(g => String(g.id) === String(toGroupId))
+        const fromSection = fromGroup?.section_key
+        const toSection = toGroup?.section_key || (String(toGroupId) === '1' ? 'futured' : String(toGroupId) === '2' ? 'todo' : String(toGroupId) === '3' ? 'doing' : 'done')
 
-        if (sectionKey === 'done') {
+        if (toSection === 'done' && fromSection !== 'done') {
           const movedObj = (itemsByGroup[fromGroupId] || []).find(i => String(i.id) === String(itemId)) || { id: itemId }
           setRatePromptItem({ ...movedObj, section: 'done' })
+        } else if (fromSection === 'done' && toSection !== 'done') {
+          // Instant optimistic clearing when moving card OUT of Done
+          setItemsByGroup(prev => {
+            const updated = { ...prev }
+            Object.keys(updated).forEach(gId => {
+              if (Array.isArray(updated[gId])) {
+                updated[gId] = updated[gId].map(item => {
+                  if (String(item.id) === String(itemId)) {
+                    return {
+                      ...item,
+                      user_rating: null,
+                      _movie: item._movie ? { ...item._movie, user_rating: null } : { user_rating: null }
+                    }
+                  }
+                  return item
+                })
+              }
+            })
+            return updated
+          })
+          window.api.updateMovie(itemId, { user_rating: null }).catch(console.error)
         }
 
-        await window.api.moveMovie(itemId, sectionKey, insertIndex)
+        await window.api.moveMovie(itemId, toSection, insertIndex)
       } else {
         await window.api.moveItem(itemId, toGroupId, insertIndex)
       }
@@ -843,15 +893,10 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
             </div>
             <RatingStars10
               value={ratePromptItem.user_rating || null}
-              onChange={async (newRating) => {
-                ratePromptItem.user_rating = newRating
-                try {
-                  await window.api.updateMovie(ratePromptItem.id, { user_rating: newRating })
-                  setToastMessage('Rahmat, bahoyingiz saqlandi! ✨')
-                  setTimeout(() => setToastMessage(null), 2200)
-                  await loadGroups()
-                } catch (err) { console.error('Failed to update rating:', err) }
+              onChange={(newRating) => {
+                const targetId = ratePromptItem.id
                 setRatePromptItem(null)
+                handleSaveMovieRating(targetId, newRating)
               }}
             />
           </div>
