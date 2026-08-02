@@ -280,6 +280,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
             cover_url: m.poster_path || null,
             note: m.note || '',
             user_rating: m.user_rating || null,
+            avg_user_rating: m.avg_user_rating || m.user_rating || null,
             _movie: m,
           }))
       }

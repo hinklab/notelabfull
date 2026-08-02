@@ -174,6 +174,7 @@ async function writeDB(db, deletedInfo = null) {
             release_date: m.release_date || null,
             release_year: m.release_year || '-',
             seasons: m.seasons || '-',
+            user_rating: m.user_rating || null,
             note: m.note || '',
             updated_at: new Date().toISOString()
           }));

@@ -79,6 +79,11 @@ router.get('/', async (req, res) => {
     }
 
     movies.sort((a, b) => (a.position || 0) - (b.position || 0));
+    movies = movies.map(m => ({
+      ...m,
+      user_rating: m.user_rating != null ? Number(m.user_rating) : null,
+      avg_user_rating: m.avg_user_rating != null ? Number(m.avg_user_rating) : (m.user_rating != null ? Number(m.user_rating) : null)
+    }));
     res.json(movies);
   } catch (err) {
     res.status(500).json({ error: err.message });
