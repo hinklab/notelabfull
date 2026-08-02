@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react'
 import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard from '../cards/MovieCard.jsx'
@@ -604,6 +604,50 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
   const [headerHovered, setHeaderHovered] = useState(false)
   const cardsRef = useRef(null)
   const rafRef = useRef(null)
+  const prevPositionsRef = useRef(new Map())
+
+  // FLIP Layout Sliding Animation: when items move or shift, cards below smoothly slide up into place
+  useLayoutEffect(() => {
+    const container = cardsRef.current
+    if (!container) return
+
+    const cardElements = Array.from(container.querySelectorAll('[data-item-id]'))
+    const firstPositions = prevPositionsRef.current
+    const currentPositions = new Map()
+
+    cardElements.forEach(el => {
+      const id = String(el.dataset.itemId)
+      const rect = el.getBoundingClientRect()
+      currentPositions.set(id, rect)
+
+      if (firstPositions.has(id)) {
+        const firstRect = firstPositions.get(id)
+        const deltaY = firstRect.top - rect.top
+        if (Math.abs(deltaY) > 1) {
+          el.style.transform = `translate3d(0, ${deltaY}px, 0)`
+          el.style.transition = 'none'
+
+          requestAnimationFrame(() => {
+            el.style.transition = 'transform 0.28s cubic-bezier(0.2, 0, 0, 1)'
+            el.style.transform = 'translate3d(0, 0, 0)'
+          })
+        }
+      } else {
+        // New item entering column: slide & scale in
+        el.style.transform = 'translate3d(0, -12px, 0) scale(0.96)'
+        el.style.opacity = '0'
+        el.style.transition = 'none'
+
+        requestAnimationFrame(() => {
+          el.style.transition = 'transform 0.28s cubic-bezier(0.2, 0, 0, 1), opacity 0.25s ease'
+          el.style.transform = 'translate3d(0, 0, 0) scale(1)'
+          el.style.opacity = '1'
+        })
+      }
+    })
+
+    prevPositionsRef.current = currentPositions
+  }, [items])
 
   useEffect(() => { setNameVal(group.name) }, [group.name])
 
