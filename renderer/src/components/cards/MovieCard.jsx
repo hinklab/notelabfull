@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { Star, Calendar, Clapperboard, X, Trash2 } from 'lucide-react'
+import { Star, Calendar, Clapperboard, X, Trash2, Clock } from 'lucide-react'
 
 function formatVotes(n) {
   if (!n) return null
