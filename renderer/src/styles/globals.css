@@ -74,8 +74,8 @@ html, body {
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #444; }
+::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 .section-futured { --col: var(--col-futured); --col-bg: var(--col-futured-bg); }
 .section-todo    { --col: var(--col-todo);    --col-bg: var(--col-todo-bg); }
@@ -249,8 +249,8 @@ html, body {
   position: sticky;
   top: var(--topbar-height);
   z-index: 20;
-  background: #111;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  background: var(--bg-base);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .column-scroll {

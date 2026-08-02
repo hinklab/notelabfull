@@ -458,7 +458,7 @@ export default function MovieCard({
     position: 'relative',
     borderRadius: 16,
     overflow: 'hidden',
-    background: '#09090b',
+    background: 'var(--bg-card)',
     height: '100%',
     display: 'flex',
     alignItems: 'center',
@@ -523,7 +523,7 @@ export default function MovieCard({
                 <button
                   onClick={handleClose}
                   style={{
-                    border: 'none', background: '#252525', color: '#aaa',
+                    border: 'none', background: 'var(--bg-input)', color: 'var(--text-muted)',
                     width: 36, height: 36, borderRadius: 10,
                     cursor: 'pointer', fontSize: 16, flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -533,13 +533,13 @@ export default function MovieCard({
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--text-muted)', fontSize: 12 }}>
                 {movie.release_year && movie.release_year !== '—' && (
-                  <span style={{ background: '#222', borderRadius: 6, padding: '4px 10px' }}>{movie.release_year}</span>
+                  <span style={{ background: 'var(--bg-input)', borderRadius: 6, padding: '4px 10px' }}>{movie.release_year}</span>
                 )}
                 {movie.genre && movie.genre !== '—' && (
-                  <span style={{ background: '#222', borderRadius: 6, padding: '4px 10px' }}>{movie.genre}</span>
+                  <span style={{ background: 'var(--bg-input)', borderRadius: 6, padding: '4px 10px' }}>{movie.genre}</span>
                 )}
                 {movie.director && movie.director !== '—' && (
-                  <span style={{ background: '#222', borderRadius: 6, padding: '4px 10px' }}>{movie.director}</span>
+                  <span style={{ background: 'var(--bg-input)', borderRadius: 6, padding: '4px 10px' }}>{movie.director}</span>
                 )}
                 {!isFuture && (
                   <span style={{ background: movie.rating ? '#2a1f00' : 'var(--bg-input)', color: movie.rating ? '#fbbf24' : 'var(--text-muted)', borderRadius: 6, padding: '4px 10px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -601,8 +601,8 @@ export default function MovieCard({
       {toastMessage && ReactDOM.createPortal(
         <div style={{
           position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 9999999,
-          background: '#18181b', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.4)',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)', borderRadius: 30, padding: '10px 20px',
+          background: 'var(--bg-surface)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.4)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.3)', borderRadius: 30, padding: '10px 20px',
           fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
           animation: 'fadeIn 0.2s ease'
         }}>
@@ -635,7 +635,7 @@ export default function MovieCard({
               </div>
               <button
                 onClick={() => setShowRateModal(false)}
-                style={{ border: 'none', background: '#252525', color: '#aaa', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ border: 'none', background: 'var(--bg-input)', color: 'var(--text-muted)', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               ><X size={15} /></button>
             </div>
             <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>

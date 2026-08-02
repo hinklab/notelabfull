@@ -915,7 +915,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch 
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Filmga baho bering 🎬</div>
               <button
                 onClick={() => setRatePromptItem(null)}
-                style={{ border: 'none', background: '#252525', color: '#aaa', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ border: 'none', background: 'var(--bg-input)', color: 'var(--text-muted)', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               ><X size={15} /></button>
             </div>
             <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
@@ -936,8 +936,8 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch 
       {toastMessage && (
         <div style={{
           position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)', zIndex: 9999999,
-          background: '#18181b', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.4)',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)', borderRadius: 30, padding: '10px 20px',
+          background: 'var(--bg-surface)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.4)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.3)', borderRadius: 30, padding: '10px 20px',
           fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8,
           animation: 'fadeIn 0.2s ease'
         }}>
@@ -1501,7 +1501,7 @@ function NoteItemModal({ item, note, onClose, onSave, onDelete, isEdit }) {
       >
         {/* Cover panel */}
         <div style={{
-          borderRadius: 16, overflow: 'hidden', background: '#111', height: '100%',
+          borderRadius: 16, overflow: 'hidden', background: 'var(--bg-card)', height: '100%',
           opacity: animateOpen ? 1 : 0.6,
           transform: animateOpen ? 'scale(1)' : 'scale(0.94)',
           transition: 'transform 0.3s ease 0.06s, opacity 0.3s ease 0.06s',
@@ -1541,11 +1541,11 @@ function NoteItemModal({ item, note, onClose, onSave, onDelete, isEdit }) {
                 style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
               />
             </div>
-            <button onClick={handleClose} style={{ border: 'none', background: '#252525', color: '#aaa', width: 36, height: 36, borderRadius: 10, cursor: 'pointer', fontSize: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+            <button onClick={handleClose} style={{ border: 'none', background: 'var(--bg-input)', color: 'var(--text-muted)', width: 36, height: 36, borderRadius: 10, cursor: 'pointer', fontSize: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
           </div>
 
           <div>
-            <div style={{ fontSize: 11, color: '#555', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
               Cover URL
               {noteType !== 'custom' && (
                 <button
@@ -1555,7 +1555,7 @@ function NoteItemModal({ item, note, onClose, onSave, onDelete, isEdit }) {
               )}
             </div>
             {showEnrich && (
-              <div style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: 8, marginBottom: 6 }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 6 }}>
                 <div style={{ display: 'flex', gap: 6, padding: '6px 8px', borderBottom: '1px solid #1a1a1a' }}>
                   <input
                     autoFocus
@@ -1563,7 +1563,7 @@ function NoteItemModal({ item, note, onClose, onSave, onDelete, isEdit }) {
                     onChange={e => setEnrichQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleEnrichSearch()}
                     placeholder="Inglizcha nom kiriting..."
-                    style={{ flex: 1, background: '#1a1a1a', border: '1px solid #333', borderRadius: 5, padding: '4px 8px', color: '#efefef', fontSize: 11, outline: 'none', fontFamily: 'inherit' }}
+                    style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 5, padding: '4px 8px', color: 'var(--text-primary)', fontSize: 11, outline: 'none', fontFamily: 'inherit' }}
                   />
                   <button onClick={() => handleEnrichSearch()} disabled={enriching} style={{ background: '#7c3aed', border: 'none', borderRadius: 5, color: 'white', padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}>{enriching ? '...' : 'Qidirish'}</button>
                 </div>
@@ -1571,14 +1571,14 @@ function NoteItemModal({ item, note, onClose, onSave, onDelete, isEdit }) {
                 {enrichError && <div style={{ padding: '8px 12px', color: '#ef4444', fontSize: 11 }}>{enrichError}</div>}
                 {enrichResults.map((r, i) => (
                   <div key={i} onClick={() => applyEnrich(r)}
-                    style={{ display: 'flex', gap: 8, padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid #1a1a1a', alignItems: 'center' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#1a1a1a'}
+                    style={{ display: 'flex', gap: 8, padding: '6px 10px', cursor: 'pointer', borderBottom: '1px solid var(--border)', alignItems: 'center' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     {r.cover_url && <img src={r.cover_url} alt="" style={{ width: 28, height: 38, objectFit: 'cover', borderRadius: 3, flexShrink: 0 }} />}
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#efefef', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{r.title}</div>
-                      {r.subtitle && <div style={{ fontSize: 10, color: '#888' }}>{r.subtitle}</div>}
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{r.title}</div>
+                      {r.subtitle && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{r.subtitle}</div>}
                     </div>
                   </div>
                 ))}
@@ -1589,17 +1589,17 @@ function NoteItemModal({ item, note, onClose, onSave, onDelete, isEdit }) {
               value={coverUrl}
               onChange={e => setCoverUrl(e.target.value)}
               placeholder="https://..."
-              style={{ width: '100%', background: '#1e1e1e', border: '1px solid #2a2a2a', borderRadius: 6, padding: '6px 10px', color: '#efefef', fontSize: 12, outline: 'none', fontFamily: 'inherit' }}
+              style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', color: 'var(--text-primary)', fontSize: 12, outline: 'none', fontFamily: 'inherit' }}
             />
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: '#555', marginBottom: 4 }}>Izoh</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Izoh</div>
             <textarea
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
               placeholder="Qo'shimcha izohlar..."
-              style={{ width: '100%', height: '100px', background: '#1e1e1e', border: '1px solid #2a2a2a', borderRadius: 6, padding: '8px 10px', color: '#efefef', fontSize: 12, outline: 'none', fontFamily: 'inherit', resize: 'none' }}
+              style={{ width: '100%', height: '100px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text-primary)', fontSize: 12, outline: 'none', fontFamily: 'inherit', resize: 'none' }}
             />
           </div>
 
@@ -1729,7 +1729,7 @@ function AddItemModal({ onClose, onSave, note, existingMovies = [], groups = [] 
             <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{typeLabel} Qidirish</span>
             <div style={{ flex: 1 }} />
             <button onClick={() => setMode('manual')} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11, padding: '3px 10px', fontFamily: 'inherit' }}>Qo'lda kiritish</button>
-            <button onClick={onClose} style={{ background: '#252525', border: 'none', color: '#aaa', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
+            <button onClick={onClose} style={{ background: 'var(--bg-input)', border: 'none', color: 'var(--text-muted)', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
           </div>
 
           {/* Search bar */}
@@ -1740,7 +1740,7 @@ function AddItemModal({ onClose, onSave, note, existingMovies = [], groups = [] 
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
               placeholder={`Nomi bo'yicha qidirish...`}
-              style={{ flex: 1, background: '#1e1e1e', border: '1px solid #2a2a2a', borderRadius: 8, padding: '8px 12px', color: '#efefef', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+              style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-primary)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
             />
             <button
               onClick={handleSearch}
@@ -1862,7 +1862,7 @@ function CreateGroupModal({ onClose, onCreate, creating }) {
             onChange={e => setName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && onCreate(name)}
             placeholder="Masalan: Reading, Completed, Wishlist..."
-            style={{ width: '100%', background: '#1e1e1e', border: '1px solid #2a2a2a', borderRadius: 7, padding: '8px 12px', color: '#efefef', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
+            style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '8px 12px', color: 'var(--text-primary)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
           />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
@@ -1879,7 +1879,7 @@ function CreateGroupModal({ onClose, onCreate, creating }) {
 function CtxMenu({ x, y, items, onClose }) {
   return (
     <div
-      style={{ position: 'fixed', left: Math.min(x, window.innerWidth - 190), top: Math.min(y, window.innerHeight - 220), zIndex: 9999, background: '#1e1e1e', border: '1px solid #333', borderRadius: 8, padding: '4px 0', minWidth: 175, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' }}
+      style={{ position: 'fixed', left: Math.min(x, window.innerWidth - 190), top: Math.min(y, window.innerHeight - 220), zIndex: 9999, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 0', minWidth: 175, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}
       onClick={e => e.stopPropagation()}
     >
       {items.map((item, i) => {
@@ -1888,7 +1888,7 @@ function CtxMenu({ x, y, items, onClose }) {
           <div
             key={i}
             style={{ padding: '7px 16px', cursor: 'pointer', color: item.color || 'var(--text-primary)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}
-            onMouseEnter={e => e.currentTarget.style.background = '#2a2a2a'}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             onClick={() => { item.action(); onClose() }}
           >
@@ -1908,15 +1908,15 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={onCancel}
     >
-      <div style={{ background: '#161616', border: '1px solid #2a2a2a', borderRadius: 14, padding: '28px 28px 20px', minWidth: 320, maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '28px 28px 20px', minWidth: 320, maxWidth: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.4)' }}
         onClick={e => e.stopPropagation()}
       >
         <div style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.6, marginBottom: 24 }}>{message}</div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button onClick={onCancel}
-            style={{ background: 'transparent', border: '1px solid #333', borderRadius: 8, color: 'var(--text-muted)', padding: '8px 20px', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}
-            onMouseEnter={e => e.currentTarget.style.borderColor = '#555'}
-            onMouseLeave={e => e.currentTarget.style.borderColor = '#333'}
+            style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-muted)', padding: '8px 20px', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-hover)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
           >Bekor qilish</button>
           <button onClick={onConfirm}
             style={{ background: '#ef4444', border: 'none', borderRadius: 8, color: '#fff', padding: '8px 20px', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
