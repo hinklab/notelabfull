@@ -102,10 +102,7 @@ export default function MovieCard({
   const touchOpenedAtRef = useRef(0) // timestamp when modal was opened by touch (to block ghost click)
   const cardRef = useRef(null) // ref to card DOM node for non-passive touchmove listener
 
-  useEffect(() => {
-    console.log(`[Mount] card id=${movie?.id} mounted at`, performance.now())
-    return () => console.log(`[Unmount] card id=${movie?.id} unmounted at`, performance.now())
-  }, [movie?.id])
+  // Mount effect
 
   useEffect(() => {
     if (!expanded) {
@@ -160,17 +157,13 @@ export default function MovieCard({
   const handleTouchStart = (e) => {
     const touch = e.touches[0]
     const now = Date.now()
-    console.log('[TouchStart] x:', touch.clientX.toFixed(0), 'y:', touch.clientY.toFixed(0), 'timeSinceLastTap:', now - lastTapTimeRef.current)
     isTouchSessionRef.current = true
     touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: now }
     isTouchDraggingRef.current = false
     setTouchDelta({ x: 0, y: 0 })
-    // Reset hover state so no hover/trash icon appears from touch
     setHovered(false)
   }
 
-  // Attach touchmove with { passive: false } so e.preventDefault() actually works
-  // (React's synthetic onTouchMove is passive by default on mobile, making preventDefault a no-op)
   useEffect(() => {
     const el = cardRef.current
     if (!el) return
@@ -181,22 +174,19 @@ export default function MovieCard({
       const dy = touch.clientY - touchStartPos.current.y
       const dist = Math.hypot(dx, dy)
       const held = Date.now() - touchStartPos.current.time
-      console.log('[TouchMove] dist:', dist.toFixed(1), 'heldMs:', held, 'dragging:', isTouchDraggingRef.current)
 
       if (!isTouchDraggingRef.current) {
         if (dist > 10 && held > 80 && !noDrag) {
           isTouchDraggingRef.current = true
           setIsTouchDragging(true)
           setTouchDelta({ x: dx, y: dy })
-          console.log('[TouchMove] 🟡 Drag START — calling onTouchDragStart')
           onTouchDragStart?.(movie, touch.clientX, touch.clientY)
         }
       }
 
       if (isTouchDraggingRef.current) {
-        e.preventDefault() // works because listener is non-passive
+        e.preventDefault()
         setTouchDelta({ x: dx, y: dy })
-        console.log('[TouchMove] 🟢 Drag MOVE — calling onTouchDragMove', touch.clientX.toFixed(0), touch.clientY.toFixed(0))
         onTouchDragMove?.(movie, touch.clientX, touch.clientY)
       }
     }
@@ -204,37 +194,29 @@ export default function MovieCard({
     return () => el.removeEventListener('touchmove', onMove)
   }, [noDrag, movie, onTouchDragStart, onTouchDragMove])
 
+  const handleTouchEnd = (e) => {
+    const _now = Date.now()
+    isTouchSessionRef.current = false
+    const touch = e.changedTouches[0] || e.touches[0]
 
-    const handleTouchEnd = (e) => {
-      const _now = Date.now()
-      console.log('[TouchEnd] dragging:', isTouchDraggingRef.current, '| timeSinceLastTap:', _now - lastTapTimeRef.current, '| willOpenModal:', (!isTouchDraggingRef.current && (_now - lastTapTimeRef.current) < 300))
-      isTouchSessionRef.current = false
-      const touch = e.changedTouches[0] || e.touches[0]
-
-      if (isTouchDraggingRef.current) {
-        // End drag operation
-        isTouchDraggingRef.current = false
-        setIsTouchDragging(false)
-        setTouchDelta({ x: 0, y: 0 })
-        const finalX = touch?.clientX || touchStartPos.current.x
-        const finalY = touch?.clientY || touchStartPos.current.y
-        console.log('[TouchEnd] 🔴 Drag END — calling onTouchDragEnd at', finalX.toFixed(0), finalY.toFixed(0))
-        onTouchDragEnd?.(movie, finalX, finalY)
-        return
-      }
-
-      // Double-tap detection for opening detail modal
-      const now = Date.now()
-      if (now - lastTapTimeRef.current < 300) {
-        // Suppress the browser's synthetic click event that would immediately
-        // hit the modal backdrop and close the modal (ghost click)
-        if (e.cancelable) e.preventDefault()
-        touchOpenedAtRef.current = now
-        setExpanded(true)
-        console.log('[TouchEnd] ✅ Modal opened by double-tap')
-      }
-      lastTapTimeRef.current = now
+    if (isTouchDraggingRef.current) {
+      isTouchDraggingRef.current = false
+      setIsTouchDragging(false)
+      setTouchDelta({ x: 0, y: 0 })
+      const finalX = touch?.clientX || touchStartPos.current.x
+      const finalY = touch?.clientY || touchStartPos.current.y
+      onTouchDragEnd?.(movie, finalX, finalY)
+      return
     }
+
+    const now = Date.now()
+    if (now - lastTapTimeRef.current < 300) {
+      if (e.cancelable) e.preventDefault()
+      touchOpenedAtRef.current = now
+      setExpanded(true)
+    }
+    lastTapTimeRef.current = now
+  }
 
   const handleTouchCancel = () => {
     isTouchSessionRef.current = false

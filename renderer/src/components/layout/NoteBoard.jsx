@@ -183,13 +183,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
       const id = String(el.dataset.itemId)
       posMap.set(id, el.getBoundingClientRect())
     })
-    console.log('[FLIP Snapshot] Captured visible positions count:', posMap.size)
     boardCardPositionsRef.current = posMap
   }, [])
 
   // Board-level FLIP Layout Sliding Animation for Cross-Column and In-Column Moves
   useLayoutEffect(() => {
-    console.log('[FLIP effect] fired at', performance.now())
     const firstPositions = boardCardPositionsRef.current
     if (!firstPositions || firstPositions.size === 0) return
 
@@ -938,10 +936,8 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
   }, [items])
 
   const formattedRuntime = useMemo(() => {
-    const formatted = formatTotalRuntime(totalMinutes)
-    console.log('[Column Total]', group.id, group.name, 'items:', items?.length, 'totalMins:', totalMinutes, 'formatted:', formatted)
-    return formatted
-  }, [group.id, group.name, items, totalMinutes])
+    return formatTotalRuntime(totalMinutes)
+  }, [totalMinutes])
 
   // FLIP Layout Sliding Animation: when items move or shift, cards below smoothly slide up into place
   useLayoutEffect(() => {
