@@ -225,7 +225,7 @@ export default function MovieCard({
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'stretch',
-        minHeight: 100,
+        minHeight: 120,
       }}
       onMouseEnter={e => {
         if (isTouchDragging || isTouchSessionRef.current) return
@@ -279,8 +279,8 @@ export default function MovieCard({
       {/* Left: Poster image — clear, fully opaque */}
       {movie.poster_path ? (
         <div style={{
-          width: 68,
-          minWidth: 68,
+          width: 80,
+          minWidth: 80,
           flexShrink: 0,
           overflow: 'hidden',
           borderRadius: '9px 0 0 9px',
@@ -300,8 +300,8 @@ export default function MovieCard({
         </div>
       ) : (
         <div style={{
-          width: 68,
-          minWidth: 68,
+          width: 80,
+          minWidth: 80,
           flexShrink: 0,
           borderRadius: '9px 0 0 9px',
           background: '#141414',
@@ -316,7 +316,7 @@ export default function MovieCard({
       )}
 
       {/* Right: Text info */}
-      <div style={{ flex: 1, padding: '10px 12px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+      <div style={{ flex: 1, padding: '12px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
         <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
           {movie.title}
           {movie.year && movie.year !== '—' && (
