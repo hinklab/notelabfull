@@ -36,7 +36,7 @@ function sanitizeForSupabase(obj) {
     'id', 'user_id', 'note_id', 'title', 'section', 'position',
     'tmdb_id', 'imdb_id', 'media_type', 'poster_path', 'rating',
     'vote_count', 'genre', 'director', 'overview', 'release_date',
-    'release_year', 'seasons', 'note', 'updated_at'
+    'release_year', 'seasons', 'user_rating', 'note', 'updated_at'
   ];
   const clean = {};
   for (const k of allowed) {

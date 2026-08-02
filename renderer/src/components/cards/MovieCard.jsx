@@ -19,6 +19,43 @@ function formatReleaseDate(dateStr) {
   }
 }
 
+function RatingStars10({ value, onChange }) {
+  const [hoverVal, setHoverVal] = useState(null)
+  const activeVal = hoverVal !== null ? hoverVal : (value || 0)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#93c5fd' }}>Sizning bahoingiz:</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>{activeVal ? `${activeVal}/10` : 'Baho berilmagan'}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'space-between' }} onMouseLeave={() => setHoverVal(null)}>
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(starNum => {
+          const filled = starNum <= activeVal
+          return (
+            <button
+              key={starNum}
+              onClick={(e) => {
+                e.stopPropagation()
+                onChange(starNum)
+              }}
+              onMouseEnter={() => setHoverVal(starNum)}
+              style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <Star
+                size={18}
+                fill={filled ? '#60a5fa' : 'none'}
+                color={filled ? '#60a5fa' : '#3f3f46'}
+                style={{ transition: 'transform 0.1s, color 0.1s, fill 0.1s', transform: hoverVal === starNum ? 'scale(1.25)' : 'scale(1)' }}
+              />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function MovieCard({
   movie,
   sectionKey,
@@ -36,7 +73,22 @@ export default function MovieCard({
   const [hovered, setHovered] = useState(false)
   const [isTouchDragging, setIsTouchDragging] = useState(false)
   const [touchDelta, setTouchDelta] = useState({ x: 0, y: 0 })
+  const [userRating, setUserRating] = useState(movie?.user_rating || null)
   const isFuture = movie.section === 'futured' && !movie.rating
+
+  useEffect(() => {
+    setUserRating(movie?.user_rating || null)
+  }, [movie?.user_rating])
+
+  const handleRate = async (newRating) => {
+    setUserRating(newRating)
+    if (movie) movie.user_rating = newRating
+    try {
+      await window.api.updateMovie(movie.id, { user_rating: newRating })
+    } catch (err) {
+      console.error('Failed to save user rating:', err)
+    }
+  }
 
   const touchStartPos = useRef({ x: 0, y: 0, time: 0 })
   const lastTapTimeRef = useRef(0)
@@ -346,14 +398,22 @@ export default function MovieCard({
         ) : null}
 
         {!isFuture && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Star size={11} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} fill={movie.rating ? "#fbbf24" : "none"} />
-            <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 12, fontWeight: 600 }}>
-              {movie.rating ? movie.rating : '0/10'}
-            </span>
-            {movie.vote_count ? (
-              <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
-            ) : null}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Star size={11} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} fill={movie.rating ? "#fbbf24" : "none"} />
+              <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 12, fontWeight: 600 }}>
+                {movie.rating ? movie.rating : '0/10'}
+              </span>
+              {movie.vote_count ? (
+                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
+              ) : null}
+            </div>
+            {userRating > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '0px 5px', borderRadius: 4 }}>
+                <Star size={10} color="#60a5fa" fill="#60a5fa" />
+                <span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{userRating}/10</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -519,6 +579,11 @@ export default function MovieCard({
                 {movie.note && movie.note !== movie.overview && movie.note.trim() !== (movie.overview || '').trim() && (
                   <div style={{ color: 'var(--text-muted)', fontSize: 13, whiteSpace: 'pre-wrap' }}>
                     <strong>Izoh:</strong> {movie.note}
+                  </div>
+                )}
+                {(movie.section === 'done' || sectionKey === 'done') && (
+                  <div style={{ marginTop: 6 }}>
+                    <RatingStars10 value={userRating} onChange={handleRate} />
                   </div>
                 )}
               </div>

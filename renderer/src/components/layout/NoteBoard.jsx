@@ -119,6 +119,43 @@ function formatTotalRuntime(totalMinutes) {
   return `${totalMinutes} min`
 }
 
+function RatingStars10({ value, onChange }) {
+  const [hoverVal, setHoverVal] = useState(null)
+  const activeVal = hoverVal !== null ? hoverVal : (value || 0)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#93c5fd' }}>Sizning bahoingiz:</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>{activeVal ? `${activeVal}/10` : 'Baho berilmagan'}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'space-between' }} onMouseLeave={() => setHoverVal(null)}>
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(starNum => {
+          const filled = starNum <= activeVal
+          return (
+            <button
+              key={starNum}
+              onClick={(e) => {
+                e.stopPropagation()
+                onChange(starNum)
+              }}
+              onMouseEnter={() => setHoverVal(starNum)}
+              style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+            >
+              <Star
+                size={18}
+                fill={filled ? '#60a5fa' : 'none'}
+                color={filled ? '#60a5fa' : '#3f3f46'}
+                style={{ transition: 'transform 0.1s, color 0.1s, fill 0.1s', transform: hoverVal === starNum ? 'scale(1.25)' : 'scale(1)' }}
+              />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   const [groups, setGroups] = useState([])
   const [itemsByGroup, setItemsByGroup] = useState({})
@@ -132,6 +169,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   const [creatingGroup, setCreatingGroup] = useState(false)
   const [renameGroupId, setRenameGroupId] = useState(null)
   const [draggingGroupId, setDraggingGroupId] = useState(null)
+  const [ratePromptItem, setRatePromptItem] = useState(null)
   const groupDragOver = useRef(null)
   const [confirmState, setConfirmState] = useState(null)
   const boardCardPositionsRef = useRef(new Map())
@@ -480,6 +518,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
         const targetGroup = groups.find(g => String(g.id) === String(toGroupId))
         const sectionKey = targetGroup?.section_key || (String(toGroupId) === '1' ? 'futured' : String(toGroupId) === '2' ? 'todo' : String(toGroupId) === '3' ? 'doing' : 'done')
         await window.api.moveMovie(itemId, sectionKey, insertIndex)
+
+        if (sectionKey === 'done') {
+          const movedObj = (itemsByGroup[fromGroupId] || []).find(i => String(i.id) === String(itemId)) || { id: itemId }
+          setRatePromptItem({ ...movedObj, section: 'done' })
+        }
       } else {
         await window.api.moveItem(itemId, toGroupId, insertIndex)
       }
@@ -764,6 +807,49 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
           ].filter(Boolean)}
           onClose={() => setGroupContextMenu(null)}
         />
+      )}
+
+      {ratePromptItem && (
+        <div
+          onClick={() => setRatePromptItem(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 999999,
+            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 'min(440px, 92vw)', background: 'var(--bg-surface)',
+              border: '1px solid var(--border)', borderRadius: 24, padding: 24,
+              display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 30px 80px rgba(0,0,0,0.7)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Filmga baho bering 🎬</div>
+              <button
+                onClick={() => setRatePromptItem(null)}
+                style={{ border: 'none', background: '#252525', color: '#aaa', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              ><X size={15} /></button>
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <strong style={{ color: 'var(--text-primary)' }}>"{ratePromptItem.title || ratePromptItem._movie?.title || 'Film'}"</strong> tomosha qilindi! Necha ball berasiz?
+            </div>
+            <RatingStars10
+              value={ratePromptItem.user_rating || null}
+              onChange={async (newRating) => {
+                ratePromptItem.user_rating = newRating
+                try {
+                  await window.api.updateMovie(ratePromptItem.id, { user_rating: newRating })
+                  await loadGroups()
+                } catch (err) { console.error('Failed to update rating:', err) }
+                setRatePromptItem(null)
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   )
