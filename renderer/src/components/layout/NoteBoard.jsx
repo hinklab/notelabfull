@@ -762,6 +762,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
       onItemDelete={(item) => handleDeleteItem(item)}
       onMoveItem={handleMoveItem}
       onReorderItem={handleReorderItem}
+      onSaveRating={handleSaveMovieRating}
       isDragging={draggingGroupId === group.id}
       onGroupDragStart={() => handleGroupDragStart(group.id)}
       onGroupDragEnd={handleGroupDragEnd}
@@ -923,7 +924,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   )
 }
 
-function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
+function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, onSaveRating, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
   const color = group.color || '#a78bfa'
   const bg = hexToRgba(color, 0.12)
   const border = hexToRgba(color, 0.3)
@@ -1192,6 +1193,7 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
               <MovieCard
                 movie={item._movie}
                 sectionKey={group.section_key}
+                onRate={(newRating) => onSaveRating?.(item.id, newRating)}
                 onContextMenu={(e) => onItemContextMenu(e, item)}
                 onDelete={() => onItemDelete?.(item)}
                 onDragStart={(e) => {

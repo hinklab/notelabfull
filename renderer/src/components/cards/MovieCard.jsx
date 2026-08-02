@@ -59,6 +59,7 @@ function RatingStars10({ value, onChange }) {
 export default function MovieCard({
   movie,
   sectionKey,
+  onRate,
   onContextMenu,
   noDrag,
   onDragStart,
@@ -86,12 +87,16 @@ export default function MovieCard({
   const handleRate = async (newRating) => {
     setUserRating(newRating)
     if (movie) movie.user_rating = newRating
-    try {
-      await window.api.updateMovie(movie.id, { user_rating: newRating })
-      setToastMessage('Rahmat, bahoyingiz saqlandi!')
-      setTimeout(() => setToastMessage(null), 2200)
-    } catch (err) {
-      console.error('Failed to save user rating:', err)
+    if (onRate) {
+      onRate(newRating)
+    } else {
+      try {
+        await window.api.updateMovie(movie.id, { user_rating: newRating })
+        setToastMessage('Rahmat, bahoyingiz saqlandi!')
+        setTimeout(() => setToastMessage(null), 2200)
+      } catch (err) {
+        console.error('Failed to save user rating:', err)
+      }
     }
   }
 
