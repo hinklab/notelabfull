@@ -46,6 +46,11 @@ export default function MovieCard({
   const cardRef = useRef(null) // ref to card DOM node for non-passive touchmove listener
 
   useEffect(() => {
+    console.log(`[Mount] card id=${movie?.id} mounted at`, performance.now())
+    return () => console.log(`[Unmount] card id=${movie?.id} unmounted at`, performance.now())
+  }, [movie?.id])
+
+  useEffect(() => {
     if (!expanded) {
       setAnimateOpen(false)
       return

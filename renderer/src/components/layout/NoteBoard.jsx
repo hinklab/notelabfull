@@ -83,6 +83,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
 
         if (Math.abs(deltaY) > 1 || Math.abs(deltaX) > 1) {
           console.log(`[FLIP Delta] Item ${id}: deltaX=${deltaX.toFixed(1)}, deltaY=${deltaY.toFixed(1)}`)
+          console.log(`[Element Identity] id=${id}, connected at start:`, el.isConnected)
 
           // 1. Invert step: shift back to starting position instantly with no transition
           el.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
@@ -94,6 +95,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
           // 3. Play step with NESTED DOUBLE rAF to prevent browser frame coalescing
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
+              console.log(`[Element Identity] id=${id}, still connected:`, el.isConnected, 'still in document:', document.contains(el))
               el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
               el.style.transform = 'translate3d(0, 0, 0)'
 
@@ -102,6 +104,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
                 const computed = getComputedStyle(el).transform
                 const duration = getComputedStyle(el).transitionDuration
                 console.log(`[Computed Check] t=${checks * 40}ms transform=${computed} duration=${duration}`)
+                if (checks === 8) {
+                  console.log(`[Element Identity] id=${id}, connected at end:`, el.isConnected)
+                }
                 checks++
                 if (checks > 8) clearInterval(pollInterval)
               }, 40)
