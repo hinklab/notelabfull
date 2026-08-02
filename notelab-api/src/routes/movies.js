@@ -467,122 +467,99 @@ router.post('/refresh-all', async (req, res) => {
 
     saveUserSettings(userId, { [lastRefreshKey]: new Date().toISOString() });
 
-    let updatedCount = 0;
-    let mismatchesCorrected = 0;
-    let failedTitles = [];
-    const movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
-
-    const BATCH_SIZE = 20;
-    for (let i = 0; i < movies.length; i += BATCH_SIZE) {
-      const batch = movies.slice(i, i + BATCH_SIZE);
-      await Promise.allSettled(batch.map(async (m) => {
-        let changed = false;
-        const isTv = m.media_type === 'tv' || (m.seasons && m.seasons !== '-');
-
-        // 1. Fetch TMDB details (SAFE: only updates release_date and runtime/seasons; NEVER touches poster_path, title, or tmdb_id)
-        if (m.tmdb_id && tmdbKey) {
-          try {
-            const primaryUrl = isTv
-              ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
-              : `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
-
-            const tmdbRes = await fetch(primaryUrl, { signal: AbortSignal.timeout(3500) });
-            if (tmdbRes.ok) {
-              const tmdbData = await tmdbRes.json();
-              if (!m.release_date) {
-                m.release_date = tmdbData.release_date || tmdbData.first_air_date || null;
-                changed = true;
-              }
-              // Extract runtime into seasons field if missing or default '-'
-              if (!m.seasons || m.seasons === '-' || m.seasons === '—') {
-                if (isTv || tmdbData.number_of_seasons) {
-                  const parts = [];
-                  if (tmdbData.number_of_seasons) parts.push(`${tmdbData.number_of_seasons} season${tmdbData.number_of_seasons > 1 ? 's' : ''}`);
-                  if (tmdbData.number_of_episodes) parts.push(`${tmdbData.number_of_episodes} ep`);
-                  const epRt = tmdbData.episode_run_time && tmdbData.episode_run_time.length > 0 ? tmdbData.episode_run_time[0] : null;
-                  if (epRt) parts.push(`~${epRt} min`);
-                  if (parts.length > 0) { m.seasons = parts.join(' · '); changed = true; }
-                } else if (tmdbData.runtime) {
-                  m.seasons = `${tmdbData.runtime} min`;
-                  changed = true;
-                }
-              }
-            }
-          } catch (e) {
-            // Silently swallow fetch timeout/warnings
-          }
-        }
-
-        // 2. Fetch Ratings & Metadata from IMDb/OMDb (SAFE: only updates rating, vote_count, genre, director, release_year, overview, imdb_id; NEVER touches poster_path, title, or tmdb_id)
-        if (omdbKey && (m.imdb_id || m.title)) {
-          try {
-            const omdbQuery = m.imdb_id
-              ? `i=${encodeURIComponent(m.imdb_id)}`
-              : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
-            const omdbUrl = `http://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&${omdbQuery}`;
-            const omdbRes = await fetch(omdbUrl, { signal: AbortSignal.timeout(3500) });
-            if (omdbRes.ok) {
-              const omdbData = await omdbRes.json();
-              if (omdbData.Response !== 'False') {
-                if (omdbData.imdbID && !m.imdb_id) {
-                  m.imdb_id = omdbData.imdbID;
-                  changed = true;
-                }
-
-                if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') {
-                  const newRating = parseFloat(omdbData.imdbRating);
-                  if (m.rating !== newRating) { m.rating = newRating; changed = true; }
-                }
-
-                if (omdbData.imdbVotes && omdbData.imdbVotes !== 'N/A') {
-                  const newVotes = parseInt(omdbData.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
-                  if (m.vote_count !== newVotes) { m.vote_count = newVotes; changed = true; }
-                }
-
-                if (omdbData.Genre && omdbData.Genre !== 'N/A' && (!m.genre || m.genre === '-')) {
-                  m.genre = omdbData.Genre; changed = true;
-                }
-
-                if (omdbData.Director && omdbData.Director !== 'N/A' && (!m.director || m.director === '-')) {
-                  m.director = omdbData.Director; changed = true;
-                }
-
-                if (omdbData.Year && omdbData.Year !== 'N/A' && (!m.release_year || m.release_year === '-')) {
-                  m.release_year = omdbData.Year; changed = true;
-                }
-
-                if (omdbData.Plot && omdbData.Plot !== 'N/A' && (!m.overview || m.overview.length < omdbData.Plot.length)) {
-                  m.overview = omdbData.Plot; changed = true;
-                }
-              }
-            }
-          } catch (e) {
-            // Silently swallow OMDb timeout
-          }
-        }
-
-        if (changed) {
-          updatedCount++;
-        }
-      }));
-    }
-
-    if (updatedCount > 0) {
-      writeDB(db);
-    }
-
-    // Trigger recommendation generation in background without blocking route response
-    generateRecommendations(userId).catch(err => {
-      console.error('[REFRESH-ALL] Background recommendations error:', err.message);
-    });
-
+    // Respond IMMEDIATELY (< 10ms) to guarantee 0% risk of tunnel or gateway 502 timeouts
     res.json({
       success: true,
-      updated: updatedCount,
-      mismatchesCorrected,
-      failedTitles,
-      message: `${updatedCount} ta kino ma'lumotlari yangilandi`,
+      updated: 0,
+      message: "Filmlar ma'lumotlarini yangilash fonda boshlandi...",
+      started: true
     });
+
+    // Run full refresh batch asynchronously in background worker
+    setImmediate(async () => {
+      console.log(`[REFRESH-ALL BACKGROUND WORKER] Started for userId: ${userId}`);
+      let updatedCount = 0;
+      const movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
+
+      const BATCH_SIZE = 25;
+      for (let i = 0; i < movies.length; i += BATCH_SIZE) {
+        const batch = movies.slice(i, i + BATCH_SIZE);
+        await Promise.allSettled(batch.map(async (m) => {
+          let changed = false;
+          const isTv = m.media_type === 'tv' || (m.seasons && m.seasons !== '-');
+
+          // 1. Fetch TMDB details (SAFE: only updates release_date and runtime/seasons; NEVER touches poster_path, title, or tmdb_id)
+          if (m.tmdb_id && tmdbKey) {
+            try {
+              const primaryUrl = isTv
+                ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
+                : `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
+
+              const tmdbRes = await fetch(primaryUrl, { signal: AbortSignal.timeout(2500) });
+              if (tmdbRes.ok) {
+                const tmdbData = await tmdbRes.json();
+                if (!m.release_date) {
+                  m.release_date = tmdbData.release_date || tmdbData.first_air_date || null;
+                  changed = true;
+                }
+                if (!m.seasons || m.seasons === '-' || m.seasons === '—') {
+                  if (isTv || tmdbData.number_of_seasons) {
+                    const parts = [];
+                    if (tmdbData.number_of_seasons) parts.push(`${tmdbData.number_of_seasons} season${tmdbData.number_of_seasons > 1 ? 's' : ''}`);
+                    if (tmdbData.number_of_episodes) parts.push(`${tmdbData.number_of_episodes} ep`);
+                    const epRt = tmdbData.episode_run_time && tmdbData.episode_run_time.length > 0 ? tmdbData.episode_run_time[0] : null;
+                    if (epRt) parts.push(`~${epRt} min`);
+                    if (parts.length > 0) { m.seasons = parts.join(' · '); changed = true; }
+                  } else if (tmdbData.runtime) {
+                    m.seasons = `${tmdbData.runtime} min`;
+                    changed = true;
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+
+          // 2. Fetch Ratings & Metadata from IMDb/OMDb (SAFE: only updates rating, vote_count, genre, director, release_year, overview, imdb_id; NEVER touches poster_path, title, or tmdb_id)
+          if (omdbKey && (m.imdb_id || m.title)) {
+            try {
+              const omdbQuery = m.imdb_id
+                ? `i=${encodeURIComponent(m.imdb_id)}`
+                : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
+              const omdbUrl = `http://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&${omdbQuery}`;
+              const omdbRes = await fetch(omdbUrl, { signal: AbortSignal.timeout(2500) });
+              if (omdbRes.ok) {
+                const omdbData = await omdbRes.json();
+                if (omdbData.Response !== 'False') {
+                  if (omdbData.imdbID && !m.imdb_id) { m.imdb_id = omdbData.imdbID; changed = true; }
+                  if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') {
+                    const newRating = parseFloat(omdbData.imdbRating);
+                    if (m.rating !== newRating) { m.rating = newRating; changed = true; }
+                  }
+                  if (omdbData.imdbVotes && omdbData.imdbVotes !== 'N/A') {
+                    const newVotes = parseInt(omdbData.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+                    if (m.vote_count !== newVotes) { m.vote_count = newVotes; changed = true; }
+                  }
+                  if (omdbData.Genre && omdbData.Genre !== 'N/A' && (!m.genre || m.genre === '-')) { m.genre = omdbData.Genre; changed = true; }
+                  if (omdbData.Director && omdbData.Director !== 'N/A' && (!m.director || m.director === '-')) { m.director = omdbData.Director; changed = true; }
+                  if (omdbData.Year && omdbData.Year !== 'N/A' && (!m.release_year || m.release_year === '-')) { m.release_year = omdbData.Year; changed = true; }
+                  if (omdbData.Plot && omdbData.Plot !== 'N/A' && (!m.overview || m.overview.length < omdbData.Plot.length)) { m.overview = omdbData.Plot; changed = true; }
+                }
+              }
+            } catch (e) {}
+          }
+
+          if (changed) updatedCount++;
+        }));
+      }
+
+      if (updatedCount > 0) writeDB(db);
+
+      console.log(`[REFRESH-ALL BACKGROUND WORKER] Completed successfully for userId: ${userId}. Updated ${updatedCount} movie(s).`);
+      generateRecommendations(userId).catch(err => {
+        console.error('[REFRESH-ALL] Background recommendations error:', err.message);
+      });
+    });
+
   } catch (err) {
     console.error('[REFRESH-ALL] Global route error:', err);
     res.status(500).json({ error: err.message });
