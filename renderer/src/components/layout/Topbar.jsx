@@ -89,7 +89,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         flexShrink: 0,
         WebkitAppRegion: 'drag',
       }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, WebkitAppRegion: 'no-drag' }}>
           <span className="font-logo" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.4px', color: 'var(--text-primary)' }}>
             notelab
@@ -100,7 +100,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         </span>
       </div>
 
-      <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', width: 'min(680px, 45vw)', display: 'flex', justifyContent: 'center', zIndex: 10 }}>
+      <div style={{ flex: '1 1 auto', minWidth: 160, maxWidth: 480, margin: '0 12px', display: 'flex', justifyContent: 'center' }}>
         <input
           type="search"
           name="notelab_search_field_query"
@@ -133,7 +133,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         />
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, WebkitAppRegion: 'no-drag', zIndex: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, WebkitAppRegion: 'no-drag', zIndex: 10 }}>
         {/* Refresh tugmasi */}
         {onRefresh && (
           <div style={{ position: 'relative' }}>
@@ -256,7 +256,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
 
         {/* User Email / Name display (Logout moved to Settings tab 4) */}
         {user && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+          <div className="topbar-user-badge" style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
             <span style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
               {user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email}
             </span>
