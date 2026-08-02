@@ -166,8 +166,8 @@ router.post('/', async (req, res) => {
             const parts = [];
             if (detail.number_of_seasons) parts.push(`${detail.number_of_seasons} season${detail.number_of_seasons > 1 ? 's' : ''}`);
             if (detail.number_of_episodes) parts.push(`${detail.number_of_episodes} ep`);
-            const epRt = detail.episode_run_time && detail.episode_run_time.length > 0 ? detail.episode_run_time[0] : null;
-            if (epRt) parts.push(`~${epRt} min`);
+            const epRt = (detail.episode_run_time && detail.episode_run_time.length > 0) ? detail.episode_run_time[0] : 45;
+            parts.push(`~${epRt} min`);
             if (parts.length > 0) seasons = parts.join(' · ');
           } else if (detail.runtime) {
             seasons = `${detail.runtime} min`;
