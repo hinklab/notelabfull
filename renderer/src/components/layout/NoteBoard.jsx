@@ -12,26 +12,41 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
-function getDropPosition(items, clientY, containerRef) {
+function getDropPosition(items, clientY, containerRef, prevMarker = null) {
   if (!containerRef.current || items.length === 0) return { targetId: null, position: 'after', insertIndex: 0 }
-  const cardEls = containerRef.current.querySelectorAll('[data-item-id]')
-  let best = null, bestDist = Infinity
-  cardEls.forEach(el => {
+  const cardEls = Array.from(containerRef.current.querySelectorAll('[data-item-id]'))
+  if (cardEls.length === 0) return { targetId: null, position: 'after', insertIndex: 0 }
+
+  let bestIndex = 0
+  let minDistance = Infinity
+  let isBefore = true
+
+  cardEls.forEach((el, index) => {
     const rect = el.getBoundingClientRect()
     const midY = rect.top + rect.height / 2
-    const dist = Math.abs(clientY - midY)
-    if (dist < bestDist) {
-      bestDist = dist
-      best = { targetId: parseInt(el.dataset.itemId), position: clientY < midY ? 'before' : 'after' }
+    const distance = Math.abs(clientY - midY)
+
+    if (distance < minDistance) {
+      minDistance = distance
+      bestIndex = index
+      
+      // Hysteresis dead-zone: if clientY is within 6px of midpoint and we have a previous marker position, preserve previous position to prevent flickering
+      if (prevMarker && Math.abs(clientY - midY) < 6 && String(prevMarker.targetId) === String(el.dataset.itemId)) {
+        isBefore = prevMarker.position === 'before'
+      } else {
+        isBefore = clientY < midY
+      }
     }
   })
-  if (!best) {
-    const firstRect = cardEls[0]?.getBoundingClientRect()
-    if (firstRect && clientY < firstRect.top) best = { targetId: parseInt(cardEls[0].dataset.itemId), position: 'before' }
-    else { const last = cardEls[cardEls.length - 1]; best = { targetId: last ? parseInt(last.dataset.itemId) : null, position: 'after' } }
-  }
-  const idx = items.findIndex(i => i.id === best.targetId)
-  return { ...best, insertIndex: Math.max(0, best.position === 'before' ? idx : idx + 1) }
+
+  const targetEl = cardEls[bestIndex]
+  const targetId = String(targetEl.dataset.itemId)
+  const position = isBefore ? 'before' : 'after'
+
+  const idx = items.findIndex(i => String(i.id) === targetId)
+  const insertIndex = Math.max(0, position === 'before' ? idx : idx + 1)
+
+  return { targetId, position, insertIndex }
 }
 
 export default function NoteBoard({ note, refreshTrigger, search = '' }) {
@@ -769,8 +784,10 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
   const updateMarker = useCallback((clientY) => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(() => {
-      const next = getDropPosition(items, clientY, cardsRef)
-      setDragMarker(prev => (prev?.targetId === next.targetId && prev?.position === next.position) ? prev : next)
+      setDragMarker(prev => {
+        const next = getDropPosition(items, clientY, cardsRef, prev)
+        return (prev?.targetId === next.targetId && prev?.position === next.position) ? prev : next
+      })
     })
   }, [items])
 
