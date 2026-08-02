@@ -52,13 +52,14 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   const boardCardPositionsRef = useRef(new Map())
 
   const snapshotAllCardPositions = useCallback(() => {
-    const cardEls = document.querySelectorAll('[data-item-id]')
+    const cardEls = Array.from(document.querySelectorAll('[data-item-id]'))
+      .filter(el => el.offsetParent !== null && el.getBoundingClientRect().width > 0)
     const posMap = new Map()
     cardEls.forEach(el => {
       const id = String(el.dataset.itemId)
       posMap.set(id, el.getBoundingClientRect())
     })
-    console.log('[FLIP Snapshot] Captured positions count:', posMap.size)
+    console.log('[FLIP Snapshot] Captured visible positions count:', posMap.size)
     boardCardPositionsRef.current = posMap
   }, [])
 
@@ -69,6 +70,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
     if (!firstPositions || firstPositions.size === 0) return
 
     const cardElements = Array.from(document.querySelectorAll('[data-item-id]'))
+      .filter(el => el.offsetParent !== null && el.getBoundingClientRect().width > 0)
 
     cardElements.forEach(el => {
       const id = String(el.dataset.itemId)
@@ -80,15 +82,21 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
         const deltaY = firstRect.top - rect.top
 
         if (Math.abs(deltaY) > 1 || Math.abs(deltaX) > 1) {
+          console.log(`[FLIP Delta] Item ${id}: deltaX=${deltaX.toFixed(1)}, deltaY=${deltaY.toFixed(1)}`)
+
+          // 1. Invert step: shift back to starting position instantly with no transition
           el.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
           el.style.transition = 'none'
 
-          // Synchronous reflow
+          // 2. Synchronous reflow
           void el.offsetHeight
 
+          // 3. Play step with NESTED DOUBLE rAF to prevent browser frame coalescing
           requestAnimationFrame(() => {
-            el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
-            el.style.transform = 'translate3d(0, 0, 0)'
+            requestAnimationFrame(() => {
+              el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
+              el.style.transform = 'translate3d(0, 0, 0)'
+            })
           })
         }
       } else {
@@ -100,9 +108,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
         void el.offsetHeight
 
         requestAnimationFrame(() => {
-          el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
-          el.style.transform = 'translate3d(0, 0, 0) scale(1)'
-          el.style.opacity = '1'
+          requestAnimationFrame(() => {
+            el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
+            el.style.transform = 'translate3d(0, 0, 0) scale(1)'
+            el.style.opacity = '1'
+          })
         })
       }
     })
