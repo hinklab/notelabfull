@@ -531,6 +531,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
     })
 
     if (fromGroupId) {
+      const fromGroup = groups.find(g => String(g.id) === String(fromGroupId))
+      const toGroup = groups.find(g => String(g.id) === String(toGroupId))
+      const fromSection = fromGroup?.section_key
+      const toSection = toGroup?.section_key || (String(toGroupId) === '1' ? 'futured' : String(toGroupId) === '2' ? 'todo' : String(toGroupId) === '3' ? 'doing' : 'done')
+
       setItemsByGroup(prev => {
         const sourceItems = [...(prev[fromGroupId] || [])]
         const targetItems = String(fromGroupId) === String(toGroupId) ? sourceItems : [...(prev[toGroupId] || [])]
@@ -539,8 +544,22 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
         if (itemIdx === -1) return prev
         const [movedItem] = sourceItems.splice(itemIdx, 1)
 
+        const updatedItem = {
+          ...movedItem,
+          section: toSection,
+          user_rating: toSection === 'done' ? movedItem.user_rating : null,
+          avg_rating: toSection === 'done' ? movedItem.avg_rating : null,
+          avg_user_rating: toSection === 'done' ? movedItem.avg_user_rating : null,
+          _movie: movedItem._movie ? {
+            ...movedItem._movie,
+            section: toSection,
+            user_rating: toSection === 'done' ? movedItem._movie.user_rating : null,
+            avg_user_rating: toSection === 'done' ? movedItem._movie.avg_user_rating : null
+          } : null
+        }
+
         const safeIndex = insertIndex != null ? Math.min(insertIndex, targetItems.length) : targetItems.length
-        targetItems.splice(Math.max(0, safeIndex), 0, movedItem)
+        targetItems.splice(Math.max(0, safeIndex), 0, updatedItem)
 
         return {
           ...prev,
@@ -548,48 +567,26 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
           [toGroupId]: targetItems,
         }
       })
-    }
 
-    try {
       if (isMovieNote) {
-        const fromGroup = groups.find(g => String(g.id) === String(fromGroupId))
-        const toGroup = groups.find(g => String(g.id) === String(toGroupId))
-        const fromSection = fromGroup?.section_key
-        const toSection = toGroup?.section_key || (String(toGroupId) === '1' ? 'futured' : String(toGroupId) === '2' ? 'todo' : String(toGroupId) === '3' ? 'doing' : 'done')
-
         if (toSection === 'done' && fromSection !== 'done') {
           const movedObj = (itemsByGroup[fromGroupId] || []).find(i => String(i.id) === String(itemId)) || { id: itemId }
           setRatePromptItem({ ...movedObj, section: 'done' })
         } else if (fromSection === 'done' && toSection !== 'done') {
-          // Instant optimistic clearing when moving card OUT of Done
-          setItemsByGroup(prev => {
-            const updated = { ...prev }
-            Object.keys(updated).forEach(gId => {
-              if (Array.isArray(updated[gId])) {
-                updated[gId] = updated[gId].map(item => {
-                  if (String(item.id) === String(itemId)) {
-                    return {
-                      ...item,
-                      user_rating: null,
-                      _movie: item._movie ? { ...item._movie, user_rating: null } : { user_rating: null }
-                    }
-                  }
-                  return item
-                })
-              }
-            })
-            return updated
-          })
           window.api.updateMovie(itemId, { user_rating: null }).catch(console.error)
         }
-
-        await window.api.moveMovie(itemId, toSection, insertIndex)
-      } else {
-        await window.api.moveItem(itemId, toGroupId, insertIndex)
       }
-    } catch (err) {
-      console.error('Failed to move item:', err)
-      await loadGroups()
+
+      try {
+        if (isMovieNote) {
+          await window.api.moveMovie(itemId, toSection, insertIndex)
+        } else {
+          await window.api.moveItem(itemId, toGroupId, insertIndex)
+        }
+      } catch (err) {
+        console.error('Failed to move item:', err)
+        await loadGroups()
+      }
     }
   }
 

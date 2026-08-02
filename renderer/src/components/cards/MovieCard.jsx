@@ -403,7 +403,7 @@ export default function MovieCard({
                 <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
               ) : null}
             </div>
-            {(movie.section === 'done' && (movie.avg_user_rating || movie.user_rating || userRating)) ? (
+            {((movie.section === 'done' || sectionKey === 'done') && (movie.avg_user_rating || movie.user_rating || userRating)) ? (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '0px 5px', borderRadius: 4 }}>
                 <Star size={10} color="#60a5fa" fill="#60a5fa" />
                 <span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{Number(movie.avg_user_rating || movie.user_rating || userRating).toFixed(1).replace(/\.0$/, '')}</span>
