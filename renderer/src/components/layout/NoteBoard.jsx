@@ -50,7 +50,7 @@ function getDropPosition(items, clientY, containerRef, prevMarker = null) {
 }
 
 function parseItemMinutes(item) {
-  const str = item?.seasons || item?.runtime
+  const str = item?.seasons || item?.runtime || item?._movie?.seasons || item?._movie?.runtime
   if (!str || str === '-' || str === '—') return 0
 
   const singleMatch = String(str).match(/^(\d+)\s*min$/i)
@@ -787,7 +787,11 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
     return items.reduce((sum, item) => sum + parseItemMinutes(item), 0)
   }, [items])
 
-  const formattedRuntime = useMemo(() => formatTotalRuntime(totalMinutes), [totalMinutes])
+  const formattedRuntime = useMemo(() => {
+    const formatted = formatTotalRuntime(totalMinutes)
+    console.log('[Column Total]', group.id, group.name, 'items:', items?.length, 'totalMins:', totalMinutes, 'formatted:', formatted)
+    return formatted
+  }, [group.id, group.name, items, totalMinutes])
 
   // FLIP Layout Sliding Animation: when items move or shift, cards below smoothly slide up into place
   useLayoutEffect(() => {
