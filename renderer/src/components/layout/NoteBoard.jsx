@@ -1772,7 +1772,10 @@ function AddItemModal({ onClose, onSave, note, existingMovies = [], groups = [] 
                         </span>
                       )}
                       {r.rating && (
-                        <span style={{ color: isDuplicate ? 'var(--text-muted)' : '#fbbf24', fontWeight: 600, fontSize: 11 }}>⭐ {r.rating}</span>
+                        <span style={{ color: isDuplicate ? 'var(--text-muted)' : '#fbbf24', fontWeight: 600, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                          <Star size={11} fill={isDuplicate ? 'var(--text-muted)' : '#fbbf24'} color={isDuplicate ? 'var(--text-muted)' : '#fbbf24'} />
+                          <span>{r.rating}</span>
+                        </span>
                       )}
                       {isDuplicate && (
                         <span style={{ color: '#f59e0b', fontSize: 10, fontWeight: 600, background: 'rgba(245,158,11,0.12)', padding: '1px 7px', borderRadius: 4 }}>
