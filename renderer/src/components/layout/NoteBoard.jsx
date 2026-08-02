@@ -66,7 +66,6 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   // Board-level FLIP Layout Sliding Animation for Cross-Column and In-Column Moves
   useLayoutEffect(() => {
     const firstPositions = boardCardPositionsRef.current
-    console.log('FLIP effect ran, firstPositions.size:', firstPositions ? firstPositions.size : 0)
     if (!firstPositions || firstPositions.size === 0) return
 
     const cardElements = Array.from(document.querySelectorAll('[data-item-id]'))
@@ -81,40 +80,40 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
         const deltaX = firstRect.left - rect.left
         const deltaY = firstRect.top - rect.top
 
-        if (Math.abs(deltaY) > 1 || Math.abs(deltaX) > 1) {
-          console.log(`[FLIP Delta] Item ${id}: deltaX=${deltaX.toFixed(1)}, deltaY=${deltaY.toFixed(1)}`)
-          console.log(`[Element Identity] id=${id}, connected at start:`, el.isConnected)
+        // If card moved across columns (deltaX > 50px), animate cleanly inside its new column to avoid CSS container clipping
+        const isCrossColumnMove = Math.abs(deltaX) > 50
 
-          // 1. Invert step: shift back to starting position instantly with no transition
-          el.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
+        if (isCrossColumnMove) {
+          // Cross-column entering card: scale & fade in smoothly inside destination column
+          el.style.transform = 'translate3d(0, -16px, 0) scale(0.94)'
+          el.style.opacity = '0'
           el.style.transition = 'none'
 
-          // 2. Synchronous reflow
           void el.offsetHeight
 
-          // 3. Play step with NESTED DOUBLE rAF to prevent browser frame coalescing
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              console.log(`[Element Identity] id=${id}, still connected:`, el.isConnected, 'still in document:', document.contains(el))
+              el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
+              el.style.transform = 'translate3d(0, 0, 0) scale(1)'
+              el.style.opacity = '1'
+            })
+          })
+        } else if (Math.abs(deltaY) > 1) {
+          // Within-column shift (cards sliding up in source column, or sliding down in destination column)
+          el.style.transform = `translate3d(0, ${deltaY}px, 0)`
+          el.style.transition = 'none'
+
+          void el.offsetHeight
+
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
               el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
               el.style.transform = 'translate3d(0, 0, 0)'
-
-              let checks = 0
-              const pollInterval = setInterval(() => {
-                const computed = getComputedStyle(el).transform
-                const duration = getComputedStyle(el).transitionDuration
-                console.log(`[Computed Check] t=${checks * 40}ms transform=${computed} duration=${duration}`)
-                if (checks === 8) {
-                  console.log(`[Element Identity] id=${id}, connected at end:`, el.isConnected)
-                }
-                checks++
-                if (checks > 8) clearInterval(pollInterval)
-              }, 40)
             })
           })
         }
       } else {
-        // Entering card: slide down & scale in
+        // Brand new item entering board
         el.style.transform = 'translate3d(0, -16px, 0) scale(0.94)'
         el.style.opacity = '0'
         el.style.transition = 'none'
