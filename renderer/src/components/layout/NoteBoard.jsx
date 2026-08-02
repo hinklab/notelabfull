@@ -49,6 +49,17 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   const [draggingGroupId, setDraggingGroupId] = useState(null)
   const groupDragOver = useRef(null)
   const [confirmState, setConfirmState] = useState(null)
+  const boardCardPositionsRef = useRef(new Map())
+
+  const snapshotAllCardPositions = useCallback(() => {
+    const cardEls = document.querySelectorAll('[data-item-id]')
+    const posMap = new Map()
+    cardEls.forEach(el => {
+      const id = String(el.dataset.itemId)
+      posMap.set(id, el.getBoundingClientRect())
+    })
+    boardCardPositionsRef.current = posMap
+  }, [])
 
   const showConfirm = (message) => new Promise(resolve => {
     setConfirmState({ message, resolve })
@@ -273,6 +284,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   }
 
   const handleMoveItem = async (itemId, toGroupId, insertIndex) => {
+    // Capture pre-move positions of ALL cards across entire board for smooth cross-column FLIP animation
+    snapshotAllCardPositions()
+
     // 1. Optimistic UI update: move item instantly in local state
     let fromGroupId = null
     Object.keys(itemsByGroup).forEach(gId => {
@@ -317,6 +331,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   }
 
   const handleReorderItem = async (itemId, targetId, position, groupId) => {
+    snapshotAllCardPositions()
     const items = itemsByGroup[groupId] || []
     const ids = items.map(i => i.id)
     const fromIdx = ids.findIndex(id => String(id) === String(itemId))
@@ -475,6 +490,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
       key={group.id}
       group={group}
       items={filteredItemsByGroup[group.id] || []}
+      boardCardPositionsRef={boardCardPositionsRef}
       itemClipboard={itemClipboard}
       onAdd={() => setAddItemGroup(group.id)}
       renameSignal={renameGroupId === group.id}
@@ -594,7 +610,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   )
 }
 
-function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
+function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
   const color = group.color || '#a78bfa'
   const bg = hexToRgba(color, 0.12)
   const border = hexToRgba(color, 0.3)
@@ -617,17 +633,20 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
     const hasItemChanges = currentItemsKey !== prevItemsKeyRef.current
 
     if (hasItemChanges && prevItemsKeyRef.current !== '') {
-      const firstPositions = prevPositionsRef.current
+      const firstPositions = (boardCardPositionsRef && boardCardPositionsRef.current && boardCardPositionsRef.current.size > 0)
+        ? boardCardPositionsRef.current
+        : prevPositionsRef.current
 
       cardElements.forEach(el => {
         const id = String(el.dataset.itemId)
         const rect = el.getBoundingClientRect()
 
-        if (firstPositions.has(id)) {
+        if (firstPositions && firstPositions.has(id)) {
           const firstRect = firstPositions.get(id)
           const deltaY = firstRect.top - rect.top
-          if (Math.abs(deltaY) > 1) {
-            el.style.transform = `translate3d(0, ${deltaY}px, 0)`
+          const deltaX = firstRect.left - rect.left
+          if (Math.abs(deltaY) > 1 || Math.abs(deltaX) > 1) {
+            el.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
             el.style.transition = 'none'
 
             void el.offsetHeight
@@ -656,13 +675,13 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
 
     prevItemsKeyRef.current = currentItemsKey
 
-    // Snapshot card positions
-    const newPositions = new Map()
+    // Snapshot card positions for local fallback and next update
+    const newPositions = new Map(prevPositionsRef.current)
     cardElements.forEach(el => {
       newPositions.set(String(el.dataset.itemId), el.getBoundingClientRect())
     })
     prevPositionsRef.current = newPositions
-  }, [items])
+  }, [items, boardCardPositionsRef])
 
   useEffect(() => { setNameVal(group.name) }, [group.name])
 
