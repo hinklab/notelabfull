@@ -472,31 +472,26 @@ router.post('/refresh-all', async (req, res) => {
     let failedTitles = [];
     const movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
 
-    const BATCH_SIZE = 5;
+    const BATCH_SIZE = 20;
     for (let i = 0; i < movies.length; i += BATCH_SIZE) {
       const batch = movies.slice(i, i + BATCH_SIZE);
-      await Promise.all(batch.map(async (m) => {
+      await Promise.allSettled(batch.map(async (m) => {
         let changed = false;
         const isTv = m.media_type === 'tv' || (m.seasons && m.seasons !== '-');
 
-        // 1. Fetch TMDB Poster (TMDB is the primary source for posters)
+        // 1. Fetch TMDB details (SAFE: only updates release_date and runtime/seasons; NEVER touches poster_path, title, or tmdb_id)
         if (m.tmdb_id && tmdbKey) {
           try {
             const primaryUrl = isTv
               ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
               : `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
-            const fallbackUrl = isTv
-              ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
-              : `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
 
-            let tmdbRes = await fetch(primaryUrl);
-            if (!tmdbRes.ok && tmdbRes.status === 404) {
-              tmdbRes = await fetch(fallbackUrl);
-            }
+            const tmdbRes = await fetch(primaryUrl, { signal: AbortSignal.timeout(3500) });
             if (tmdbRes.ok) {
               const tmdbData = await tmdbRes.json();
               if (!m.release_date) {
                 m.release_date = tmdbData.release_date || tmdbData.first_air_date || null;
+                changed = true;
               }
               // Extract runtime into seasons field if missing or default '-'
               if (!m.seasons || m.seasons === '-' || m.seasons === '—') {
@@ -514,19 +509,18 @@ router.post('/refresh-all', async (req, res) => {
               }
             }
           } catch (e) {
-            console.warn(`TMDB poster fetch warning for "${m.title}":`, e.message);
+            // Silently swallow fetch timeout/warnings
           }
         }
 
-        // 2. Fetch All Metadata & Ratings from IMDb (via OMDB API)
-        const omdbQuery = m.imdb_id
-          ? `i=${encodeURIComponent(m.imdb_id)}`
-          : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
-
+        // 2. Fetch Ratings & Metadata from IMDb/OMDb (SAFE: only updates rating, vote_count, genre, director, release_year, overview, imdb_id; NEVER touches poster_path, title, or tmdb_id)
         if (omdbKey && (m.imdb_id || m.title)) {
           try {
+            const omdbQuery = m.imdb_id
+              ? `i=${encodeURIComponent(m.imdb_id)}`
+              : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
             const omdbUrl = `http://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&${omdbQuery}`;
-            const omdbRes = await fetch(omdbUrl);
+            const omdbRes = await fetch(omdbUrl, { signal: AbortSignal.timeout(3500) });
             if (omdbRes.ok) {
               const omdbData = await omdbRes.json();
               if (omdbData.Response !== 'False') {
@@ -545,36 +539,25 @@ router.post('/refresh-all', async (req, res) => {
                   if (m.vote_count !== newVotes) { m.vote_count = newVotes; changed = true; }
                 }
 
-                if (omdbData.Genre && omdbData.Genre !== 'N/A' && m.genre !== omdbData.Genre) {
+                if (omdbData.Genre && omdbData.Genre !== 'N/A' && (!m.genre || m.genre === '-')) {
                   m.genre = omdbData.Genre; changed = true;
                 }
 
-                if (omdbData.Director && omdbData.Director !== 'N/A' && m.director !== omdbData.Director) {
+                if (omdbData.Director && omdbData.Director !== 'N/A' && (!m.director || m.director === '-')) {
                   m.director = omdbData.Director; changed = true;
                 }
 
-                if (omdbData.Year && omdbData.Year !== 'N/A' && m.release_year !== omdbData.Year) {
+                if (omdbData.Year && omdbData.Year !== 'N/A' && (!m.release_year || m.release_year === '-')) {
                   m.release_year = omdbData.Year; changed = true;
                 }
 
                 if (omdbData.Plot && omdbData.Plot !== 'N/A' && (!m.overview || m.overview.length < omdbData.Plot.length)) {
                   m.overview = omdbData.Plot; changed = true;
                 }
-
-                if (!m.poster_path && omdbData.Poster && omdbData.Poster !== 'N/A') {
-                  m.poster_path = omdbData.Poster; changed = true;
-                }
-
-                console.log(`  -> IMDb (OMDb) data & TMDB poster refreshed for "${m.title}"`);
-              } else {
-                failedTitles.push(m.title);
               }
-            } else {
-              failedTitles.push(m.title);
             }
           } catch (e) {
-            console.warn(`IMDb (OMDb) refresh error for "${m.title}":`, e.message);
-            failedTitles.push(m.title);
+            // Silently swallow OMDb timeout
           }
         }
 
@@ -584,28 +567,21 @@ router.post('/refresh-all', async (req, res) => {
       }));
     }
 
-    // Auto-migrate futured movies whose release dates have passed
-    const autoMigratedCount = autoMigrateFuturedMovies(db);
-    const totalChanges = updatedCount + autoMigratedCount;
-
-    if (updatedCount > 0 && autoMigratedCount === 0) {
+    if (updatedCount > 0) {
       writeDB(db);
     }
 
-    console.log(`[REFRESH-ALL] Calling generateRecommendations for userId: ${userId}`);
-    try {
-      const notifs = await generateRecommendations(userId);
-      console.log(`[REFRESH-ALL] generateRecommendations completed. Generated ${notifs ? notifs.length : 0} notification(s).`);
-    } catch (e) {
-      console.error('[REFRESH-ALL] Error generating recommendations:', e.stack || e.message);
-    }
+    // Trigger recommendation generation in background without blocking route response
+    generateRecommendations(userId).catch(err => {
+      console.error('[REFRESH-ALL] Background recommendations error:', err.message);
+    });
 
     res.json({
       success: true,
-      updated: totalChanges,
+      updated: updatedCount,
       mismatchesCorrected,
       failedTitles,
-      message: `${totalChanges} ta kino ma'lumotlari yangilandi va ko'chirildi`,
+      message: `${updatedCount} ta kino ma'lumotlari yangilandi`,
     });
   } catch (err) {
     console.error('[REFRESH-ALL] Global route error:', err);
