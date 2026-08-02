@@ -22,7 +22,7 @@
     },
     {
       "id": 9,
-      "tmdb_id": "648",
+      "tmdb_id": 648,
       "title": "The Incredible Hulk",
       "release_year": "1977–1982",
       "rating": 7,
@@ -103,7 +103,7 @@
     },
     {
       "id": 25,
-      "tmdb_id": "284054",
+      "tmdb_id": 284054,
       "title": "Black Panther",
       "release_year": "2018",
       "rating": 7.3,
@@ -123,7 +123,7 @@
     },
     {
       "id": 27,
-      "tmdb_id": "363088",
+      "tmdb_id": 363088,
       "title": "Ant-Man and the Wasp",
       "release_year": "2018",
       "rating": 7,
@@ -143,7 +143,7 @@
     },
     {
       "id": 30,
-      "tmdb_id": "429617",
+      "tmdb_id": 429617,
       "title": "Spider-Man: Far from Home",
       "release_year": "2019",
       "rating": 7.3,
@@ -163,7 +163,7 @@
     },
     {
       "id": 31,
-      "tmdb_id": "497698",
+      "tmdb_id": 497698,
       "title": "Black Widow",
       "release_year": "2021",
       "rating": 6.6,
@@ -183,7 +183,7 @@
     },
     {
       "id": 32,
-      "tmdb_id": "566525",
+      "tmdb_id": 566525,
       "title": "Shang-Chi and the Legend of the Ten Rings",
       "release_year": "2021",
       "rating": 7.3,
@@ -203,7 +203,7 @@
     },
     {
       "id": 33,
-      "tmdb_id": "524434",
+      "tmdb_id": 524434,
       "title": "Eternals",
       "release_year": "2021",
       "rating": 6.2,
@@ -223,7 +223,7 @@
     },
     {
       "id": 34,
-      "tmdb_id": "634649",
+      "tmdb_id": 634649,
       "title": "Spider-Man: No Way Home",
       "release_year": "2021",
       "rating": 8.1,
@@ -243,7 +243,7 @@
     },
     {
       "id": 35,
-      "tmdb_id": "453395",
+      "tmdb_id": 453395,
       "title": "Doctor Strange in the Multiverse of Madness",
       "release_year": "2022",
       "rating": 6.9,
@@ -263,7 +263,7 @@
     },
     {
       "id": 36,
-      "tmdb_id": "616037",
+      "tmdb_id": 616037,
       "title": "Thor: Love and Thunder",
       "release_year": "2022",
       "rating": 6.1,
@@ -283,7 +283,7 @@
     },
     {
       "id": 37,
-      "tmdb_id": "505642",
+      "tmdb_id": 505642,
       "title": "Black Panther: Wakanda Forever",
       "release_year": "2022",
       "rating": 6.6,
@@ -303,7 +303,7 @@
     },
     {
       "id": 39,
-      "tmdb_id": "447365",
+      "tmdb_id": 447365,
       "title": "Guardians of the Galaxy Vol. 3",
       "release_year": "2023",
       "rating": 7.9,
@@ -323,7 +323,7 @@
     },
     {
       "id": 40,
-      "tmdb_id": "640146",
+      "tmdb_id": 640146,
       "title": "Ant-Man and the Wasp: Quantumania",
       "release_year": "2023",
       "rating": 6,
@@ -343,7 +343,7 @@
     },
     {
       "id": 42,
-      "tmdb_id": "97546",
+      "tmdb_id": 97546,
       "title": "Ted Lasso",
       "release_year": "2020–",
       "rating": 8.7,
@@ -364,7 +364,7 @@
     },
     {
       "id": 44,
-      "tmdb_id": "202555",
+      "tmdb_id": 202555,
       "title": "Daredevil: Born Again",
       "release_year": "2025–",
       "rating": 8.1,
@@ -602,7 +602,7 @@
     },
     {
       "id": 63,
-      "tmdb_id": "1266127",
+      "tmdb_id": 1266127,
       "title": "Ready or Not, Here I Come",
       "release_year": "1985",
       "rating": 7.6,
@@ -621,7 +621,7 @@
     },
     {
       "id": 65,
-      "tmdb_id": "931285",
+      "tmdb_id": 931285,
       "title": "Mortal Kombat II",
       "release_year": "2026",
       "rating": 6.7,
@@ -641,7 +641,7 @@
     },
     {
       "id": 69,
-      "tmdb_id": "438631",
+      "tmdb_id": 438631,
       "title": "Dune: Part One",
       "release_year": "2021",
       "rating": 8,
@@ -661,7 +661,7 @@
     },
     {
       "id": 71,
-      "tmdb_id": "940721",
+      "tmdb_id": 940721,
       "title": "Godzilla Minus One",
       "release_year": "2023",
       "rating": 7.7,
@@ -681,7 +681,7 @@
     },
     {
       "id": 72,
-      "tmdb_id": "693134",
+      "tmdb_id": 693134,
       "title": "Dune: Part Two",
       "release_year": "2024",
       "rating": 8.4,
@@ -919,26 +919,7 @@
       "poster_path": "https://image.tmdb.org/t/p/w500/bXQDZj79irceldVGLzL6RFdyC4Z.jpg",
       "section": "todo",
       "position": 15,
-      "note": "A missing child sets four families on a frantic hunt for answers as they unearth a mind-bending mystery that spans three generations.",
-      "user_id": "0d3da195-1d0e-458b-9f88-2879561e0da6"
-    },
-    {
-      "id": 86,
-      "tmdb_id": 70523,
-      "imdb_id": "tt1537761",
-      "title": "Espèces d'espèces",
-      "release_date": "2008-10-12",
-      "release_year": "2008",
-      "rating": 8.1,
-      "vote_count": 24,
-      "genre": "Documentary",
-      "director": "Denis van Waerebeke",
-      "overview": "Species of species renews our representation of the tree of life and reveals to us that the millions of species that inhabit the planet, ours included, all belong to a single and immense family. How to classify living species? What criterion should be used to sort them? The number of legs? The presence of wings, feathers, hair, scales? Not so simple...",
-      "seasons": "90 min",
-      "poster_path": "https://image.tmdb.org/t/p/w500/bXQDZj79irceldVGLzL6RFdyC4Z.jpg",
-      "section": "todo",
-      "position": 15,
-      "note": "A missing child sets four families on a frantic hunt for answers as they unearth a mind-bending mystery that spans three generations.",
+      "note": "",
       "user_id": "0d3da195-1d0e-458b-9f88-2879561e0da6"
     },
     {
@@ -1100,14 +1081,15 @@
       "rating": 5.8,
       "vote_count": 25,
       "genre": "Drama, Family",
-      "director": "Joe Casey, Duncan Rouleau, Steven T. Seagle, Joe Kelly",
-      "overview": "The further adventures of the Marvel Universe's mightiest general membership superhero team. With an all-star roster consisting of Iron Man, Captain America, Thor, Hulk, Hawkeye, Falcon and, occasionally--when she feels like it and only when she feels like it--Black Widow, the Avengers are a team in the truest sense. The Avengers save the world from the biggest threats imaginable--threats no single super hero could withstand.",
+      "director": "Jack Couffer",
+      "overview": "Stuck in a dead-end job, Graham Merrill adopts an otter, Mij, as a pet and then moves to an isolated village in western Scotland. Together they set out to explore the curious and magnificent natural wonders that surround their seaside home. Soon, Graham finds himself falling in love with the beautiful town doctor, Mary. Before long, the three become inseparable friends.",
       "seasons": "5 seasons · 126 ep · ~22 min",
-      "poster_path": "https://image.tmdb.org/t/p/w500/aVYPq7FSvsdNQOXVIFnndXJPCXn.jpg",
+      "poster_path": "https://image.tmdb.org/t/p/w500/sUI7ZkpgjzB8wTFP6ezn3u8FWjV.jpg",
       "section": "done",
       "position": 22,
       "note_id": 6,
-      "note": ""
+      "note": "Stuck in a dead-end job, Graham Merrill adopts an otter, Mij, as a pet and then moves to an isolated village in western Scotland. Together they set out to explore the curious and magnificent natural wonders that surround their seaside home. Soon, Graham finds himself falling in love with the beautiful town doctor, Mary. Before long, the three become inseparable friends.",
+      "cover_url": "https://image.tmdb.org/t/p/w500/sUI7ZkpgjzB8wTFP6ezn3u8FWjV.jpg"
     },
     {
       "id": 96,
@@ -1468,27 +1450,6 @@
       "note": ""
     },
     {
-      "id": 113,
-      "user_id": "0d3da195-1d0e-458b-9f88-2879561e0da6",
-      "tmdb_id": 1339713,
-      "imdb_id": "tt37287335",
-      "media_type": "movie",
-      "title": "Obsession",
-      "release_date": "2026-05-13",
-      "release_year": "2026",
-      "rating": 8,
-      "vote_count": 176988,
-      "genre": "Horror, Romance, Thriller",
-      "director": "Curry Barker",
-      "overview": "After breaking the mysterious \"One Wish Willow\" to win his crush's heart, a hopeless romantic finds himself getting exactly what he asked for but soon discovers that some desires come at a dark, sinister price.",
-      "seasons": "109 min",
-      "poster_path": "https://image.tmdb.org/t/p/w500/bRwnj8WEKBCvmfeUNOukJPwB43K.jpg",
-      "section": "todo",
-      "position": 13,
-      "note_id": null,
-      "note": ""
-    },
-    {
       "id": 114,
       "user_id": "0d3da195-1d0e-458b-9f88-2879561e0da6",
       "tmdb_id": 277834,
@@ -1552,7 +1513,9 @@
       "position": 0,
       "note_id": 6,
       "note": "",
-      "user_rating": 7
+      "user_rating": null,
+      "avg_rating": null,
+      "avg_user_rating": null
     },
     {
       "id": 117,

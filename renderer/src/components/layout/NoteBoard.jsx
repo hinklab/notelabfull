@@ -488,7 +488,6 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch 
   }
 
   const handleSaveMovieRating = useCallback(async (movieId, newRating) => {
-    console.log(`[Auto-Prompt Rating Save] timestamp=${performance.now()} ms | target movieId=${movieId} | rating=${newRating}`)
     setItemsByGroup(prev => {
       const updated = { ...prev }
       Object.keys(updated).forEach(gId => {
