@@ -33,6 +33,26 @@ async function getNotifications(userId) {
 
 async function createNotification(userId, { type, title, message, movie_data }) {
   if (!userId) return null;
+
+  // Deduplication check: check if notification for this movie & type already exists
+  const existingNotifs = await getNotifications(userId);
+  const mId = movie_data?.tmdb_id ? String(movie_data.tmdb_id) : null;
+  const mTitle = (movie_data?.title || title || '').toLowerCase().trim();
+
+  const isDuplicate = existingNotifs.some(n => {
+    if (n.type !== type) return false;
+    const nTmdbId = n.movie_data?.tmdb_id ? String(n.movie_data.tmdb_id) : null;
+    const nTitle = (n.movie_data?.title || n.title || '').toLowerCase().trim();
+    if (mId && nTmdbId && mId === nTmdbId) return true;
+    if (mTitle && nTitle && mTitle === nTitle) return true;
+    return false;
+  });
+
+  if (isDuplicate) {
+    console.log(`[CREATE NOTIFICATION] Skipped duplicate notification: type=${type}, title="${title}"`);
+    return null;
+  }
+
   const newNotif = {
     id: require('crypto').randomUUID(),
     user_id: userId,
@@ -171,7 +191,7 @@ async function createReleaseAlert(userId, movie) {
   // Guard: check if release alert for this movie was ALREADY sent
   const alreadyAlerted = existingNotifs.some(n =>
     n.type === 'release_alert' && (
-      (movie.tmdb_id && n.movie_data?.tmdb_id === movie.tmdb_id) ||
+      (movie.tmdb_id && String(n.movie_data?.tmdb_id) === String(movie.tmdb_id)) ||
       (movieTitle && (n.movie_data?.title || '').toLowerCase().trim() === movieTitle) ||
       (movieTitle && (n.title || '').toLowerCase().trim().includes(movieTitle))
     )
@@ -368,9 +388,9 @@ async function generateRecommendations(userId) {
     const ignoredList = settings[ignoredKey] || [];
 
     const existingTmdbIds = new Set([
-      ...userMovies.map(m => m.tmdb_id).filter(Boolean),
-      ...userNotifications.map(n => n.movie_data?.tmdb_id).filter(Boolean),
-      ...ignoredList.filter(x => typeof x === 'number')
+      ...userMovies.map(m => String(m.tmdb_id)).filter(Boolean),
+      ...userNotifications.map(n => String(n.movie_data?.tmdb_id)).filter(Boolean),
+      ...ignoredList.map(x => String(x)).filter(Boolean)
     ]);
     const existingTitles = new Set([
       ...userMovies.map(m => (m.title || '').toLowerCase().trim()),
@@ -379,7 +399,7 @@ async function generateRecommendations(userId) {
     ]);
 
     const candidates = results.filter(m => {
-      if (existingTmdbIds.has(m.id)) return false;
+      if (existingTmdbIds.has(String(m.id))) return false;
       if (existingTitles.has((m.title || '').toLowerCase().trim())) return false;
       return true;
     }).slice(0, 4);
