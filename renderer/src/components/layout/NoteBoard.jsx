@@ -520,12 +520,13 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
       if (isMovieNote) {
         const targetGroup = groups.find(g => String(g.id) === String(toGroupId))
         const sectionKey = targetGroup?.section_key || (String(toGroupId) === '1' ? 'futured' : String(toGroupId) === '2' ? 'todo' : String(toGroupId) === '3' ? 'doing' : 'done')
-        await window.api.moveMovie(itemId, sectionKey, insertIndex)
 
         if (sectionKey === 'done') {
           const movedObj = (itemsByGroup[fromGroupId] || []).find(i => String(i.id) === String(itemId)) || { id: itemId }
           setRatePromptItem({ ...movedObj, section: 'done' })
         }
+
+        await window.api.moveMovie(itemId, sectionKey, insertIndex)
       } else {
         await window.api.moveItem(itemId, toGroupId, insertIndex)
       }
@@ -832,16 +833,10 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Filmga baho bering 🎬</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button
-                  onClick={() => setRatePromptItem(null)}
-                  style={{ border: 'none', background: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, textDecoration: 'underline' }}
-                >Keyinroq</button>
-                <button
-                  onClick={() => setRatePromptItem(null)}
-                  style={{ border: 'none', background: '#252525', color: '#aaa', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                ><X size={15} /></button>
-              </div>
+              <button
+                onClick={() => setRatePromptItem(null)}
+                style={{ border: 'none', background: '#252525', color: '#aaa', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              ><X size={15} /></button>
             </div>
             <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               <strong style={{ color: 'var(--text-primary)' }}>"{ratePromptItem.title || ratePromptItem._movie?.title || 'Film'}"</strong> tomosha qilindi! Necha ball berasiz?

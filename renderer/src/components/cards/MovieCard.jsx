@@ -74,6 +74,7 @@ export default function MovieCard({
   const [isTouchDragging, setIsTouchDragging] = useState(false)
   const [touchDelta, setTouchDelta] = useState({ x: 0, y: 0 })
   const [userRating, setUserRating] = useState(movie?.user_rating || null)
+  const [showRateModal, setShowRateModal] = useState(false)
   const isFuture = movie.section === 'futured' && !movie.rating
 
   const [toastMessage, setToastMessage] = useState(null)
@@ -555,6 +556,22 @@ export default function MovieCard({
                     <Star size={11} fill={movie.rating ? "#fbbf24" : "none"} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} /> {movie.rating ? movie.rating : '0/10'}
                   </span>
                 )}
+                {(movie.section === 'done' || sectionKey === 'done') && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowRateModal(true) }}
+                    title="Baho berish / o'zgartirish"
+                    style={{
+                      background: userRating ? 'rgba(59, 130, 246, 0.18)' : 'rgba(59, 130, 246, 0.1)',
+                      border: userRating ? '1px solid rgba(59, 130, 246, 0.4)' : '1px dashed rgba(59, 130, 246, 0.35)',
+                      color: userRating ? '#60a5fa' : '#93c5fd',
+                      borderRadius: 6, padding: '4px 10px', fontWeight: 600,
+                      display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer'
+                    }}
+                  >
+                    <Star size={11} fill={userRating ? "#60a5fa" : "none"} color={userRating ? "#60a5fa" : "#93c5fd"} />
+                    <span>{userRating ? `${userRating}/10` : '+ Baho berish'}</span>
+                  </button>
+                )}
               </div>
 
               {movie.overview && (
@@ -585,11 +602,6 @@ export default function MovieCard({
                     <strong>Izoh:</strong> {movie.note}
                   </div>
                 )}
-                {(movie.section === 'done' || sectionKey === 'done') && (
-                  <div style={{ marginTop: 6 }}>
-                    <RatingStars10 value={userRating} onChange={handleRate} />
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -606,6 +618,47 @@ export default function MovieCard({
         }}>
           <Star size={14} fill="#60a5fa" color="#60a5fa" />
           <span>{toastMessage}</span>
+        </div>,
+        document.body
+      )}
+      {showRateModal && ReactDOM.createPortal(
+        <div
+          onClick={() => setShowRateModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999999,
+            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: 'min(440px, 92vw)', background: 'var(--bg-surface)',
+              border: '1px solid var(--border)', borderRadius: 24, padding: 24,
+              display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 30px 80px rgba(0,0,0,0.7)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+                {userRating ? 'Bahoingizni o\'zgartiring 🎬' : 'Filmga baho bering 🎬'}
+              </div>
+              <button
+                onClick={() => setShowRateModal(false)}
+                style={{ border: 'none', background: '#252525', color: '#aaa', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              ><X size={15} /></button>
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <strong style={{ color: 'var(--text-primary)' }}>"{movie.title}"</strong> filmiga baho bering:
+            </div>
+            <RatingStars10
+              value={userRating}
+              onChange={(newRating) => {
+                handleRate(newRating)
+                setShowRateModal(false)
+              }}
+            />
+          </div>
         </div>,
         document.body
       )}
