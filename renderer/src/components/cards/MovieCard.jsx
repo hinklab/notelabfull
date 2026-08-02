@@ -85,11 +85,14 @@ export default function MovieCard({
   }, [movie?.user_rating])
 
   const handleRate = async (newRating) => {
+    console.log('[Detail Modal Rating Save] called with', newRating, 'for movie', movie?.id)
     setUserRating(newRating)
     if (movie) movie.user_rating = newRating
     if (onRate) {
+      console.log('[Detail Modal Rating Save] onRate prop found, calling onRate(newRating)...')
       onRate(newRating)
     } else {
+      console.log('[Detail Modal Rating Save] WARNING: onRate prop is MISSING/UNDEFINED! setItemsByGroup NOT called!')
       try {
         await window.api.updateMovie(movie.id, { user_rating: newRating })
         setToastMessage('Rahmat, bahoyingiz saqlandi!')

@@ -488,6 +488,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   }
 
   const handleSaveMovieRating = useCallback(async (movieId, newRating) => {
+    console.log('[Detail Modal Rating Save] setItemsByGroup called: updating movieId', movieId, 'user_rating to', newRating)
     setItemsByGroup(prev => {
       const updated = { ...prev }
       Object.keys(updated).forEach(gId => {
@@ -497,7 +498,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
               return {
                 ...item,
                 user_rating: newRating,
-                _movie: item._movie ? { ...item._movie, user_rating: newRating } : { user_rating: newRating }
+                avg_rating: newRating,
+                avg_user_rating: newRating,
+                _movie: item._movie ? { ...item._movie, user_rating: newRating, avg_user_rating: newRating } : { user_rating: newRating, avg_user_rating: newRating }
               }
             }
             return item
