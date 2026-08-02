@@ -88,6 +88,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
           el.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
           el.style.transition = 'none'
 
+          console.log('[Transform Check] immediate:', el.style.transform)
+          setTimeout(() => console.log('[Transform Check] +50ms:', el.style.transform), 50)
+
           // 2. Synchronous reflow
           void el.offsetHeight
 
