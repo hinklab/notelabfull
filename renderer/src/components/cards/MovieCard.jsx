@@ -276,15 +276,18 @@ export default function MovieCard({
         </button>
       )}
 
-      {/* Left: Poster image — clear, fully opaque */}
+      {/* Left: Poster image — clear, fully opaque, uncropped */}
       {movie.poster_path ? (
         <div style={{
-          width: 80,
-          minWidth: 80,
+          width: 84,
+          minWidth: 84,
           flexShrink: 0,
           overflow: 'hidden',
           borderRadius: '9px 0 0 9px',
-          background: '#0a0a0a',
+          background: '#08080a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}>
           <img
             src={movie.poster_path}
@@ -293,15 +296,15 @@ export default function MovieCard({
             style={{
               width: '100%',
               height: '100%',
-              objectFit: 'cover',
+              objectFit: 'contain',
               display: 'block',
             }}
           />
         </div>
       ) : (
         <div style={{
-          width: 80,
-          minWidth: 80,
+          width: 84,
+          minWidth: 84,
           flexShrink: 0,
           borderRadius: '9px 0 0 9px',
           background: '#141414',
