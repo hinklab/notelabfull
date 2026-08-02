@@ -381,21 +381,19 @@ export default function MovieCard({
   const overlayVisible = expanded
 
   // Modal oyna balandligining 2/3 qismini egallaydi, markazda
-  const modalHeight = `min(${Math.round(window.innerHeight * 0.67)}px, 90vh)`
-
   const modalStyle = {
     position: 'relative',
-    width: 'min(820px, 92vw)',
-    height: modalHeight,
+    width: 'min(860px, 94vw)',
+    height: 'min(520px, 85vh)',
     background: 'var(--bg-surface)',
     border: '1px solid var(--border)',
     borderRadius: 24,
     padding: 24,
     overflow: 'hidden',
-    boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+    boxShadow: '0 30px 80px rgba(0,0,0,0.7)',
     display: 'grid',
-    gridTemplateColumns: '240px 1fr',
-    gap: 20,
+    gridTemplateColumns: '260px 1fr',
+    gap: 24,
     opacity: animateOpen ? 1 : 0,
     transform: animateOpen ? 'scale(1) translateY(0)' : 'scale(0.93) translateY(24px)',
     transition: 'transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s ease',
@@ -405,8 +403,11 @@ export default function MovieCard({
     position: 'relative',
     borderRadius: 16,
     overflow: 'hidden',
-    background: '#111',
+    background: '#09090b',
     height: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     opacity: animateOpen ? 1 : 0.6,
     transform: animateOpen ? 'scale(1)' : 'scale(0.94)',
     transition: 'transform 0.3s ease 0.06s, opacity 0.3s ease 0.06s',
@@ -447,7 +448,7 @@ export default function MovieCard({
                 <img
                   src={movie.poster_path}
                   alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
                 />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -459,7 +460,7 @@ export default function MovieCard({
             <div style={contentStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 700, lineHeight: 1.1, marginBottom: 8 }}>{movie.title}</div>
+                  <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.2, marginBottom: 6 }}>{movie.title}</div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.5 }}>
                     {movie.tagline || movie.original_title || ''}
                   </div>
@@ -477,28 +478,28 @@ export default function MovieCard({
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--text-muted)', fontSize: 12 }}>
                 {movie.release_year && movie.release_year !== '—' && (
-                  <span style={{ background: '#222', borderRadius: 6, padding: '3px 8px' }}>{movie.release_year}</span>
+                  <span style={{ background: '#222', borderRadius: 6, padding: '4px 10px' }}>{movie.release_year}</span>
                 )}
                 {movie.genre && movie.genre !== '—' && (
-                  <span style={{ background: '#222', borderRadius: 6, padding: '3px 8px' }}>{movie.genre}</span>
+                  <span style={{ background: '#222', borderRadius: 6, padding: '4px 10px' }}>{movie.genre}</span>
                 )}
                 {movie.director && movie.director !== '—' && (
-                  <span style={{ background: '#222', borderRadius: 6, padding: '3px 8px' }}><><Clapperboard size={11} style={{marginRight: 4}} />{movie.director}</></span>
+                  <span style={{ background: '#222', borderRadius: 6, padding: '4px 10px' }}>{movie.director}</span>
                 )}
                 {!isFuture && (
-                  <span style={{ background: movie.rating ? '#2a1f00' : 'var(--bg-input)', color: movie.rating ? '#fbbf24' : 'var(--text-muted)', borderRadius: 6, padding: '3px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ background: movie.rating ? '#2a1f00' : 'var(--bg-input)', color: movie.rating ? '#fbbf24' : 'var(--text-muted)', borderRadius: 6, padding: '4px 10px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <Star size={11} fill={movie.rating ? "#fbbf24" : "none"} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} /> {movie.rating ? movie.rating : '0/10'}
                   </span>
                 )}
               </div>
 
               {movie.overview && (
-                <div style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.7 }}>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.6 }}>
                   {movie.overview}
                 </div>
               )}
 
-              <div style={{ display: 'grid', gap: 8, marginTop: 'auto' }}>
+              <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
                 {isFuture && movie.release_date && (
                   <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
                     <strong>Chiqish sanasi:</strong> {formatReleaseDate(movie.release_date)}
