@@ -554,6 +554,49 @@ router.post('/refresh-all', async (req, res) => {
 
       if (updatedCount > 0) writeDB(db);
 
+      // 3. Auto re-sort ONLY the "Futured" column's cards by release_date ascending (soonest first)
+      const freshDb = readDB();
+      const futuredMovies = (freshDb.movies || []).filter(
+        m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === 'futured'
+      );
+
+      if (futuredMovies.length > 0) {
+        futuredMovies.sort((a, b) => {
+          const dateA = a.release_date || null;
+          const dateB = b.release_date || null;
+
+          if (!dateA && !dateB) return 0;
+          if (!dateA) return 1; // null/missing release_date sorts to end
+          if (!dateB) return -1;
+
+          return dateA.localeCompare(dateB);
+        });
+
+        let positionChanged = false;
+        futuredMovies.forEach((m, index) => {
+          if (m.position !== index) {
+            m.position = index;
+            positionChanged = true;
+          }
+        });
+
+        if (positionChanged) {
+          writeDB(freshDb);
+          console.log(`[REFRESH-ALL] Auto re-sorted ${futuredMovies.length} Futured movies by release_date ascending.`);
+
+          const supabase = getSupabase();
+          if (supabase) {
+            try {
+              for (const m of futuredMovies) {
+                await supabase.from('movies').update({ position: m.position }).eq('id', m.id);
+              }
+            } catch (e) {
+              console.error('[REFRESH-ALL] Error persisting sorted Futured positions to Supabase:', e.message);
+            }
+          }
+        }
+      }
+
       console.log(`[REFRESH-ALL BACKGROUND WORKER] Completed successfully for userId: ${userId}. Updated ${updatedCount} movie(s).`);
       generateRecommendations(userId).catch(err => {
         console.error('[REFRESH-ALL] Background recommendations error:', err.message);
