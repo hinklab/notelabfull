@@ -36,7 +36,7 @@ function sanitizeForSupabase(obj) {
     'id', 'user_id', 'note_id', 'title', 'section', 'position',
     'tmdb_id', 'imdb_id', 'media_type', 'poster_path', 'rating',
     'vote_count', 'genre', 'director', 'overview', 'release_date',
-    'release_year', 'seasons', 'user_rating', 'note', 'updated_at'
+    'release_year', 'seasons', 'note', 'updated_at'
   ];
   const clean = {};
   for (const k of allowed) {
@@ -53,6 +53,7 @@ router.get('/', async (req, res) => {
     const { note_id } = req.query;
     const userId = req.userId || DEFAULT_USER_ID;
     let movies = null;
+    const db = readDB();
 
     const supabase = getSupabase();
     if (supabase) {
@@ -71,7 +72,6 @@ router.get('/', async (req, res) => {
     }
 
     if (!movies) {
-      const db = readDB();
       movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
       if (note_id) {
         movies = movies.filter(m => (m.note_id ?? null) === (note_id ? parseInt(note_id) : null));
@@ -79,11 +79,26 @@ router.get('/', async (req, res) => {
     }
 
     movies.sort((a, b) => (a.position || 0) - (b.position || 0));
-    movies = movies.map(m => ({
-      ...m,
-      user_rating: m.user_rating != null ? Number(m.user_rating) : null,
-      avg_user_rating: m.avg_user_rating != null ? Number(m.avg_user_rating) : (m.user_rating != null ? Number(m.user_rating) : null)
-    }));
+
+    // Enrich with ratings from db.movie_ratings / db.movies
+    movies = movies.map(m => {
+      const localMovie = (db.movies || []).find(lm => String(lm.id) === String(m.id));
+      const localRating = localMovie ? localMovie.user_rating : null;
+      const userR = (db.movie_ratings || []).find(r => String(r.movie_id) === String(m.id) && r.user_id === userId);
+      const allRatings = (db.movie_ratings || []).filter(r => String(r.movie_id) === String(m.id));
+      const avg = allRatings.length ? (allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length) : null;
+      
+      const finalUserRating = userR ? userR.rating : (m.user_rating != null ? Number(m.user_rating) : (localRating != null ? Number(localRating) : null));
+      const finalAvgRating = avg != null ? Number(avg.toFixed(1)) : finalUserRating;
+
+      return {
+        ...m,
+        user_rating: finalUserRating,
+        avg_rating: finalAvgRating,
+        avg_user_rating: finalAvgRating
+      };
+    });
+
     res.json(movies);
   } catch (err) {
     res.status(500).json({ error: err.message });
