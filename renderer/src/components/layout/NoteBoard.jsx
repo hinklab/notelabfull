@@ -604,6 +604,7 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
   const [headerHovered, setHeaderHovered] = useState(false)
   const cardsRef = useRef(null)
   const rafRef = useRef(null)
+  const prevItemsKeyRef = useRef('')
   const prevPositionsRef = useRef(new Map())
 
   // FLIP Layout Sliding Animation: when items move or shift, cards below smoothly slide up into place
@@ -612,46 +613,55 @@ function NoteColumn({ group, items, itemClipboard, onAdd, renameSignal, onRename
     if (!container) return
 
     const cardElements = Array.from(container.querySelectorAll('[data-item-id]'))
-    const firstPositions = prevPositionsRef.current
-    const currentPositions = new Map()
+    const currentItemsKey = items.map(i => String(i.id)).join(',')
+    const hasItemChanges = currentItemsKey !== prevItemsKeyRef.current
 
-    cardElements.forEach(el => {
-      const id = String(el.dataset.itemId)
-      const rect = el.getBoundingClientRect()
-      currentPositions.set(id, rect)
+    if (hasItemChanges && prevItemsKeyRef.current !== '') {
+      const firstPositions = prevPositionsRef.current
 
-      if (firstPositions.has(id)) {
-        const firstRect = firstPositions.get(id)
-        const deltaY = firstRect.top - rect.top
-        if (Math.abs(deltaY) > 1) {
-          el.style.transform = `translate3d(0, ${deltaY}px, 0)`
+      cardElements.forEach(el => {
+        const id = String(el.dataset.itemId)
+        const rect = el.getBoundingClientRect()
+
+        if (firstPositions.has(id)) {
+          const firstRect = firstPositions.get(id)
+          const deltaY = firstRect.top - rect.top
+          if (Math.abs(deltaY) > 1) {
+            el.style.transform = `translate3d(0, ${deltaY}px, 0)`
+            el.style.transition = 'none'
+
+            void el.offsetHeight
+
+            requestAnimationFrame(() => {
+              el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
+              el.style.transform = 'translate3d(0, 0, 0)'
+            })
+          }
+        } else {
+          // New item entering column: slide & scale in
+          el.style.transform = 'translate3d(0, -16px, 0) scale(0.94)'
+          el.style.opacity = '0'
           el.style.transition = 'none'
-          
-          // Force layout reflow so browser registers inverted starting position
+
           void el.offsetHeight
 
           requestAnimationFrame(() => {
-            el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
-            el.style.transform = 'translate3d(0, 0, 0)'
+            el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
+            el.style.transform = 'translate3d(0, 0, 0) scale(1)'
+            el.style.opacity = '1'
           })
         }
-      } else {
-        // New item entering column: slide & scale in
-        el.style.transform = 'translate3d(0, -16px, 0) scale(0.94)'
-        el.style.opacity = '0'
-        el.style.transition = 'none'
+      })
+    }
 
-        void el.offsetHeight
+    prevItemsKeyRef.current = currentItemsKey
 
-        requestAnimationFrame(() => {
-          el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
-          el.style.transform = 'translate3d(0, 0, 0) scale(1)'
-          el.style.opacity = '1'
-        })
-      }
+    // Snapshot card positions
+    const newPositions = new Map()
+    cardElements.forEach(el => {
+      newPositions.set(String(el.dataset.itemId), el.getBoundingClientRect())
     })
-
-    prevPositionsRef.current = currentPositions
+    prevPositionsRef.current = newPositions
   }, [items])
 
   useEffect(() => { setNameVal(group.name) }, [group.name])
