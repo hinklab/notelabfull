@@ -49,6 +49,76 @@ function getDropPosition(items, clientY, containerRef, prevMarker = null) {
   return { targetId, position, insertIndex }
 }
 
+function parseItemMinutes(item) {
+  const str = item?.seasons || item?.runtime
+  if (!str || str === '-' || str === '—') return 0
+
+  const singleMatch = String(str).match(/^(\d+)\s*min$/i)
+  if (singleMatch) {
+    return parseInt(singleMatch[1], 10) || 0
+  }
+
+  const epMatch = String(str).match(/(\d+)\s*ep/i)
+  const epRuntimeMatch = String(str).match(/~(\d+)\s*min/i) || String(str).match(/(\d+)\s*min/i)
+
+  if (epMatch) {
+    const totalEpisodes = parseInt(epMatch[1], 10) || 0
+    const epMinutes = epRuntimeMatch ? parseInt(epRuntimeMatch[1], 10) : 45
+    return totalEpisodes * epMinutes
+  }
+
+  const numberMatch = String(str).match(/(\d+)/)
+  if (numberMatch) {
+    return parseInt(numberMatch[1], 10) || 0
+  }
+
+  return 0
+}
+
+function formatTotalRuntime(totalMinutes) {
+  if (!totalMinutes || totalMinutes <= 0) return null
+
+  const minutesInHour = 60
+  const minutesInDay = 24 * 60
+  const minutesInMonth = 30 * 24 * 60
+
+  if (totalMinutes >= minutesInMonth) {
+    const months = Math.floor(totalMinutes / minutesInMonth)
+    let rem = totalMinutes % minutesInMonth
+    const days = Math.floor(rem / minutesInDay)
+    rem %= minutesInDay
+    const hours = Math.floor(rem / minutesInHour)
+
+    const parts = [`${months}oy`]
+    if (days > 0) parts.push(`${days}k`)
+    if (hours > 0) parts.push(`${hours}s`)
+    return parts.join(' ')
+  }
+
+  if (totalMinutes >= minutesInDay) {
+    const days = Math.floor(totalMinutes / minutesInDay)
+    let rem = totalMinutes % minutesInDay
+    const hours = Math.floor(rem / minutesInHour)
+    const mins = rem % minutesInHour
+
+    const parts = [`${days}k`]
+    if (hours > 0) parts.push(`${hours}s`)
+    if (mins > 0) parts.push(`${mins}min`)
+    return parts.join(' ')
+  }
+
+  if (totalMinutes >= minutesInHour) {
+    const hours = Math.floor(totalMinutes / minutesInHour)
+    const mins = totalMinutes % minutesInHour
+
+    const parts = [`${hours}s`]
+    if (mins > 0) parts.push(`${mins}min`)
+    return parts.join(' ')
+  }
+
+  return `${totalMinutes} min`
+}
+
 export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   const [groups, setGroups] = useState([])
   const [itemsByGroup, setItemsByGroup] = useState({})
@@ -712,6 +782,13 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
   const prevItemsKeyRef = useRef('')
   const prevPositionsRef = useRef(new Map())
 
+  const totalMinutes = useMemo(() => {
+    if (!items || items.length === 0) return 0
+    return items.reduce((sum, item) => sum + parseItemMinutes(item), 0)
+  }, [items])
+
+  const formattedRuntime = useMemo(() => formatTotalRuntime(totalMinutes), [totalMinutes])
+
   // FLIP Layout Sliding Animation: when items move or shift, cards below smoothly slide up into place
   useLayoutEffect(() => {
     const container = cardsRef.current
@@ -924,7 +1001,17 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
             style={{ background: bg, color, border: `1px solid ${border}`, borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 600, cursor: 'default', flexShrink: 0 }}
           >{group.name}</span>
         )}
-        {!editingName && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{items.length}</span>}
+        {!editingName && (
+          <span style={{ color: 'var(--text-muted)', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <span>{items.length}</span>
+            {formattedRuntime && (
+              <>
+                <span style={{ opacity: 0.5 }}>·</span>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formattedRuntime}</span>
+              </>
+            )}
+          </span>
+        )}
         {/* Fixed system columns — no edit/delete buttons needed */}
         <div style={{ flex: 1 }} />
 
