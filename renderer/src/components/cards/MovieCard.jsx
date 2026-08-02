@@ -366,7 +366,10 @@ export default function MovieCard({
         )}
 
         {movie.seasons && movie.seasons !== '—' && movie.seasons !== '-' && (
-          <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{movie.seasons}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Clock size={11} color="var(--text-muted)" />
+            <span>{movie.seasons}</span>
+          </div>
         )}
       </div>
     </div>
@@ -504,8 +507,9 @@ export default function MovieCard({
                   </div>
                 )}
                 {movie.seasons && movie.seasons !== '-' && movie.seasons !== '—' && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                    <strong>Sezonlar:</strong> {movie.seasons}
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Clock size={13} color="var(--text-muted)" />
+                    <span><strong>Davomiyligi:</strong> {movie.seasons}</span>
                   </div>
                 )}
                 {movie.note && movie.note !== movie.overview && movie.note.trim() !== (movie.overview || '').trim() && (

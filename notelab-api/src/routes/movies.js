@@ -126,6 +126,7 @@ router.post('/', async (req, res) => {
 
     const isTv = data.media_type === 'tv';
     let media_type = data.media_type || (isTv ? 'tv' : 'movie');
+    let seasons = data.seasons || '-';
 
     if (data.tmdb_id && tmdbKey) {
       try {
@@ -159,6 +160,18 @@ router.post('/', async (req, res) => {
             director = detail.created_by.map(c => c.name).join(', ');
           }
           if (detail.overview) overview = detail.overview;
+
+          // Extract runtime info into seasons field
+          if (media_type === 'tv' || detail.number_of_seasons) {
+            const parts = [];
+            if (detail.number_of_seasons) parts.push(`${detail.number_of_seasons} season${detail.number_of_seasons > 1 ? 's' : ''}`);
+            if (detail.number_of_episodes) parts.push(`${detail.number_of_episodes} ep`);
+            const epRt = detail.episode_run_time && detail.episode_run_time.length > 0 ? detail.episode_run_time[0] : null;
+            if (epRt) parts.push(`~${epRt} min`);
+            if (parts.length > 0) seasons = parts.join(' · ');
+          } else if (detail.runtime) {
+            seasons = `${detail.runtime} min`;
+          }
         }
       } catch (err) {
         console.error('TMDB Enrich Error on Add:', err.message);
@@ -198,7 +211,7 @@ router.post('/', async (req, res) => {
       genre,
       director,
       overview,
-      seasons: data.seasons || '-',
+      seasons,
       poster_path,
       section,
       position,
@@ -422,6 +435,20 @@ router.post('/refresh-all', async (req, res) => {
               }
               if (!m.release_date) {
                 m.release_date = tmdbData.release_date || tmdbData.first_air_date || null;
+              }
+              // Extract runtime into seasons field if missing or default '-'
+              if (!m.seasons || m.seasons === '-' || m.seasons === '—') {
+                if (isTv || tmdbData.number_of_seasons) {
+                  const parts = [];
+                  if (tmdbData.number_of_seasons) parts.push(`${tmdbData.number_of_seasons} season${tmdbData.number_of_seasons > 1 ? 's' : ''}`);
+                  if (tmdbData.number_of_episodes) parts.push(`${tmdbData.number_of_episodes} ep`);
+                  const epRt = tmdbData.episode_run_time && tmdbData.episode_run_time.length > 0 ? tmdbData.episode_run_time[0] : null;
+                  if (epRt) parts.push(`~${epRt} min`);
+                  if (parts.length > 0) { m.seasons = parts.join(' · '); changed = true; }
+                } else if (tmdbData.runtime) {
+                  m.seasons = `${tmdbData.runtime} min`;
+                  changed = true;
+                }
               }
             }
           } catch (e) {
