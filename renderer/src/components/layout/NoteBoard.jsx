@@ -393,7 +393,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
     // 2. Perform API call in background and replace temp item
     try {
       if (isMovieNote) {
-        await window.api.addMovie({
+        const added = await window.api.addMovie({
           title: data.title,
           release_date: data.release_date || null,
           release_year: data.release_year || '-',
@@ -409,6 +409,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
           section: sectionKey,
           note_id: noteId,
         })
+
+        if (sectionKey === 'done') {
+          const addedObj = added || { id: tempId, title: data.title, section: 'done' }
+          setRatePromptItem({ ...addedObj, section: 'done' })
+        }
       } else {
         await window.api.addItem(groupId, data)
       }
@@ -501,7 +506,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
       return updated
     })
 
-    setToastMessage('Rahmat, bahoyingiz saqlandi! ✨')
+    setToastMessage('Rahmat, bahoyingiz saqlandi!')
     setTimeout(() => setToastMessage(null), 2200)
 
     try {

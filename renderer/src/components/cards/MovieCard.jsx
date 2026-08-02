@@ -88,7 +88,7 @@ export default function MovieCard({
     if (movie) movie.user_rating = newRating
     try {
       await window.api.updateMovie(movie.id, { user_rating: newRating })
-      setToastMessage('Rahmat, bahoyingiz saqlandi! ✨')
+      setToastMessage('Rahmat, bahoyingiz saqlandi!')
       setTimeout(() => setToastMessage(null), 2200)
     } catch (err) {
       console.error('Failed to save user rating:', err)
