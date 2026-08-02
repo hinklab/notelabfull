@@ -488,19 +488,19 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
   }
 
   const handleSaveMovieRating = useCallback(async (movieId, newRating) => {
-    console.log('[Detail Modal Rating Save] setItemsByGroup called: updating movieId', movieId, 'user_rating to', newRating)
+    console.log(`[Auto-Prompt Rating Save] timestamp=${performance.now()} ms | target movieId=${movieId} | rating=${newRating}`)
     setItemsByGroup(prev => {
       const updated = { ...prev }
       Object.keys(updated).forEach(gId => {
         if (Array.isArray(updated[gId])) {
           updated[gId] = updated[gId].map(item => {
-            if (String(item.id) === String(movieId)) {
+            if (String(item.id) === String(movieId) || String(item._movie?.id) === String(movieId)) {
               return {
                 ...item,
                 user_rating: newRating,
                 avg_rating: newRating,
                 avg_user_rating: newRating,
-                _movie: item._movie ? { ...item._movie, user_rating: newRating, avg_user_rating: newRating } : { user_rating: newRating, avg_user_rating: newRating }
+                _movie: item._movie ? { ...item._movie, section: 'done', user_rating: newRating, avg_user_rating: newRating } : { section: 'done', user_rating: newRating, avg_user_rating: newRating }
               }
             }
             return item
@@ -902,9 +902,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
             <RatingStars10
               value={ratePromptItem.user_rating || null}
               onChange={(newRating) => {
-                const targetId = ratePromptItem.id
-                setRatePromptItem(null)
+                const targetId = ratePromptItem._movie?.id || ratePromptItem.id
                 handleSaveMovieRating(targetId, newRating)
+                setRatePromptItem(null)
               }}
             />
           </div>
