@@ -88,9 +88,6 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
           el.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
           el.style.transition = 'none'
 
-          console.log('[Transform Check] immediate:', el.style.transform)
-          setTimeout(() => console.log('[Transform Check] +50ms:', el.style.transform), 50)
-
           // 2. Synchronous reflow
           void el.offsetHeight
 
@@ -99,6 +96,15 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
             requestAnimationFrame(() => {
               el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
               el.style.transform = 'translate3d(0, 0, 0)'
+
+              let checks = 0
+              const pollInterval = setInterval(() => {
+                const computed = getComputedStyle(el).transform
+                const duration = getComputedStyle(el).transitionDuration
+                console.log(`[Computed Check] t=${checks * 40}ms transform=${computed} duration=${duration}`)
+                checks++
+                if (checks > 8) clearInterval(pollInterval)
+              }, 40)
             })
           })
         }
