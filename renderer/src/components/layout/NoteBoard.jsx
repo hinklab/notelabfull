@@ -1456,7 +1456,7 @@ function AddItemModal({ onClose, onSave, note, existingMovies = [], groups = [] 
         >
           {/* Header */}
           <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{typeLabel} qidirish</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{typeLabel} Qidirish</span>
             <div style={{ flex: 1 }} />
             <button onClick={() => setMode('manual')} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11, padding: '3px 10px', fontFamily: 'inherit' }}>Qo'lda kiritish</button>
             <button onClick={onClose} style={{ background: '#252525', border: 'none', color: '#aaa', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
