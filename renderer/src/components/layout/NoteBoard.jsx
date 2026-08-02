@@ -65,6 +65,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '' }) {
 
   // Board-level FLIP Layout Sliding Animation for Cross-Column and In-Column Moves
   useLayoutEffect(() => {
+    console.log('[FLIP effect] fired at', performance.now())
     const firstPositions = boardCardPositionsRef.current
     if (!firstPositions || firstPositions.size === 0) return
 
@@ -798,6 +799,7 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
     } else {
       await onMoveItem(rawItemId, group.id, dropInfo.insertIndex)
     }
+    console.log('[DragMarker Reset] re-render triggered at', performance.now())
     setDragMarker(null)
   }
 
