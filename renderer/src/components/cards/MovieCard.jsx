@@ -316,8 +316,8 @@ export default function MovieCard({
       )}
 
       {/* Right: Text info */}
-      <div style={{ flex: 1, padding: '12px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3 }}>
-        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+      <div style={{ flex: 1, padding: '10px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', gap: 4 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
           {movie.title}
           {movie.year && movie.year !== '—' && (
             <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 5, fontSize: 12 }}>
@@ -327,14 +327,14 @@ export default function MovieCard({
         </div>
 
         {isFuture && movie.release_date ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Calendar size={11} color="#a78bfa" />
             <span style={{ color: '#a78bfa', fontSize: 11, fontWeight: 500 }}>
               {formatReleaseDate(movie.release_date)}
             </span>
           </div>
         ) : isFuture && movie.release_year && movie.release_year !== '—' ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Calendar size={11} color="#a78bfa" />
             <span style={{ color: '#a78bfa', fontSize: 11, fontWeight: 500 }}>
               {movie.release_year}
@@ -343,7 +343,7 @@ export default function MovieCard({
         ) : null}
 
         {!isFuture && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Star size={11} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} fill={movie.rating ? "#fbbf24" : "none"} />
             <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 11, fontWeight: 600 }}>
               {movie.rating ? movie.rating : '0/10'}
