@@ -378,7 +378,6 @@ async function generateRecommendations(userId) {
     console.log('[DEBUG RECOMMENDATIONS] ERROR: TMDB API key is not configured in settings.');
     return [];
   }
-  console.log('[DEBUG RECOMMENDATIONS] TMDB Key is present.');
 
   // Guard: If user already has unread recommendations, skip generating new ones!
   const unreadRecs = (db.notifications || []).filter(
@@ -389,18 +388,15 @@ async function generateRecommendations(userId) {
     return [];
   }
 
-  // Check last recommendation batch time (>24h)
+  // Frequency Guard: Har 2-3 kunda 1 marta (48 soat minimum interval)
   const lastBatchKey = `last_recommendation_${userId}`;
   const lastBatchStr = settings[lastBatchKey];
-  console.log(`[DEBUG RECOMMENDATIONS] Last batch timestamp (${lastBatchKey}):`, lastBatchStr || 'None');
 
   if (lastBatchStr) {
     const lastBatchTime = new Date(lastBatchStr).getTime();
     const now = Date.now();
-    const hoursPassed = (now - lastBatchTime) / (1000 * 60 * 60);
-    console.log(`[DEBUG RECOMMENDATIONS] Hours passed since last batch: ${hoursPassed.toFixed(2)}h`);
-    if (now - lastBatchTime < 24 * 60 * 60 * 1000) {
-      console.log('[DEBUG RECOMMENDATIONS] Skipping: < 24h since last batch.');
+    if (now - lastBatchTime < 48 * 60 * 60 * 1000) {
+      console.log('[DEBUG RECOMMENDATIONS] Skipping: < 48h (2 days) since last batch.');
       return [];
     }
   }
@@ -417,7 +413,6 @@ async function generateRecommendations(userId) {
         .eq('id', userId)
         .maybeSingle();
 
-      console.log('[DEBUG RECOMMENDATIONS] Supabase user_preferences response:', data, error || 'No error');
       if (data) {
         rawPreferences = data;
         if (Array.isArray(data.favorite_genres)) {
@@ -442,7 +437,6 @@ async function generateRecommendations(userId) {
     if (prefObj && prefObj.favorite_genres) {
       rawPreferences = prefObj;
       const fg = prefObj.favorite_genres;
-      console.log('[DEBUG RECOMMENDATIONS] Local DB user_preferences found:', prefObj);
       if (Array.isArray(fg)) {
         favoriteGenres = fg;
       } else if (typeof fg === 'string') {
@@ -450,8 +444,6 @@ async function generateRecommendations(userId) {
       }
     }
   }
-
-  console.log('[DEBUG RECOMMENDATIONS] Extracted favorite_genres:', favoriteGenres);
 
   // Convert genre names or IDs to numeric TMDB genre IDs
   const genreIds = favoriteGenres.map(g => {
@@ -464,8 +456,6 @@ async function generateRecommendations(userId) {
     if (g && typeof g === 'object' && g.id) return Number(g.id);
     return null;
   }).filter(Boolean);
-
-  console.log('[DEBUG RECOMMENDATIONS] Converted TMDB numeric genreIds:', genreIds);
 
   let discoverUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${encodeURIComponent(tmdbKey)}&sort_by=popularity.desc&vote_count.gte=50&language=en-US&page=1`;
   if (genreIds.length > 0) {
@@ -481,20 +471,12 @@ async function generateRecommendations(userId) {
     }
   }
 
-  console.log('[DEBUG RECOMMENDATIONS] Requesting TMDB Discover API:', discoverUrl.replace(tmdbKey, '***'));
-
   try {
     const res = await fetch(discoverUrl);
-    console.log(`[DEBUG RECOMMENDATIONS] TMDB Discover response HTTP status: ${res.status}`);
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error('[DEBUG RECOMMENDATIONS] TMDB Discover response error body:', errText);
-      return [];
-    }
+    if (!res.ok) return [];
 
     const data = await res.json();
     const results = data.results || [];
-    console.log(`[DEBUG RECOMMENDATIONS] TMDB returned ${results.length} movie result(s).`);
 
     // Filter existing user movies from ALL sources (Local DB + Supabase), existing notifications, AND ignored/dismissed recommendations
     const userMovies = await getAllUserMovies(userId);
@@ -517,6 +499,9 @@ async function generateRecommendations(userId) {
       ...ignoredList.filter(x => typeof x === 'string').map(s => String(s).toLowerCase().trim())
     ]);
 
+    // Batch Rule: Boshida (kinolar <= 20) 4 ta, kinolar > 20 bo'lsa 1 ta tavsiya beradi
+    const batchLimit = userMovies.length > 20 ? 1 : 4;
+
     const candidates = results.filter(m => {
       const mTmdbId = m.id ? String(m.id) : null;
       const mImdbId = m.imdb_id ? String(m.imdb_id) : null;
@@ -529,9 +514,7 @@ async function generateRecommendations(userId) {
         if (t && t.length > 3 && (mTitle === t || mTitle.includes(t) || t.includes(mTitle))) return false;
       }
       return true;
-    }).slice(0, 4);
-
-    console.log(`[DEBUG RECOMMENDATIONS] Filtered candidates to recommend: ${candidates.length}`);
+    }).slice(0, batchLimit);
 
     const createdNotifications = [];
     for (const item of candidates) {
@@ -558,7 +541,6 @@ async function generateRecommendations(userId) {
       });
 
       if (notif) {
-        console.log(`[DEBUG RECOMMENDATIONS] Notification created for "${item.title}" (id: ${notif.id})`);
         createdNotifications.push(notif);
       }
     }
@@ -568,13 +550,209 @@ async function generateRecommendations(userId) {
     if (!freshDb.settings) freshDb.settings = {};
     freshDb.settings[lastBatchKey] = new Date().toISOString();
     writeDB(freshDb);
-    console.log(`[DEBUG RECOMMENDATIONS] Saved new last_recommendation timestamp: ${freshDb.settings[lastBatchKey]}`);
 
     return createdNotifications;
   } catch (err) {
     console.error('[DEBUG RECOMMENDATIONS] Error generating recommendations:', err.stack || err.message);
     return [];
   }
+}
+
+// Smart Notification Generator 1: Futured Movies Trailer Alerts
+async function generateTrailerAlerts(userId) {
+  if (!userId) return [];
+  const db = readDB();
+  const settings = getUserSettings(userId, db);
+  const tmdbKey = settings.tmdb_key;
+  if (!tmdbKey) return [];
+
+  const userMovies = await getAllUserMovies(userId);
+  const futuredMovies = userMovies.filter(m => m.section === 'futured' && m.tmdb_id);
+  if (futuredMovies.length === 0) return [];
+
+  const existingNotifs = await getNotifications(userId);
+  const created = [];
+
+  for (const movie of futuredMovies) {
+    const mId = String(movie.tmdb_id);
+    const mTitle = (movie.title || '').toLowerCase().trim();
+
+    const alreadyAlerted = existingNotifs.some(n =>
+      n.type === 'trailer_alert' && (
+        (n.movie_data?.tmdb_id && String(n.movie_data.tmdb_id) === mId) ||
+        (n.movie_data?.title && (n.movie_data.title).toLowerCase().trim() === mTitle)
+      )
+    );
+    if (alreadyAlerted) continue;
+
+    try {
+      const isTv = movie.media_type === 'tv';
+      const videoUrl = isTv
+        ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(mId)}/videos?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`
+        : `https://api.themoviedb.org/3/movie/${encodeURIComponent(mId)}/videos?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+
+      const res = await fetch(videoUrl);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const videos = data.results || [];
+      const trailer = videos.find(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
+
+      if (trailer) {
+        const notif = await createNotification(userId, {
+          type: 'trailer_alert',
+          title: `🎬 Treyler chiqdi: ${movie.title}`,
+          message: `"${movie.title}" filmining rasmiy ${trailer.type === 'Teaser' ? 'tizeri' : 'treyleri'} taqdim etildi. Tomosha qiling!`,
+          movie_data: {
+            ...movie,
+            video_key: trailer.key,
+            video_name: trailer.name
+          }
+        });
+        if (notif) created.push(notif);
+      }
+    } catch (e) {
+      console.warn(`[TRAILER ALERT] Error for "${movie.title}":`, e.message);
+    }
+  }
+
+  return created;
+}
+
+// Smart Notification Generator 2: Box Office Weekly Updates (for movies within 30 days of release)
+async function generateBoxOfficeAlerts(userId) {
+  if (!userId) return [];
+  const db = readDB();
+  const settings = getUserSettings(userId, db);
+  const tmdbKey = settings.tmdb_key;
+  if (!tmdbKey) return [];
+
+  const userMovies = await getAllUserMovies(userId);
+  const now = Date.now();
+  const existingNotifs = await getNotifications(userId);
+  const created = [];
+
+  for (const movie of userMovies) {
+    if (!movie.release_date || !movie.tmdb_id) continue;
+    const relTime = new Date(movie.release_date).getTime();
+    if (isNaN(relTime)) continue;
+
+    const daysSinceRelease = Math.floor((now - relTime) / (1000 * 60 * 60 * 24));
+    if (daysSinceRelease < 7 || daysSinceRelease > 30) continue;
+
+    const weekNum = Math.floor(daysSinceRelease / 7);
+    const mId = String(movie.tmdb_id);
+
+    const alreadyAlerted = existingNotifs.some(n =>
+      n.type === 'box_office_alert' &&
+      n.movie_data?.tmdb_id && String(n.movie_data.tmdb_id) === mId &&
+      n.movie_data?.week_num === weekNum
+    );
+    if (alreadyAlerted) continue;
+
+    try {
+      const detailUrl = `https://api.themoviedb.org/3/movie/${encodeURIComponent(mId)}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+      const res = await fetch(detailUrl);
+      if (!res.ok) continue;
+      const detail = await res.json();
+
+      let revenueText = '';
+      if (detail.revenue && detail.revenue > 0) {
+        const revM = (detail.revenue / 1000000).toFixed(1);
+        revenueText = `$${revM} mln`;
+      } else if (detail.popularity) {
+        revenueText = `mashhurlik reytingi ${Math.round(detail.popularity)}`;
+      }
+
+      if (revenueText) {
+        const notif = await createNotification(userId, {
+          type: 'box_office_alert',
+          title: `💰 Kassa yig'imi (${weekNum}-hafta): ${movie.title}`,
+          message: `"${movie.title}" filmining ${weekNum}-haftalik kassa yig'imi ${revenueText} ko'rsatkichiga yetdi!`,
+          movie_data: {
+            ...movie,
+            week_num: weekNum,
+            revenue: detail.revenue || null
+          }
+        });
+        if (notif) created.push(notif);
+      }
+    } catch (e) {
+      console.warn(`[BOX OFFICE ALERT] Error for "${movie.title}":`, e.message);
+    }
+  }
+
+  return created;
+}
+
+// Smart Notification Generator 3: TV Series Weekly Episode Release Alerts
+async function generateEpisodeAlerts(userId) {
+  if (!userId) return [];
+  const db = readDB();
+  const settings = getUserSettings(userId, db);
+  const tmdbKey = settings.tmdb_key;
+  if (!tmdbKey) return [];
+
+  const userMovies = await getAllUserMovies(userId);
+  const tvSeries = userMovies.filter(m => (m.media_type === 'tv' || m.seasons) && m.tmdb_id);
+  if (tvSeries.length === 0) return [];
+
+  const now = Date.now();
+  const existingNotifs = await getNotifications(userId);
+  const created = [];
+
+  for (const series of tvSeries) {
+    const sId = String(series.tmdb_id);
+    try {
+      const tvUrl = `https://api.themoviedb.org/3/tv/${encodeURIComponent(sId)}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+      const res = await fetch(tvUrl);
+      if (!res.ok) continue;
+      const detail = await res.json();
+
+      const lastEp = detail.last_episode_to_air;
+      if (!lastEp || !lastEp.air_date) continue;
+
+      const airTime = new Date(lastEp.air_date).getTime();
+      const daysAgo = (now - airTime) / (1000 * 60 * 60 * 24);
+
+      if (daysAgo >= 0 && daysAgo <= 4) {
+        const epKey = `S${lastEp.season_number}E${lastEp.episode_number}`;
+        const alreadyAlerted = existingNotifs.some(n =>
+          n.type === 'episode_alert' &&
+          n.movie_data?.tmdb_id && String(n.movie_data.tmdb_id) === sId &&
+          n.movie_data?.ep_key === epKey
+        );
+        if (alreadyAlerted) continue;
+
+        const notif = await createNotification(userId, {
+          type: 'episode_alert',
+          title: `📺 Yangi epizod: ${series.title}`,
+          message: `"${series.title}" serialining yangi ${lastEp.season_number}-fasl ${lastEp.episode_number}-qismi ("${lastEp.name || 'Yangi epizod'}") efirga uzatildi!`,
+          movie_data: {
+            ...series,
+            ep_key: epKey,
+            season_number: lastEp.season_number,
+            episode_number: lastEp.episode_number,
+            episode_name: lastEp.name
+          }
+        });
+        if (notif) created.push(notif);
+      }
+    } catch (e) {
+      console.warn(`[EPISODE ALERT] Error for "${series.title}":`, e.message);
+    }
+  }
+
+  return created;
+}
+
+// Master Smart Notification Runner
+async function generateSmartNotifications(userId) {
+  if (!userId) return [];
+  const recs = await generateRecommendations(userId).catch(() => []);
+  const trailers = await generateTrailerAlerts(userId).catch(() => []);
+  const boxOffice = await generateBoxOfficeAlerts(userId).catch(() => []);
+  const episodes = await generateEpisodeAlerts(userId).catch(() => []);
+  return [...recs, ...trailers, ...boxOffice, ...episodes];
 }
 
 module.exports = {
@@ -585,5 +763,9 @@ module.exports = {
   deleteNotification,
   deleteRecommendationForMovie,
   createReleaseAlert,
-  generateRecommendations
+  generateRecommendations,
+  generateTrailerAlerts,
+  generateBoxOfficeAlerts,
+  generateEpisodeAlerts,
+  generateSmartNotifications
 };

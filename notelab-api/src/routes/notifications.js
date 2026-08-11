@@ -4,12 +4,14 @@ const {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  deleteNotification
+  deleteNotification,
+  generateSmartNotifications
 } = require('../services/notifications');
 
 // GET /api/notifications
 router.get('/', async (req, res) => {
   try {
+    await generateSmartNotifications(req.userId).catch(err => console.warn('Smart notifications generation error:', err.message));
     const list = await getNotifications(req.userId);
     res.json(list);
   } catch (err) {

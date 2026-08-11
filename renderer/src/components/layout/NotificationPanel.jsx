@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Bell, Film, Sparkles, Check, CheckCheck, Trash2, Plus, X } from 'lucide-react'
+import { Bell, Film, Sparkles, Check, CheckCheck, Trash2, Plus, X, Play, Tv, DollarSign, ExternalLink } from 'lucide-react'
 
 export default function NotificationPanel({
   notifications = [],
@@ -28,33 +28,33 @@ export default function NotificationPanel({
         tmdb_id: data.tmdb_id,
         imdb_id: data.imdb_id || null,
         poster_path: data.poster_path,
-        rating: data.rating,
-        release_date: data.release_date,
-        genre: data.genre,
-        section: targetSection
+        rating: data.rating || null,
+        vote_count: data.vote_count || 0,
+        release_date: data.release_date || null,
+        genre: data.genre || null,
+        media_type: data.media_type || 'movie',
+        section: targetSection,
+        note: ''
       })
 
       setAddingIds(prev => ({ ...prev, [notif.id]: 'added' }))
       if (onMarkRead) await onMarkRead(notif.id)
       if (onDelete) await onDelete(notif.id)
-      if (onAddMovieSuccess) onAddMovieSuccess()
+      onAddMovieSuccess?.()
     } catch (err) {
-      console.error('Error adding movie from recommendation:', err)
+      console.error('Error adding movie from notification:', err)
       addingRef.current.delete(notif.id)
       setAddingIds(prev => ({ ...prev, [notif.id]: null }))
-      alert('Filmni qo\'shishda xatolik: ' + (err.message || 'Xatolik yuz berdi'))
     }
   }
-
-  const unreadCount = notifications.filter(n => !n.is_read).length
 
   return (
     <div
       style={{
         position: 'absolute',
-        top: 'calc(100% + 8px)',
+        top: 48,
         right: 0,
-        width: 370,
+        width: 360,
         maxHeight: 480,
         background: 'var(--bg-surface, #18181b)',
         border: '1px solid var(--border, #27272a)',
@@ -63,9 +63,7 @@ export default function NotificationPanel({
         zIndex: 1000,
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
-        color: 'var(--text-primary, #f4f4f5)',
-        fontSize: 13,
+        overflow: 'hidden'
       }}
     >
       {/* Header */}
@@ -76,80 +74,80 @@ export default function NotificationPanel({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(255, 255, 255, 0.02)',
+          background: 'var(--bg-card, #202023)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Bell size={16} color="var(--accent, #8b5cf6)" />
-          <span>Xabarnomalar</span>
-          {unreadCount > 0 && (
+          <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+            Xabarnomalar
+          </span>
+          {notifications.filter(n => !n.is_read).length > 0 && (
             <span
               style={{
-                fontSize: 11,
                 background: 'var(--accent, #8b5cf6)',
                 color: '#fff',
+                borderRadius: 10,
                 padding: '1px 6px',
-                borderRadius: 9999,
-                fontWeight: 700,
+                fontSize: 11,
+                fontWeight: 600
               }}
             >
-              {unreadCount} yangi
+              {notifications.filter(n => !n.is_read).length}
             </span>
           )}
         </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {unreadCount > 0 && (
+          {notifications.some(n => !n.is_read) && (
             <button
               onClick={onMarkAllRead}
               title="Barchasini o'qilgan deb belgilash"
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: 'var(--text-muted, #71717a)',
+                color: 'var(--text-muted)',
                 cursor: 'pointer',
+                fontSize: 12,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4,
-                fontSize: 11,
-                padding: '4px 8px',
-                borderRadius: 6,
-                transition: 'background 0.15s, color 0.15s',
+                padding: '4px 6px',
+                borderRadius: 4
               }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
             >
               <CheckCheck size={14} />
-              <span>O'qildi</span>
             </button>
           )}
-          {onClose && (
-            <button
-              onClick={onClose}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-muted, #71717a)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                padding: 4,
-                borderRadius: 6,
-              }}
-              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-            >
-              <X size={16} />
-            </button>
-          )}
+
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: 4,
+              borderRadius: 4
+            }}
+          >
+            <X size={16} />
+          </button>
         </div>
       </div>
 
-      {/* Notifications List */}
-      <div style={{ overflowY: 'auto', flex: 1, padding: 8 }}>
+      {/* List */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
         {notifications.length === 0 ? (
-          <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted, #71717a)' }}>
-            <Bell size={28} style={{ opacity: 0.3, marginBottom: 8 }} />
-            <div>Hozircha xabarnomalar yo'q</div>
+          <div
+            style={{
+              padding: '32px 16px',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              fontSize: 13
+            }}
+          >
+            Yangi xabarnomalar yo'q
           </div>
         ) : (
           notifications.map(notif => (
@@ -158,26 +156,26 @@ export default function NotificationPanel({
               style={{
                 padding: 10,
                 borderRadius: 8,
-                marginBottom: 6,
                 background: notif.is_read ? 'transparent' : 'rgba(139, 92, 246, 0.06)',
-                border: notif.is_read ? '1px solid transparent' : '1px solid rgba(139, 92, 246, 0.2)',
+                border: `1px solid ${notif.is_read ? 'transparent' : 'rgba(139, 92, 246, 0.15)'}`,
+                marginBottom: 6,
                 display: 'flex',
                 gap: 10,
-                transition: 'background 0.15s',
+                alignItems: 'flex-start',
+                transition: 'background 0.15s'
               }}
             >
-              {/* Poster Thumbnail or Icon */}
+              {/* Image or Icon */}
               {notif.movie_data?.poster_path ? (
                 <img
                   src={notif.movie_data.poster_path}
-                  alt=""
+                  alt={notif.title}
                   style={{
                     width: 42,
                     height: 60,
                     objectFit: 'cover',
                     borderRadius: 6,
-                    flexShrink: 0,
-                    border: '1px solid var(--border, #27272a)'
+                    flexShrink: 0
                   }}
                 />
               ) : (
@@ -186,7 +184,16 @@ export default function NotificationPanel({
                     width: 36,
                     height: 36,
                     borderRadius: 8,
-                    background: notif.type === 'release_alert' ? 'rgba(34, 197, 94, 0.12)' : 'rgba(168, 85, 247, 0.12)',
+                    background:
+                      notif.type === 'release_alert'
+                        ? 'rgba(34, 197, 94, 0.12)'
+                        : notif.type === 'trailer_alert'
+                        ? 'rgba(239, 68, 68, 0.12)'
+                        : notif.type === 'box_office_alert'
+                        ? 'rgba(234, 179, 8, 0.12)'
+                        : notif.type === 'episode_alert'
+                        ? 'rgba(59, 130, 246, 0.12)'
+                        : 'rgba(168, 85, 247, 0.12)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -195,6 +202,12 @@ export default function NotificationPanel({
                 >
                   {notif.type === 'release_alert' ? (
                     <Film size={18} color="#22c55e" />
+                  ) : notif.type === 'trailer_alert' ? (
+                    <Play size={18} color="#ef4444" />
+                  ) : notif.type === 'box_office_alert' ? (
+                    <DollarSign size={18} color="#eab308" />
+                  ) : notif.type === 'episode_alert' ? (
+                    <Tv size={18} color="#3b82f6" />
                   ) : (
                     <Sparkles size={18} color="#a855f7" />
                   )}
@@ -220,7 +233,7 @@ export default function NotificationPanel({
                           padding: 2,
                         }}
                       >
-                        <Check size={14} />
+                        <Check size={13} />
                       </button>
                     )}
                     <button
@@ -233,8 +246,6 @@ export default function NotificationPanel({
                         cursor: 'pointer',
                         padding: 2,
                       }}
-                      onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -275,11 +286,42 @@ export default function NotificationPanel({
                         transition: 'background 0.2s, opacity 0.2s',
                       }}
                     >
-                      {isAdded ? <Check size={13} /> : <Plus size={13} />}
-                      <span>{isLoading ? 'Qo\'shilmoqda...' : (isAdded ? 'Qo\'shildi' : 'Qo\'shish')}</span>
+                      <Plus size={12} />
+                      <span>{isAdded ? 'Qo\'shildi ✓' : isLoading ? 'Qo\'shilmoqda...' : 'Qo\'shish +'}</span>
                     </button>
                   )
                 })()}
+
+                {/* Trailer Alert Link Button */}
+                {notif.type === 'trailer_alert' && notif.movie_data?.video_key && (
+                  <a
+                    href={`https://www.youtube.com/watch?v=${notif.movie_data.video_key}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      marginTop: 8,
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      textDecoration: 'none',
+                      transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
+                  >
+                    <Play size={12} />
+                    <span>Treylerni tomosha qilish</span>
+                    <ExternalLink size={10} />
+                  </a>
+                )}
               </div>
             </div>
           ))
