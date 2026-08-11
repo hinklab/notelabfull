@@ -758,8 +758,8 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch 
     let max = 0
     groups.forEach(g => {
       if (g.section_key !== 'done') {
-        const count = (filteredItemsByGroup[g.id] || []).length
-        if (count > max) max = count
+        const items = filteredItemsByGroup[g.id] || filteredItemsByGroup[String(g.id)] || []
+        if (items.length > max) max = items.length
       }
     })
     return max
@@ -974,11 +974,29 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
   const prevItemsKeyRef = useRef('')
   const prevPositionsRef = useRef(new Map())
 
+  const [measuredHeight, setMeasuredHeight] = useState(null)
+
   const isDoneSection = group.section_key === 'done'
   const isCollapseEligible = isDoneSection && items.length > 10 && items.length > (maxOtherCount || 0)
   const shouldCollapse = isCollapseEligible && !isDoneExpanded
   const visibleCardsTarget = Math.max(10, maxOtherCount || 0)
-  const collapsedHeight = visibleCardsTarget * 86 + 20
+
+  useLayoutEffect(() => {
+    if (shouldCollapse && cardsRef.current) {
+      const cardEls = Array.from(cardsRef.current.querySelectorAll('[data-item-id]'))
+      const targetIndex = Math.min(visibleCardsTarget, cardEls.length) - 1
+      if (targetIndex >= 0 && cardEls[targetIndex]) {
+        const containerRect = cardsRef.current.getBoundingClientRect()
+        const cardRect = cardEls[targetIndex].getBoundingClientRect()
+        const h = Math.round(cardRect.bottom - containerRect.top + 10)
+        setMeasuredHeight(h)
+      }
+    } else {
+      setMeasuredHeight(null)
+    }
+  }, [shouldCollapse, visibleCardsTarget, items])
+
+  const collapsedHeight = measuredHeight ? `${measuredHeight}px` : `${visibleCardsTarget * 128 + 20}px`
 
   const totalMinutes = useMemo(() => {
     if (!items || items.length === 0) return 0
