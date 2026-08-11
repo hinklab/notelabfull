@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { readDB, writeDB, getUserSettings, saveUserSettings } = require('../services/database');
-const { createReleaseAlert, generateRecommendations } = require('../services/notifications');
+const { createReleaseAlert, generateRecommendations, deleteRecommendationForMovie } = require('../services/notifications');
 
 function nextId(movies) {
   const ids = movies.map(m => m.id);
@@ -255,6 +255,9 @@ router.post('/', async (req, res) => {
         await supabase.from('movies').upsert([sanitizeForSupabase(movie)], { onConflict: 'id' });
       } catch (e) {}
     }
+
+    // Auto-clean any recommendation notification matching this newly added movie
+    deleteRecommendationForMovie(userId, movie).catch(() => {});
 
     res.json(movie);
   } catch (err) {

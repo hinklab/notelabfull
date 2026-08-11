@@ -1,6 +1,75 @@
 const supabase = require('./supabase');
 const { readDB, writeDB, getUserSettings } = require('./database');
 
+async function getAllUserMovies(userId) {
+  const db = readDB();
+  const localMovies = db.movies || [];
+
+  let cloudMovies = [];
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('movies').select('id, tmdb_id, imdb_id, title, user_id');
+      if (!error && data) {
+        cloudMovies = data;
+      }
+    } catch (err) {
+      console.warn('Error fetching cloud movies for notification filtering:', err.message);
+    }
+  }
+
+  return [...localMovies, ...cloudMovies];
+}
+
+async function deleteRecommendationForMovie(userId, { tmdb_id, imdb_id, title }) {
+  if (!userId) return;
+  const mTmdbId = tmdb_id ? String(tmdb_id) : null;
+  const mImdbId = imdb_id ? String(imdb_id) : null;
+  const mTitle = (title || '').toLowerCase().trim();
+
+  if (supabase) {
+    try {
+      const { data: notifs } = await supabase.from('notifications').select('id, type, title, movie_data').eq('user_id', userId);
+      const toDelete = (notifs || []).filter(n => {
+        if (n.type !== 'recommendation') return false;
+        const nTmdbId = n.movie_data?.tmdb_id ? String(n.movie_data.tmdb_id) : null;
+        const nImdbId = n.movie_data?.imdb_id ? String(n.movie_data.imdb_id) : null;
+        const nTitle = (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim();
+
+        if (mTmdbId && nTmdbId && mTmdbId === nTmdbId) return true;
+        if (mImdbId && nImdbId && mImdbId === nImdbId) return true;
+        if (mTitle && nTitle && (mTitle === nTitle || mTitle.includes(nTitle) || nTitle.includes(mTitle))) return true;
+        return false;
+      });
+
+      for (const n of toDelete) {
+        await supabase.from('notifications').delete().eq('id', n.id);
+        console.log(`[RECOMMENDATION CLEANUP] Deleted recommendation "${n.title}" because movie was added to board.`);
+      }
+    } catch (err) {
+      console.warn('Error deleting recommendation on movie add from Supabase:', err.message);
+    }
+  }
+
+  const db = readDB();
+  if (db.notifications) {
+    const beforeCount = db.notifications.length;
+    db.notifications = db.notifications.filter(n => {
+      if (n.type !== 'recommendation') return true;
+      const nTmdbId = n.movie_data?.tmdb_id ? String(n.movie_data.tmdb_id) : null;
+      const nImdbId = n.movie_data?.imdb_id ? String(n.movie_data.imdb_id) : null;
+      const nTitle = (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim();
+
+      if (mTmdbId && nTmdbId && mTmdbId === nTmdbId) return false;
+      if (mImdbId && nImdbId && mImdbId === nImdbId) return false;
+      if (mTitle && nTitle && (mTitle === nTitle || mTitle.includes(nTitle) || nTitle.includes(mTitle))) return false;
+      return true;
+    });
+    if (db.notifications.length !== beforeCount) {
+      writeDB(db);
+    }
+  }
+}
+
 async function getNotifications(userId) {
   if (!userId) return [];
   let list = [];
@@ -28,6 +97,32 @@ async function getNotifications(userId) {
     list = localList.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }
 
+  // Auto-filter: exclude any recommendation notification if the movie is ALREADY in user's movies list!
+  try {
+    const userMovies = await getAllUserMovies(userId);
+    const existingTmdbIds = new Set(userMovies.map(m => m.tmdb_id ? String(m.tmdb_id) : null).filter(Boolean));
+    const existingImdbIds = new Set(userMovies.map(m => m.imdb_id ? String(m.imdb_id) : null).filter(Boolean));
+    const existingTitles = new Set(userMovies.map(m => (m.title || '').toLowerCase().trim()).filter(Boolean));
+
+    list = list.filter(n => {
+      if (n.type !== 'recommendation') return true;
+      const nTmdbId = n.movie_data?.tmdb_id ? String(n.movie_data.tmdb_id) : null;
+      const nImdbId = n.movie_data?.imdb_id ? String(n.movie_data.imdb_id) : null;
+      const rawTitle = (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim();
+
+      if (nTmdbId && existingTmdbIds.has(nTmdbId)) return false;
+      if (nImdbId && existingImdbIds.has(nImdbId)) return false;
+      if (rawTitle && existingTitles.has(rawTitle)) return false;
+      for (const t of existingTitles) {
+        if (t && t.length > 3 && (rawTitle === t || rawTitle.includes(t) || t.includes(rawTitle))) return false;
+      }
+
+      return true;
+    });
+  } catch (filterErr) {
+    console.warn('Error filtering notifications against added movies:', filterErr.message);
+  }
+
   return list;
 }
 
@@ -38,6 +133,26 @@ async function createNotification(userId, { type, title, message, movie_data }) 
   const existingNotifs = await getNotifications(userId);
   const mId = movie_data?.tmdb_id ? String(movie_data.tmdb_id) : null;
   const mTitle = (movie_data?.title || title || '').toLowerCase().trim();
+
+  // Guard: if type is recommendation, also check if movie is already added to user's movies board!
+  if (type === 'recommendation') {
+    const userMovies = await getAllUserMovies(userId);
+    const isAlreadyAdded = userMovies.some(m => {
+      if (mId && m.tmdb_id && String(m.tmdb_id) === mId) return true;
+      if (movie_data?.imdb_id && m.imdb_id && String(m.imdb_id) === String(movie_data.imdb_id)) return true;
+      if (mTitle) {
+        const boardTitle = (m.title || '').toLowerCase().trim();
+        const recTitle = mTitle.replace(/^tavsiya:\s*/i, '').trim();
+        if (boardTitle && (boardTitle === recTitle || boardTitle.includes(recTitle) || recTitle.includes(boardTitle))) return true;
+      }
+      return false;
+    });
+
+    if (isAlreadyAdded) {
+      console.log(`[CREATE NOTIFICATION] Skipped recommendation because movie "${title}" is already added to board.`);
+      return null;
+    }
+  }
 
   const isDuplicate = existingNotifs.some(n => {
     if (n.type !== type) return false;
@@ -381,26 +496,38 @@ async function generateRecommendations(userId) {
     const results = data.results || [];
     console.log(`[DEBUG RECOMMENDATIONS] TMDB returned ${results.length} movie result(s).`);
 
-    // Filter existing user movies, existing notifications, AND ignored/dismissed recommendations
-    const userMovies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
-    const userNotifications = (db.notifications || []).filter(n => n.user_id === userId);
+    // Filter existing user movies from ALL sources (Local DB + Supabase), existing notifications, AND ignored/dismissed recommendations
+    const userMovies = await getAllUserMovies(userId);
+    const userNotifications = await getNotifications(userId);
     const ignoredKey = `ignored_recs_${userId}`;
     const ignoredList = settings[ignoredKey] || [];
 
     const existingTmdbIds = new Set([
-      ...userMovies.map(m => String(m.tmdb_id)).filter(Boolean),
-      ...userNotifications.map(n => String(n.movie_data?.tmdb_id)).filter(Boolean),
+      ...userMovies.map(m => m.tmdb_id ? String(m.tmdb_id) : null).filter(Boolean),
+      ...userNotifications.map(n => n.movie_data?.tmdb_id ? String(n.movie_data.tmdb_id) : null).filter(Boolean),
       ...ignoredList.map(x => String(x)).filter(Boolean)
     ]);
+    const existingImdbIds = new Set([
+      ...userMovies.map(m => m.imdb_id ? String(m.imdb_id) : null).filter(Boolean),
+      ...userNotifications.map(n => n.movie_data?.imdb_id ? String(n.movie_data.imdb_id) : null).filter(Boolean)
+    ]);
     const existingTitles = new Set([
-      ...userMovies.map(m => (m.title || '').toLowerCase().trim()),
-      ...userNotifications.map(n => (n.movie_data?.title || n.title || '').toLowerCase().trim()),
-      ...ignoredList.filter(x => typeof x === 'string')
+      ...userMovies.map(m => (m.title || '').toLowerCase().trim()).filter(Boolean),
+      ...userNotifications.map(n => (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim()).filter(Boolean),
+      ...ignoredList.filter(x => typeof x === 'string').map(s => String(s).toLowerCase().trim())
     ]);
 
     const candidates = results.filter(m => {
-      if (existingTmdbIds.has(String(m.id))) return false;
-      if (existingTitles.has((m.title || '').toLowerCase().trim())) return false;
+      const mTmdbId = m.id ? String(m.id) : null;
+      const mImdbId = m.imdb_id ? String(m.imdb_id) : null;
+      const mTitle = (m.title || m.original_title || '').toLowerCase().trim();
+
+      if (mTmdbId && existingTmdbIds.has(mTmdbId)) return false;
+      if (mImdbId && existingImdbIds.has(mImdbId)) return false;
+      if (mTitle && existingTitles.has(mTitle)) return false;
+      for (const t of existingTitles) {
+        if (t && t.length > 3 && (mTitle === t || mTitle.includes(t) || t.includes(mTitle))) return false;
+      }
       return true;
     }).slice(0, 4);
 
@@ -456,6 +583,7 @@ module.exports = {
   markAsRead,
   markAllAsRead,
   deleteNotification,
+  deleteRecommendationForMovie,
   createReleaseAlert,
   generateRecommendations
 };
