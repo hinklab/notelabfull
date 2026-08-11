@@ -975,9 +975,9 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
   const prevPositionsRef = useRef(new Map())
 
   const isDoneSection = group.section_key === 'done'
-  const isCollapseEligible = isDoneSection && items.length > 10
+  const isCollapseEligible = isDoneSection && items.length > 10 && items.length > (maxOtherCount || 0)
   const shouldCollapse = isCollapseEligible && !isDoneExpanded
-  const visibleCardsTarget = Math.max(5, maxOtherCount || 0)
+  const visibleCardsTarget = Math.max(10, maxOtherCount || 0)
   const collapsedHeight = visibleCardsTarget * 86 + 20
 
   const totalMinutes = useMemo(() => {
