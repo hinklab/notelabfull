@@ -187,16 +187,48 @@ router.get('/images', async (req, res) => {
     if (!tmdbKey) return res.json({ backdrops: [] });
 
     const type = media_type === 'tv' ? 'tv' : 'movie';
-    const url = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/images?api_key=${encodeURIComponent(tmdbKey)}`;
-    const r = await fetch(url);
-    if (!r.ok) return res.json({ backdrops: [] });
+    const scenes = [];
 
-    const data = await r.json();
-    const backdrops = (data.backdrops || [])
-      .slice(0, 12)
-      .map(b => `https://image.tmdb.org/t/p/w780${b.file_path}`);
+    // 1. Fetch TMDB horizontal backdrops (movie scene stills, strictly aspect_ratio > 1.3)
+    try {
+      const imgUrl = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/images?api_key=${encodeURIComponent(tmdbKey)}`;
+      const r = await fetch(imgUrl);
+      if (r.ok) {
+        const data = await r.json();
+        const backdrops = (data.backdrops || [])
+          .filter(b => b.aspect_ratio && b.aspect_ratio > 1.3) // strictly horizontal scene stills, NO vertical posters
+          .slice(0, 5);
 
-    res.json({ backdrops });
+        backdrops.forEach(b => {
+          scenes.push(`https://image.tmdb.org/t/p/w780${b.file_path}`);
+        });
+      }
+    } catch (e) {
+      console.warn('Error fetching TMDB backdrops:', e.message);
+    }
+
+    // 2. If fewer than 4 scene stills (or unreleased movies without backdrops), fetch YouTube trailer scene stills
+    if (scenes.length < 4) {
+      try {
+        const videoUrl = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/videos?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+        const vr = await fetch(videoUrl);
+        if (vr.ok) {
+          const vdata = await vr.json();
+          const videos = (vdata.results || []).filter(v => v.site === 'YouTube');
+          for (const v of videos) {
+            if (scenes.length >= 5) break;
+            const yUrl = `https://img.youtube.com/vi/${v.key}/hqdefault.jpg`;
+            if (!scenes.includes(yUrl)) {
+              scenes.push(yUrl);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Error fetching TMDB video stills:', e.message);
+      }
+    }
+
+    res.json({ backdrops: scenes.slice(0, 5) });
   } catch (err) {
     console.error('Content Images Error:', err.message);
     res.status(500).json({ backdrops: [] });
