@@ -99,7 +99,10 @@ export function AuthProvider({ children }) {
       localStorage.setItem('notelab_user', JSON.stringify(data.user))
       return data
     } catch (err) {
-      console.warn('API login failed, attempting direct Supabase Cloud login:', err.message)
+      if (err.message && err.message.includes('Email yoki parol noto\'g\'ri')) {
+        throw err
+      }
+      console.warn('API login failed or unavailable, attempting direct Supabase Cloud login:', err.message)
       // Supabase Direct Cloud Fallback
       const passHash = await sha256(password)
 
@@ -110,29 +113,68 @@ export function AuthProvider({ children }) {
         }
       })
 
-      if (!res.ok) {
-        throw new Error('Server bilan aloqa o\'rnatib bo\'lmadi.')
+      if (res.ok) {
+        const users = await res.json()
+        const matchedUser = Array.isArray(users) ? users.find(u => u.password_hash === passHash) : null
+
+        if (matchedUser) {
+          const safeUser = {
+            id: matchedUser.id,
+            email: matchedUser.email,
+            first_name: matchedUser.first_name || null,
+            last_name: matchedUser.last_name || null,
+            created_at: matchedUser.created_at
+          }
+          setIsNewRegistration(false)
+          setUser(safeUser)
+          localStorage.setItem('notelab_user', JSON.stringify(safeUser))
+          return { success: true, user: safeUser }
+        }
       }
 
-      const users = await res.json()
-      const matchedUser = Array.isArray(users) ? users.find(u => u.password_hash === passHash) : null
+      // Try Supabase Auth Token API fallback
+      try {
+        const authRes = await fetch('https://spntzkotmgsghoahqkne.supabase.co/auth/v1/token?grant_type=password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_KEY
+          },
+          body: JSON.stringify({ email: emailLower, password })
+        })
 
-      if (!matchedUser) {
-        throw new Error('Email yoki parol noto\'g\'ri.')
+        if (authRes.ok) {
+          const authData = await authRes.json()
+          if (authData?.user) {
+            const safeUser = {
+              id: authData.user.id,
+              email: authData.user.email,
+              first_name: authData.user.user_metadata?.first_name || null,
+              last_name: authData.user.user_metadata?.last_name || null,
+              created_at: authData.user.created_at
+            }
+            // Auto-repair password_hash in public.users
+            fetch(`${SUPABASE_REST_URL}/users?id=eq.${encodeURIComponent(safeUser.id)}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+              },
+              body: JSON.stringify({ password_hash: passHash })
+            }).catch(() => {})
+
+            setIsNewRegistration(false)
+            setUser(safeUser)
+            localStorage.setItem('notelab_user', JSON.stringify(safeUser))
+            return { success: true, user: safeUser }
+          }
+        }
+      } catch (authEx) {
+        console.warn('Direct Supabase Auth fallback failed:', authEx.message)
       }
 
-      const safeUser = {
-        id: matchedUser.id,
-        email: matchedUser.email,
-        first_name: matchedUser.first_name || null,
-        last_name: matchedUser.last_name || null,
-        created_at: matchedUser.created_at
-      }
-
-      setIsNewRegistration(false)
-      setUser(safeUser)
-      localStorage.setItem('notelab_user', JSON.stringify(safeUser))
-      return { success: true, user: safeUser }
+      throw new Error('Email yoki parol noto\'g\'ri.')
     }
   }
 

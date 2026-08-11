@@ -21,21 +21,44 @@ module.exports = function authMiddleware(req, res, next) {
       (async () => {
         try {
           const emailClean = String(email).toLowerCase().trim();
-          if (supabase.auth?.admin?.createUser) {
-            await supabase.auth.admin.createUser({
+          
+          // 1. Check if user row already exists in public.users
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id, password_hash')
+            .eq('id', req.userId)
+            .maybeSingle();
+
+          if (existingUser) {
+            // Update metadata ONLY; never overwrite existing valid password_hash
+            const updatePayload = {
+              email: emailClean,
+              first_name: firstName || null,
+              last_name: lastName || null
+            };
+            if (!existingUser.password_hash) {
+              updatePayload.password_hash = 'synced_session';
+            }
+            await supabase.from('users').update(updatePayload).eq('id', req.userId).catch(() => {});
+          } else {
+            // Create user in Auth admin if not exists
+            if (supabase.auth?.admin?.createUser) {
+              await supabase.auth.admin.createUser({
+                id: req.userId,
+                email: emailClean,
+                email_confirm: true,
+                user_metadata: { first_name: firstName || null, last_name: lastName || null }
+              }).catch(() => {});
+            }
+            // Insert into public.users
+            await supabase.from('users').insert([{
               id: req.userId,
               email: emailClean,
-              email_confirm: true,
-              user_metadata: { first_name: firstName || null, last_name: lastName || null }
-            }).catch(() => {});
+              password_hash: 'synced_session',
+              first_name: firstName || null,
+              last_name: lastName || null
+            }]).catch(() => {});
           }
-          await supabase.from('users').upsert([{
-            id: req.userId,
-            email: emailClean,
-            password_hash: 'synced_session',
-            first_name: firstName || null,
-            last_name: lastName || null
-          }]).catch(() => {});
         } catch (err) {
           console.warn('Middleware auto-sync user warning:', err.message);
         }

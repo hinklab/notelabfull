@@ -194,9 +194,11 @@ router.post('/login', async (req, res) => {
   const password_hash = hashPassword(password);
 
   const supabase = getSupabase();
+  let supabaseUser = null;
+
   if (supabase) {
     try {
-      // 1. Try public.users table
+      // 1. Check public.users table
       const { data, error } = await supabase
         .from('users')
         .select('id, email, first_name, last_name, created_at, password_hash')
@@ -204,15 +206,15 @@ router.post('/login', async (req, res) => {
         .maybeSingle();
 
       if (!error && data) {
-        if (data.password_hash === password_hash) {
+        supabaseUser = data;
+        // If password_hash matches valid SHA256 hash
+        if (data.password_hash && data.password_hash !== 'synced_session' && data.password_hash === password_hash) {
           const { password_hash: _, ...userWithoutPass } = data;
           return res.json({ success: true, user: userWithoutPass });
-        } else {
-          return res.status(401).json({ error: 'Email yoki parol noto\'g\'ri.' });
         }
       }
 
-      // 2. Try Supabase Auth signInWithPassword if public.users search didn't match
+      // 2. Try Supabase Auth signInWithPassword if hash match didn't succeed directly
       if (supabase.auth?.signInWithPassword) {
         const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
           email: emailLower,
@@ -220,16 +222,24 @@ router.post('/login', async (req, res) => {
         });
 
         if (!authErr && authData?.user) {
-          return res.json({
-            success: true,
-            user: {
-              id: authData.user.id,
-              email: authData.user.email,
-              first_name: authData.user.user_metadata?.first_name || null,
-              last_name: authData.user.user_metadata?.last_name || null,
-              created_at: authData.user.created_at
-            }
-          });
+          const authenticatedUser = {
+            id: authData.user.id,
+            email: authData.user.email,
+            first_name: authData.user.user_metadata?.first_name || supabaseUser?.first_name || null,
+            last_name: authData.user.user_metadata?.last_name || supabaseUser?.last_name || null,
+            created_at: authData.user.created_at
+          };
+
+          // Auto-repair password_hash in public.users
+          await supabase.from('users').upsert([{
+            id: authenticatedUser.id,
+            email: emailLower,
+            password_hash,
+            first_name: authenticatedUser.first_name,
+            last_name: authenticatedUser.last_name
+          }]).catch(() => {});
+
+          return res.json({ success: true, user: authenticatedUser });
         }
       }
     } catch (err) {
@@ -237,7 +247,7 @@ router.post('/login', async (req, res) => {
     }
   }
 
-  // Local JSON DB fallback for login
+  // 3. Local JSON DB fallback for login
   const db = readDB();
   const user = (db.users || []).find(u => u.email.toLowerCase() === emailLower && u.password_hash === password_hash);
 
@@ -245,7 +255,7 @@ router.post('/login', async (req, res) => {
     return res.status(401).json({ error: 'Email yoki parol noto\'g\'ri.' });
   }
 
-  // Auto-sync user to Supabase if Supabase is connected and user wasn't synced yet
+  // Auto-repair & sync user to Supabase if Supabase is connected
   if (supabase) {
     try {
       if (supabase.auth?.admin?.createUser) {
@@ -258,7 +268,7 @@ router.post('/login', async (req, res) => {
       }
       await supabase.from('users').upsert([{
         id: user.id,
-        email: user.email,
+        email: user.email.toLowerCase(),
         password_hash: user.password_hash,
         first_name: user.first_name || null,
         last_name: user.last_name || null
