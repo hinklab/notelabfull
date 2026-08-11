@@ -121,6 +121,22 @@ router.post('/', async (req, res) => {
     const userId = req.userId || DEFAULT_USER_ID;
     const data = req.body;
     const section = data.section || 'todo';
+
+    // Server-side deduplication guard: if movie with same tmdb_id, imdb_id, or title already exists, return existing movie!
+    const existingMovie = db.movies.find(m =>
+      (m.user_id || DEFAULT_USER_ID) === userId && (
+        (data.tmdb_id && m.tmdb_id && String(m.tmdb_id) === String(data.tmdb_id)) ||
+        (data.imdb_id && m.imdb_id && String(m.imdb_id) === String(data.imdb_id)) ||
+        (data.title && m.title && m.title.toLowerCase().trim() === String(data.title).toLowerCase().trim())
+      )
+    );
+
+    if (existingMovie) {
+      console.log(`[POST /api/movies] Skipped duplicate addition for "${data.title}" (existing id: ${existingMovie.id})`);
+      deleteRecommendationForMovie(userId, existingMovie).catch(() => {});
+      return res.json(existingMovie);
+    }
+
     let note_id = data.note_id ?? null;
     if (!note_id) {
       const userNotes = (db.notes || []).filter(n => (n.user_id || DEFAULT_USER_ID) === userId);

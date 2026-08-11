@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Bell, Film, Sparkles, Check, CheckCheck, Trash2, Plus, X } from 'lucide-react'
 
 export default function NotificationPanel({
@@ -9,11 +9,14 @@ export default function NotificationPanel({
   onAddMovieSuccess,
   onClose
 }) {
-  const [addingId, setAddingId] = useState(null)
+  const [addingIds, setAddingIds] = useState({})
+  const addingRef = useRef(new Set())
 
   const handleAddMovie = async (notif) => {
-    if (!notif.movie_data || addingId) return
-    setAddingId(notif.id)
+    if (!notif.movie_data || addingRef.current.has(notif.id)) return
+    addingRef.current.add(notif.id)
+    setAddingIds(prev => ({ ...prev, [notif.id]: 'loading' }))
+
     try {
       const data = notif.movie_data
       const today = new Date().toISOString().slice(0, 10)
@@ -31,14 +34,15 @@ export default function NotificationPanel({
         section: targetSection
       })
 
+      setAddingIds(prev => ({ ...prev, [notif.id]: 'added' }))
       if (onMarkRead) await onMarkRead(notif.id)
       if (onDelete) await onDelete(notif.id)
       if (onAddMovieSuccess) onAddMovieSuccess()
     } catch (err) {
       console.error('Error adding movie from recommendation:', err)
+      addingRef.current.delete(notif.id)
+      setAddingIds(prev => ({ ...prev, [notif.id]: null }))
       alert('Filmni qo\'shishda xatolik: ' + (err.message || 'Xatolik yuz berdi'))
-    } finally {
-      setAddingId(null)
     }
   }
 
@@ -244,30 +248,38 @@ export default function NotificationPanel({
                 )}
 
                 {/* Recommendation Add Button */}
-                {notif.type === 'recommendation' && notif.movie_data && (
-                  <button
-                    onClick={() => handleAddMovie(notif)}
-                    disabled={addingId === notif.id}
-                    style={{
-                      marginTop: 8,
-                      padding: '4px 10px',
-                      borderRadius: 6,
-                      background: 'var(--accent, #8b5cf6)',
-                      color: '#fff',
-                      border: 'none',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      cursor: addingId === notif.id ? 'not-allowed' : 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      opacity: addingId === notif.id ? 0.6 : 1,
-                    }}
-                  >
-                    <Plus size={13} />
-                    <span>{addingId === notif.id ? 'Qo\'shilmoqda...' : 'Qo\'shish'}</span>
-                  </button>
-                )}
+                {notif.type === 'recommendation' && notif.movie_data && (() => {
+                  const status = addingIds[notif.id]
+                  const isLoading = status === 'loading'
+                  const isAdded = status === 'added'
+                  const isDisabled = isLoading || isAdded
+
+                  return (
+                    <button
+                      onClick={() => handleAddMovie(notif)}
+                      disabled={isDisabled}
+                      style={{
+                        marginTop: 8,
+                        padding: '4px 10px',
+                        borderRadius: 6,
+                        background: isAdded ? '#22c55e' : 'var(--accent, #8b5cf6)',
+                        color: '#fff',
+                        border: 'none',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        opacity: isDisabled ? 0.7 : 1,
+                        transition: 'background 0.2s, opacity 0.2s',
+                      }}
+                    >
+                      {isAdded ? <Check size={13} /> : <Plus size={13} />}
+                      <span>{isLoading ? 'Qo\'shilmoqda...' : (isAdded ? 'Qo\'shildi' : 'Qo\'shish')}</span>
+                    </button>
+                  )
+                })()}
               </div>
             </div>
           ))
