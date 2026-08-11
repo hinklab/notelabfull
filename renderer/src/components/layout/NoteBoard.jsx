@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffe
 import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard from '../cards/MovieCard.jsx'
-import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2 } from 'lucide-react'
+import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 
 function hexToRgba(hex, alpha) {
   if (!hex || hex.length < 7) return `rgba(124,58,237,${alpha})`
@@ -754,11 +754,23 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch 
     return count
   }, [filteredItemsByGroup, search])
 
+  const maxOtherCount = useMemo(() => {
+    let max = 0
+    groups.forEach(g => {
+      if (g.section_key !== 'done') {
+        const count = (filteredItemsByGroup[g.id] || []).length
+        if (count > max) max = count
+      }
+    })
+    return max
+  }, [groups, filteredItemsByGroup])
+
   const renderColumn = (group) => (
     <NoteColumn
       key={group.id}
       group={group}
       items={filteredItemsByGroup[group.id] || []}
+      maxOtherCount={maxOtherCount}
       boardCardPositionsRef={boardCardPositionsRef}
       itemClipboard={itemClipboard}
       onAdd={() => setAddItemGroup(group.id)}
@@ -948,7 +960,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch 
   )
 }
 
-function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, onSaveRating, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
+function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, onSaveRating, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
   const color = group.color || '#a78bfa'
   const bg = hexToRgba(color, 0.12)
   const border = hexToRgba(color, 0.3)
@@ -956,10 +968,17 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
   const [editingName, setEditingName] = useState(false)
   const [nameVal, setNameVal] = useState(group.name)
   const [headerHovered, setHeaderHovered] = useState(false)
+  const [isDoneExpanded, setIsDoneExpanded] = useState(false)
   const cardsRef = useRef(null)
   const rafRef = useRef(null)
   const prevItemsKeyRef = useRef('')
   const prevPositionsRef = useRef(new Map())
+
+  const isDoneSection = group.section_key === 'done'
+  const isCollapseEligible = isDoneSection && items.length > 10
+  const shouldCollapse = isCollapseEligible && !isDoneExpanded
+  const visibleCardsTarget = Math.max(5, maxOtherCount || 0)
+  const collapsedHeight = visibleCardsTarget * 86 + 20
 
   const totalMinutes = useMemo(() => {
     if (!items || items.length === 0) return 0
@@ -1206,7 +1225,20 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
       <div
         ref={cardsRef}
         className="column-cards"
-        style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 100, borderRadius: '0 0 10px 10px', transition: 'outline 0.1s' }}
+        style={{
+          padding: '10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          minHeight: 100,
+          borderRadius: shouldCollapse ? '0' : '0 0 10px 10px',
+          transition: 'max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), outline 0.1s',
+          maxHeight: shouldCollapse ? `${collapsedHeight}px` : 'none',
+          overflow: shouldCollapse ? 'hidden' : 'visible',
+          position: 'relative',
+          maskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 65px), transparent 100%)' : 'none',
+          WebkitMaskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 65px), transparent 100%)' : 'none',
+        }}
       >
         {items.map(item => (
           <div key={item.id} data-item-id={item.id} style={{ position: 'relative' }}>
@@ -1248,6 +1280,53 @@ function NoteColumn({ group, items, boardCardPositionsRef, itemClipboard, onAdd,
           <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: '20px 0', opacity: 0.4 }}>Bo'sh — bu yerga tashlang</div>
         )}
       </div>
+
+      {isCollapseEligible && (
+        <div style={{
+          padding: '8px 10px 12px 10px',
+          display: 'flex',
+          justify: 'center',
+          alignItems: 'center',
+          background: 'var(--bg-surface)',
+          borderTop: shouldCollapse ? 'none' : '1px solid var(--border)',
+          borderRadius: '0 0 10px 10px',
+        }}>
+          <button
+            onClick={() => setIsDoneExpanded(prev => !prev)}
+            style={{
+              background: 'rgba(139, 92, 246, 0.12)',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              color: '#a78bfa',
+              borderRadius: 8,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'background 0.15s',
+              fontFamily: 'inherit',
+              width: '100%',
+              justifyContent: 'center',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.12)'}
+          >
+            {shouldCollapse ? (
+              <>
+                <span>Barchasini ko'rsatish ({items.length})</span>
+                <ChevronDown size={14} />
+              </>
+            ) : (
+              <>
+                <span>Yopish</span>
+                <ChevronUp size={14} />
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
