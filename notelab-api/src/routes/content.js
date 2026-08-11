@@ -175,4 +175,32 @@ router.get('/search', async (req, res) => {
   }
 });
 
+// GET /api/content/images?tmdb_id=299536&media_type=movie
+router.get('/images', async (req, res) => {
+  try {
+    const { tmdb_id, media_type } = req.query;
+    if (!tmdb_id) return res.json({ backdrops: [] });
+
+    const db = readDB();
+    const settings = getUserSettings(req.userId, db);
+    const tmdbKey = settings.tmdb_key;
+    if (!tmdbKey) return res.json({ backdrops: [] });
+
+    const type = media_type === 'tv' ? 'tv' : 'movie';
+    const url = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/images?api_key=${encodeURIComponent(tmdbKey)}`;
+    const r = await fetch(url);
+    if (!r.ok) return res.json({ backdrops: [] });
+
+    const data = await r.json();
+    const backdrops = (data.backdrops || [])
+      .slice(0, 12)
+      .map(b => `https://image.tmdb.org/t/p/w780${b.file_path}`);
+
+    res.json({ backdrops });
+  } catch (err) {
+    console.error('Content Images Error:', err.message);
+    res.status(500).json({ backdrops: [] });
+  }
+});
+
 module.exports = router;

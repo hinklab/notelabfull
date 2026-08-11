@@ -76,6 +76,9 @@ export default function MovieCard({
   const [touchDelta, setTouchDelta] = useState({ x: 0, y: 0 })
   const [userRating, setUserRating] = useState(movie?.user_rating || null)
   const [showRateModal, setShowRateModal] = useState(false)
+  const [backdrops, setBackdrops] = useState([])
+  const [loadingBackdrops, setLoadingBackdrops] = useState(false)
+  const [selectedScene, setSelectedScene] = useState(null)
   const isFuture = movie.section === 'futured' && !movie.rating
 
   const [toastMessage, setToastMessage] = useState(null)
@@ -83,6 +86,20 @@ export default function MovieCard({
   useEffect(() => {
     setUserRating(movie?.user_rating || null)
   }, [movie?.user_rating])
+
+  useEffect(() => {
+    if (expanded && movie?.tmdb_id) {
+      setLoadingBackdrops(true)
+      window.api.getMovieImages(movie.tmdb_id, movie.media_type)
+        .then(res => {
+          if (res && res.backdrops && res.backdrops.length > 0) {
+            setBackdrops(res.backdrops)
+          }
+        })
+        .catch(err => console.warn('Failed fetching movie scene backdrops:', err))
+        .finally(() => setLoadingBackdrops(false))
+    }
+  }, [expanded, movie?.tmdb_id, movie?.media_type])
 
   const handleRate = async (newRating) => {
     setUserRating(newRating)
@@ -590,7 +607,86 @@ export default function MovieCard({
                   </div>
                 )}
               </div>
+
+              {/* Film kadrlar (Movie Scenes Gallery) */}
+              {(loadingBackdrops || backdrops.length > 0) && (
+                <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>🎬 Film kadrlar (Sahnalar)</span>
+                      {backdrops.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>({backdrops.length} ta kadr)</span>}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Kattalashtirish uchun bosing</span>
+                  </div>
+
+                  {loadingBackdrops ? (
+                    <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: '10px 0' }}>Kadrlari yuklanmoqda...</div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'thin' }}>
+                      {backdrops.map((imgUrl, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setSelectedScene(imgUrl)}
+                          style={{
+                            position: 'relative',
+                            width: 148,
+                            height: 88,
+                            borderRadius: 10,
+                            overflow: 'hidden',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            border: '1px solid var(--border)',
+                            background: 'var(--bg-card)',
+                            transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.borderColor = 'var(--accent, #a78bfa)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.4)' }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none' }}
+                        >
+                          <img
+                            src={imgUrl}
+                            alt={`Sahna ${idx + 1}`}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {selectedScene && ReactDOM.createPortal(
+        <div
+          onClick={() => setSelectedScene(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 99999999,
+            background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <button
+              onClick={() => setSelectedScene(null)}
+              style={{
+                position: 'absolute', top: -16, right: -16,
+                border: 'none', background: '#18181b', color: '#fff',
+                width: 36, height: 36, borderRadius: 18, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.5)', zIndex: 2
+              }}
+            ><X size={16} /></button>
+            <img
+              src={selectedScene}
+              alt="Film sahna rasmi"
+              style={{
+                maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain',
+                borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', display: 'block'
+              }}
+            />
           </div>
         </div>,
         document.body
