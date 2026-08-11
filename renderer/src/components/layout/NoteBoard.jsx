@@ -976,7 +976,7 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
 
   const [measuredHeight, setMeasuredHeight] = useState(null)
 
-  const isDoneSection = group.section_key === 'done'
+  const isDoneSection = group.section_key === 'done' || (group.name || '').toLowerCase() === 'done'
   const isCollapseEligible = isDoneSection && items.length > 10 && items.length > (maxOtherCount || 0)
   const shouldCollapse = isCollapseEligible && !isDoneExpanded
   const visibleCardsTarget = Math.max(10, maxOtherCount || 0)
@@ -996,7 +996,8 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
     }
   }, [shouldCollapse, visibleCardsTarget, items])
 
-  const collapsedHeight = measuredHeight ? `${measuredHeight}px` : `${visibleCardsTarget * 128 + 20}px`
+  const collapsedHeightNumber = measuredHeight || (visibleCardsTarget * 128 + 20)
+  const collapsedHeight = `${collapsedHeightNumber + 20}px`
 
   const totalMinutes = useMemo(() => {
     if (!items || items.length === 0) return 0
@@ -1251,7 +1252,7 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
           minHeight: 100,
           borderRadius: shouldCollapse ? '0' : '0 0 10px 10px',
           transition: 'max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), outline 0.1s',
-          maxHeight: shouldCollapse ? `${collapsedHeight}px` : 'none',
+          maxHeight: shouldCollapse ? collapsedHeight : 'none',
           overflow: shouldCollapse ? 'hidden' : 'visible',
           position: 'relative',
           maskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 65px), transparent 100%)' : 'none',
