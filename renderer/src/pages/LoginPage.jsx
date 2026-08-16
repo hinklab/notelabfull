@@ -98,13 +98,13 @@ export default function LoginPage({ onSwitch }) {
                     Parolni unutdingizmi?
                   </span>
                 </div>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <div style={{ position: 'relative', width: '100%' }}>
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    style={{ ...styles.input, paddingRight: 40 }}
+                    style={{ ...styles.input, width: '100%', paddingRight: 40 }}
                     disabled={loading}
                   />
                   <button
@@ -114,7 +114,9 @@ export default function LoginPage({ onSwitch }) {
                     title={showPassword ? "Parolni berkitish" : "Parolni ko'rsatish"}
                     style={{
                       position: 'absolute',
-                      right: 10,
+                      right: 12,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
                       background: 'transparent',
                       border: 'none',
                       color: 'var(--text-muted)',

@@ -67,13 +67,13 @@ export default function RegisterPage({ onSwitch }) {
 
           <div style={styles.field}>
             <label style={styles.label}>Parol</label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <div style={{ position: 'relative', width: '100%' }}>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Kamida 6 ta belgi"
-                style={{ ...styles.input, paddingRight: 40 }}
+                style={{ ...styles.input, width: '100%', paddingRight: 40 }}
                 disabled={loading}
               />
               <button
@@ -83,7 +83,9 @@ export default function RegisterPage({ onSwitch }) {
                 title={showPassword ? "Parolni berkitish" : "Parolni ko'rsatish"}
                 style={{
                   position: 'absolute',
-                  right: 10,
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
                   background: 'transparent',
                   border: 'none',
                   color: 'var(--text-muted)',
@@ -105,13 +107,13 @@ export default function RegisterPage({ onSwitch }) {
 
           <div style={styles.field}>
             <label style={styles.label}>Parolni tasdiqlang</label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <div style={{ position: 'relative', width: '100%' }}>
               <input
                 type={showConfirm ? "text" : "password"}
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
                 placeholder="Parolni qayta kiriting"
-                style={{ ...styles.input, paddingRight: 40 }}
+                style={{ ...styles.input, width: '100%', paddingRight: 40 }}
                 disabled={loading}
               />
               <button
@@ -121,7 +123,9 @@ export default function RegisterPage({ onSwitch }) {
                 title={showConfirm ? "Parolni berkitish" : "Parolni ko'rsatish"}
                 style={{
                   position: 'absolute',
-                  right: 10,
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
                   background: 'transparent',
                   border: 'none',
                   color: 'var(--text-muted)',
