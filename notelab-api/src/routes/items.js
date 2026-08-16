@@ -16,6 +16,16 @@ function sanitizeItemForSupabase(item) {
   for (const k of allowed) {
     if (item && item[k] !== undefined) clean[k] = item[k];
   }
+  if (clean.id !== undefined && (typeof clean.id === 'string' && (clean.id.startsWith('temp_') || isNaN(Number(clean.id))))) {
+    delete clean.id;
+  } else if (clean.id !== undefined && clean.id !== null) {
+    clean.id = Number(clean.id);
+  }
+  if (clean.group_id !== undefined && (typeof clean.group_id === 'string' && (clean.group_id.startsWith('temp_') || isNaN(Number(clean.group_id))))) {
+    delete clean.group_id;
+  } else if (clean.group_id != null) {
+    clean.group_id = Number(clean.group_id);
+  }
   return clean;
 }
 

@@ -1,4 +1,10 @@
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+function getApiBase() {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl || !envUrl.trim() || envUrl.includes('onrender')) return '/api';
+  const clean = envUrl.trim().replace(/\/+$/, '');
+  return (clean.startsWith('http://') || clean.startsWith('https://')) ? clean : '/api';
+}
+const API_BASE = getApiBase();
 
 function getUserHeader() {
   try {

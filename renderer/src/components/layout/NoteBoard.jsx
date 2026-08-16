@@ -12,6 +12,8 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`
 }
 
+const PLACEHOLDER_POSTER = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="90" viewBox="0 0 60 90" fill="%231e1e2e"><rect width="60" height="90" fill="%231e2030"/><path d="M22 35h16v20H22z" fill="%23585b70"/><circle cx="30" cy="42" r="4" fill="%2389b4fa"/><text x="30" y="68" font-family="sans-serif" font-size="8" fill="%23a6adc8" text-anchor="middle">No Poster</text></svg>`;
+
 function getDropPosition(items, clientY, containerRef, prevMarker = null) {
   if (!containerRef.current || items.length === 0) return { targetId: null, position: 'after', insertIndex: 0 }
   const cardEls = Array.from(containerRef.current.querySelectorAll('[data-item-id]'))
@@ -2194,10 +2196,10 @@ function TmdbFallbackSearchPanel({ search, itemsByGroup, groups, onAddItem, onSe
                 }}
               >
                 <img
-                  src={r.poster_path || r.cover_url || 'https://via.placeholder.com/60x90?text=No+Image'}
+                  src={r.poster_path || r.cover_url || PLACEHOLDER_POSTER}
                   alt={r.title}
                   style={{ width: 40, height: 60, objectFit: 'cover', borderRadius: 6, flexShrink: 0, background: '#111' }}
-                  onError={(e) => { e.target.src = 'https://via.placeholder.com/60x90?text=No+Image' }}
+                  onError={(e) => { e.target.src = PLACEHOLDER_POSTER }}
                 />
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

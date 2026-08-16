@@ -75,7 +75,7 @@ export default function OnboardingSurvey({ userId, onComplete }) {
     }
 
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+      const API_BASE = (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('onrender')) ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') : '/api'
       await fetch(`${API_BASE}/user-preferences`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

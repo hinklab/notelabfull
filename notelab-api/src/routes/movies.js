@@ -42,6 +42,34 @@ function sanitizeForSupabase(obj) {
   for (const k of allowed) {
     if (obj && obj[k] !== undefined) clean[k] = obj[k];
   }
+
+  // Guard against temporary optimistic string IDs (e.g. 'temp_1786077778023') being sent to Supabase bigint columns
+  if (clean.id !== undefined && (typeof clean.id === 'string' && (clean.id.startsWith('temp_') || isNaN(Number(clean.id))))) {
+    delete clean.id;
+  } else if (clean.id !== undefined && clean.id !== null) {
+    clean.id = Number(clean.id);
+  }
+
+  if (clean.note_id !== undefined && (typeof clean.note_id === 'string' && (clean.note_id.startsWith('temp_') || isNaN(Number(clean.note_id))))) {
+    delete clean.note_id;
+  } else if (clean.note_id != null) {
+    clean.note_id = Number(clean.note_id);
+  }
+
+  if (clean.tmdb_id !== undefined && clean.tmdb_id !== null) {
+    if (typeof clean.tmdb_id === 'string' && (clean.tmdb_id.startsWith('temp_') || isNaN(Number(clean.tmdb_id)))) {
+      delete clean.tmdb_id;
+    } else {
+      clean.tmdb_id = Number(clean.tmdb_id);
+    }
+  }
+
+  if (clean.position !== undefined && (clean.position === null || isNaN(Number(clean.position)))) {
+    clean.position = 0;
+  } else if (clean.position !== undefined) {
+    clean.position = Number(clean.position);
+  }
+
   return clean;
 }
 
