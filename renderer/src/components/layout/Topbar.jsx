@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { RefreshCw, Settings, Power, Film, Bell, HelpCircle } from 'lucide-react'
+import { RefreshCw, Settings, Power, Film, Bell, HelpCircle, Sparkles } from 'lucide-react'
 import NotificationPanel from './NotificationPanel.jsx'
 
-export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onRefresh, refreshing, noteLabel, user, onLogout, onAddMovieSuccess }) {
+export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onRefresh, refreshing, noteLabel, user, onLogout, onAddMovieSuccess, activeView = 'movies', onViewChange }) {
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
   const panelRef = useRef(null)
@@ -151,13 +151,64 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         WebkitAppRegion: 'drag',
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, WebkitAppRegion: 'no-drag' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, WebkitAppRegion: 'no-drag' }}>
           <span className="font-logo" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.4px', color: 'var(--text-primary)' }}>
             notelab
           </span>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            / <Film size={14} color="var(--accent)" /> Movies
-          </span>
+
+          {/* Navigation View Toggle: Movies vs Space */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            background: 'var(--bg-input, rgba(255,255,255,0.06))',
+            border: '1px solid var(--border)',
+            borderRadius: 20,
+            padding: '2px',
+            gap: 2,
+          }}>
+            <button
+              type="button"
+              onClick={() => onViewChange && onViewChange('movies')}
+              style={{
+                border: 'none',
+                background: activeView === 'movies' ? 'var(--accent, #7c3aed)' : 'transparent',
+                color: activeView === 'movies' ? '#ffffff' : 'var(--text-muted)',
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: 16,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Film size={13} />
+              <span>Movies</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewChange && onViewChange('space')}
+              style={{
+                border: 'none',
+                background: activeView === 'space' ? 'var(--accent, #7c3aed)' : 'transparent',
+                color: activeView === 'space' ? '#ffffff' : 'var(--text-muted)',
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: 16,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <Sparkles size={13} />
+              <span>Space</span>
+            </button>
+          </div>
         </span>
       </div>
 

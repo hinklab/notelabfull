@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 
 import OnboardingSurvey from './components/modals/OnboardingSurvey.jsx'
+import ChronologySpace from './components/space/ChronologySpace.jsx'
 import { Check, AlertCircle } from 'lucide-react'
 
 function normalizeNoteIcon(icon, fallback = '🎬') {
@@ -89,6 +90,7 @@ export default function App() {
 
 function MainApp({ user, onLogout, onOpenSurvey }) {
   const [search, setSearch] = useState('')
+  const [activeView, setActiveView] = useState('movies') // 'movies' | 'space'
   const [showSettings, setShowSettings] = useState(false)
   const [activeNote, setActiveNote] = useState(null)
   const activeNoteRef = useRef(null)
@@ -158,6 +160,8 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
         user={user}
         onLogout={onLogout}
         onAddMovieSuccess={() => setBoardKey(k => k + 1)}
+        activeView={activeView}
+        onViewChange={setActiveView}
       />
 
       {refreshToast && (
@@ -167,7 +171,11 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
         </div>
       )}
 
-      <GroupBoard note={activeNote} refreshTrigger={boardKey} search={search} onSearch={setSearch} />
+      {activeView === 'movies' ? (
+        <GroupBoard note={activeNote} refreshTrigger={boardKey} search={search} onSearch={setSearch} />
+      ) : (
+        <ChronologySpace />
+      )}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onOpenSurvey={onOpenSurvey} />}
     </div>
