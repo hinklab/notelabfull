@@ -92,6 +92,7 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
   const [search, setSearch] = useState('')
   const [activeView, setActiveView] = useState('movies') // 'movies' | 'space'
   const [spaceTargetTmdbId, setSpaceTargetTmdbId] = useState(null)
+  const [spaceTargetMediaType, setSpaceTargetMediaType] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [activeNote, setActiveNote] = useState(null)
   const activeNoteRef = useRef(null)
@@ -100,9 +101,10 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
   const [refreshToast, setRefreshToast] = useState(null)
   const [loadingNote, setLoadingNote] = useState(true)
 
-  const handleOpenChronology = (tmdbId) => {
+  const handleOpenChronology = (tmdbId, mediaType) => {
     if (tmdbId) {
       setSpaceTargetTmdbId(tmdbId)
+      setSpaceTargetMediaType(mediaType || null)
     }
     setActiveView('space')
   }
@@ -182,7 +184,7 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
       {activeView === 'movies' ? (
         <GroupBoard note={activeNote} refreshTrigger={boardKey} search={search} onSearch={setSearch} onOpenChronology={handleOpenChronology} />
       ) : (
-        <ChronologySpace targetTmdbId={spaceTargetTmdbId} />
+        <ChronologySpace targetTmdbId={spaceTargetTmdbId} targetMediaType={spaceTargetMediaType} />
       )}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onOpenSurvey={onOpenSurvey} />}

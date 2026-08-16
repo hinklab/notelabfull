@@ -581,7 +581,7 @@ export default function MovieCard({
                     onClick={(e) => {
                       e.stopPropagation()
                       setExpanded(false)
-                      if (onOpenChronology) onOpenChronology(movie.tmdb_id)
+                      if (onOpenChronology) onOpenChronology(movie.tmdb_id, movie.media_type)
                     }}
                     title="Franchiza xronologiyasini ko'rish"
                     style={{

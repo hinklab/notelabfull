@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Plus, Minus, RotateCcw, Sparkles, CheckCircle, Clock, Film, Star, ArrowRight, ChevronLeft, ChevronRight, Search, ListFilter, AlertCircle, ExternalLink } from 'lucide-react'
 
-export default function ChronologySpace({ targetTmdbId = null, onSelectMovieForDetail }) {
+export default function ChronologySpace({ targetTmdbId = null, targetMediaType = null, onSelectMovieForDetail }) {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 300, y: 120 })
   const [isPanning, setIsPanning] = useState(false)
@@ -46,14 +46,14 @@ export default function ChronologySpace({ targetTmdbId = null, onSelectMovieForD
     return []
   }
 
-  // 2. Fetch specific franchise data by tmdb_id
-  const loadFranchiseData = async (tmdbId) => {
+  // 2. Fetch specific franchise data by tmdb_id & media_type
+  const loadFranchiseData = async (tmdbId, mediaType = null) => {
     if (!tmdbId) return
     setLoading(true)
     setError(null)
     try {
       if (window.api && window.api.getFranchiseUniverse) {
-        const data = await window.api.getFranchiseUniverse(tmdbId)
+        const data = await window.api.getFranchiseUniverse(tmdbId, mediaType)
         setUniverseData(data)
         setActiveTmdbId(tmdbId)
         // Refresh viewed franchises list to ensure active one is on top
@@ -72,16 +72,16 @@ export default function ChronologySpace({ targetTmdbId = null, onSelectMovieForD
     (async () => {
       const list = await fetchViewedFranchises()
       if (targetTmdbId) {
-        loadFranchiseData(targetTmdbId)
+        loadFranchiseData(targetTmdbId, targetMediaType)
       } else if (list && list.length > 0 && list[0].tmdb_id) {
         // Load the MOST RECENTLY viewed franchise automatically
-        loadFranchiseData(list[0].tmdb_id)
+        loadFranchiseData(list[0].tmdb_id, list[0].media_type || null)
       } else {
         // Fallback default: MCU Iron Man (tmdb_id: 1726)
-        loadFranchiseData(1726)
+        loadFranchiseData(1726, 'movie')
       }
     })()
-  }, [targetTmdbId])
+  }, [targetTmdbId, targetMediaType])
 
   // Mouse drag panning handlers
   const handleMouseDown = (e) => {

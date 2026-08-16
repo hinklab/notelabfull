@@ -103,6 +103,8 @@ router.post('/record-view', (req, res) => {
 router.get('/:tmdbMovieId', async (req, res) => {
   try {
     const { tmdbMovieId } = req.params;
+    const mediaType = req.query.media_type || req.body?.media_type || 'movie';
+
     if (!tmdbMovieId) {
       return res.status(400).json({ error: 'tmdbMovieId is required.' });
     }
@@ -122,24 +124,40 @@ router.get('/:tmdbMovieId', async (req, res) => {
       if (m.imdb_id) userMovieMap.set(String(m.imdb_id), m);
     });
 
-    // 1. Fetch movie details from TMDB to find belongs_to_collection
+    // 1. Fetch movie or TV details from TMDB (respecting requested mediaType)
     let movieDetail = null;
-    let isTv = false;
-    const movieUrl = `https://api.themoviedb.org/3/movie/${encodeURIComponent(tmdbMovieId)}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
-    const mRes = await fetch(movieUrl);
-    if (mRes.ok) {
-      movieDetail = await mRes.json();
-    } else {
+    let isTv = mediaType === 'tv';
+
+    if (isTv) {
       const tvUrl = `https://api.themoviedb.org/3/tv/${encodeURIComponent(tmdbMovieId)}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
       const tvRes = await fetch(tvUrl);
       if (tvRes.ok) {
         movieDetail = await tvRes.json();
-        isTv = true;
+      } else {
+        const movieUrl = `https://api.themoviedb.org/3/movie/${encodeURIComponent(tmdbMovieId)}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+        const mRes = await fetch(movieUrl);
+        if (mRes.ok) {
+          movieDetail = await mRes.json();
+          isTv = false;
+        }
+      }
+    } else {
+      const movieUrl = `https://api.themoviedb.org/3/movie/${encodeURIComponent(tmdbMovieId)}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+      const mRes = await fetch(movieUrl);
+      if (mRes.ok) {
+        movieDetail = await mRes.json();
+      } else {
+        const tvUrl = `https://api.themoviedb.org/3/tv/${encodeURIComponent(tmdbMovieId)}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+        const tvRes = await fetch(tvUrl);
+        if (tvRes.ok) {
+          movieDetail = await tvRes.json();
+          isTv = true;
+        }
       }
     }
 
     if (!movieDetail) {
-      return res.status(404).json({ error: 'Movie not found on TMDB.' });
+      return res.status(404).json({ error: 'Movie/Show not found on TMDB.' });
     }
 
     const collection = movieDetail.belongs_to_collection || null;
@@ -148,14 +166,17 @@ router.get('/:tmdbMovieId', async (req, res) => {
     let universeKey = null;
     let universeConfig = null;
 
-    if (collection && collection.id) {
-      const collId = collection.id;
-      for (const [uKey, cfg] of Object.entries(universes)) {
-        if (Array.isArray(cfg.collection_ids) && cfg.collection_ids.includes(collId)) {
-          universeKey = uKey;
-          universeConfig = cfg;
-          break;
-        }
+    // Check universe match by collection_id OR by direct tmdb_id!
+    const targetIdNum = Number(tmdbMovieId);
+    for (const [uKey, cfg] of Object.entries(universes)) {
+      const matchColl = collection && collection.id && Array.isArray(cfg.collection_ids) && cfg.collection_ids.includes(collection.id);
+      const matchKnown = Array.isArray(cfg.known_tmdb_ids) && cfg.known_tmdb_ids.includes(targetIdNum);
+      const matchChrono = Array.isArray(cfg.chronological_order) && cfg.chronological_order.some(item => typeof item === 'object' ? item.id === targetIdNum : item === targetIdNum);
+
+      if (matchColl || matchKnown || matchChrono) {
+        universeKey = uKey;
+        universeConfig = cfg;
+        break;
       }
     }
 
@@ -169,13 +190,19 @@ router.get('/:tmdbMovieId', async (req, res) => {
       isUniverse = true;
       universeName = universeConfig.name;
 
-      const chronoOrderIds = universeConfig.chronological_order;
+      const chronoOrderItems = universeConfig.chronological_order;
       const movieDetails = await Promise.all(
-        chronoOrderIds.map(async (id) => {
+        chronoOrderItems.map(async (item) => {
           try {
-            const url = `https://api.themoviedb.org/3/movie/${id}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+            const itemId = typeof item === 'object' ? item.id : item;
+            const itemType = typeof item === 'object' ? (item.type || 'movie') : 'movie';
+            const endpoint = itemType === 'tv' ? 'tv' : 'movie';
+            const url = `https://api.themoviedb.org/3/${endpoint}/${itemId}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
             const r = await fetch(url);
-            if (r.ok) return await r.json();
+            if (r.ok) {
+              const resData = await r.json();
+              return { ...resData, _media_type: itemType };
+            }
           } catch (e) {}
           return null;
         })
@@ -190,6 +217,7 @@ router.get('/:tmdbMovieId', async (req, res) => {
 
         return {
           tmdb_id: d.id,
+          media_type: d._media_type || (d.first_air_date ? 'tv' : 'movie'),
           title: d.title || d.name,
           release_date: releaseDate,
           release_year: releaseYear,
