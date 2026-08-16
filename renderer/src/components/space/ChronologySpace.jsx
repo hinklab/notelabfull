@@ -104,6 +104,17 @@ export default function ChronologySpace({ moviesData, universeName = 'Marvel Cin
 
   const movies = (moviesData && moviesData.length > 0) ? moviesData : MOCK_MCU_MOVIES
 
+  const zoomRef = useRef(zoom)
+  const panRef = useRef(pan)
+
+  useEffect(() => {
+    zoomRef.current = zoom
+  }, [zoom])
+
+  useEffect(() => {
+    panRef.current = pan
+  }, [pan])
+
   // Mouse drag panning handlers
   const handleMouseDown = (e) => {
     if (e.target.closest('.space-card-clickable') || e.target.closest('.space-controls')) {
@@ -125,23 +136,47 @@ export default function ChronologySpace({ moviesData, universeName = 'Marvel Cin
     setIsPanning(false)
   }
 
-  // Native non-passive wheel listener to allow e.preventDefault() for smooth zooming without page scroll interference
+  // Native non-passive wheel listener for smooth, cursor-centered zooming
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
 
     const handleWheel = (e) => {
       e.preventDefault()
-      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92
-      setZoom(prev => Math.min(Math.max(prev * zoomFactor, 0.4), 2.2))
+
+      const rect = el.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+
+      const currentZoom = zoomRef.current
+      const currentPan = panRef.current
+
+      // Fine 5% zoom step per wheel tick (1.05x / 0.95x) for smooth control
+      const zoomFactor = e.deltaY < 0 ? 1.05 : 0.95
+      const nextZoom = Math.min(Math.max(currentZoom * zoomFactor, 0.4), 2.5)
+
+      if (nextZoom === currentZoom) return
+
+      // Calculate pan offset to keep point under mouse cursor stationary
+      const nextPanX = mouseX - ((mouseX - currentPan.x) / currentZoom) * nextZoom
+      const nextPanY = mouseY - ((mouseY - currentPan.y) / currentZoom) * nextZoom
+
+      setZoom(nextZoom)
+      setPan({ x: nextPanX, y: nextPanY })
     }
 
     el.addEventListener('wheel', handleWheel, { passive: false })
     return () => el.removeEventListener('wheel', handleWheel)
   }, [])
 
-  const handleZoomIn = () => setZoom(prev => Math.min(prev * 1.2, 2.2))
-  const handleZoomOut = () => setZoom(prev => Math.max(prev / 1.2, 0.4))
+  const handleZoomIn = () => {
+    const nextZoom = Math.min(zoom * 1.15, 2.5)
+    setZoom(nextZoom)
+  }
+  const handleZoomOut = () => {
+    const nextZoom = Math.max(zoom / 1.15, 0.4)
+    setZoom(nextZoom)
+  }
   const handleResetView = () => {
     setZoom(1)
     setPan({ x: 80, y: 120 })
@@ -191,14 +226,15 @@ export default function ChronologySpace({ moviesData, universeName = 'Marvel Cin
         </div>
       </div>
 
-      {/* Pannable & Zoomable World Container */}
+      {/* Pannable & Zoomable World Container (GPU Accelerated) */}
       <div style={{
-        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+        transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
         transformOrigin: '0 0',
+        willChange: 'transform',
         position: 'absolute',
         top: 0,
         left: 0,
-        transition: isPanning ? 'none' : 'transform 0.08s ease-out',
+        transition: isPanning ? 'none' : 'transform 0.06s cubic-bezier(0.1, 1, 0.1, 1)',
       }}>
         {/* Horizontal Sequence Container */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 70, paddingTop: 100, paddingLeft: 40 }}>
