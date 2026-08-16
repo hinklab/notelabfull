@@ -785,7 +785,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       onItemDelete={(item) => handleDeleteItem(item)}
       onMoveItem={handleMoveItem}
       onReorderItem={handleReorderItem}
-      onSaveRating={handleSaveRating}
+      onSaveRating={handleSaveMovieRating}
       onOpenChronology={onOpenChronology}
       isDragging={draggingGroupId === group.id}
       onGroupDragStart={() => handleGroupDragStart(group.id)}
