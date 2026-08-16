@@ -145,13 +145,28 @@ router.post('/', async (req, res) => {
     }
     
     let position;
-    if (section === 'futured') {
-      position = db.movies.filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === 'futured' && (m.note_id ?? null) === note_id).length;
+    if (section === 'todo') {
+      let existingTodo = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === 'todo' && (m.note_id ?? null) === note_id);
+      
+      const supabase = getSupabase();
+      if (supabase) {
+        try {
+          let sbQuery = supabase.from('movies').select('position').eq('user_id', userId).eq('section', 'todo');
+          if (note_id) sbQuery = sbQuery.eq('note_id', parseInt(note_id));
+          const { data: sbTodo } = await sbQuery;
+          if (Array.isArray(sbTodo) && sbTodo.length > 0) {
+            existingTodo = sbTodo;
+          }
+        } catch (e) {}
+      }
+
+      const minPos = existingTodo.length > 0 ? Math.min(...existingTodo.map(m => m.position ?? 0)) : 0;
+      position = minPos <= 0 ? minPos - 1 : -1;
+    } else if (section === 'futured') {
+      position = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === 'futured' && (m.note_id ?? null) === note_id).length;
     } else {
-      db.movies
-        .filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === section && (m.note_id ?? null) === note_id)
-        .forEach(m => { m.position = (m.position || 0) + 1 });
-      position = 0;
+      const existingInSec = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === section && (m.note_id ?? null) === note_id);
+      position = existingInSec.length > 0 ? Math.max(...existingInSec.map(m => m.position ?? 0)) + 1 : 0;
     }
     
     const settings = getUserSettings(userId, db);
