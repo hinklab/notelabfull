@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs');
-const { readDB, getUserSettings } = require('../services/database');
+const { readDB, getUserSettings, saveUserSettings } = require('../services/database');
 
 const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
 
@@ -44,6 +44,60 @@ function loadFranchiseUniverses() {
   }
   return {};
 }
+
+// GET /api/franchises/viewed — Return list of user's viewed franchises (most recent first)
+router.get('/viewed', (req, res) => {
+  try {
+    const userId = req.userId || DEFAULT_USER_ID;
+    const settings = getUserSettings(userId);
+    const list = Array.isArray(settings.viewed_franchises) ? [...settings.viewed_franchises] : [];
+    list.sort((a, b) => new Date(b.last_viewed_at || 0) - new Date(a.last_viewed_at || 0));
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/franchises/record-view — Explicitly touch/save a viewed franchise
+router.post('/record-view', (req, res) => {
+  try {
+    const userId = req.userId || DEFAULT_USER_ID;
+    const { tmdb_id, universe_key, name, is_universe, total_movies } = req.body;
+    if (!tmdb_id && !universe_key) {
+      return res.status(400).json({ error: 'tmdb_id or universe_key is required.' });
+    }
+
+    const settings = getUserSettings(userId);
+    let list = Array.isArray(settings.viewed_franchises) ? [...settings.viewed_franchises] : [];
+
+    const keyToMatch = universe_key || String(tmdb_id);
+    const existingIndex = list.findIndex(item => (item.universe_key && item.universe_key === keyToMatch) || String(item.tmdb_id) === String(tmdb_id));
+
+    const updatedItem = {
+      key: keyToMatch,
+      universe_key: universe_key || null,
+      tmdb_id: tmdb_id ? Number(tmdb_id) : null,
+      name: name || 'Franchise',
+      is_universe: !!is_universe,
+      total_movies: total_movies || 0,
+      last_viewed_at: new Date().toISOString()
+    };
+
+    if (existingIndex >= 0) {
+      list[existingIndex] = { ...list[existingIndex], ...updatedItem };
+    } else {
+      list.unshift(updatedItem);
+    }
+
+    list.sort((a, b) => new Date(b.last_viewed_at || 0) - new Date(a.last_viewed_at || 0));
+    if (list.length > 50) list = list.slice(0, 50);
+
+    saveUserSettings(userId, { viewed_franchises: list });
+    res.json({ success: true, viewed_franchises: list });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // GET /api/franchises/:tmdbMovieId
 router.get('/:tmdbMovieId', async (req, res) => {
@@ -213,6 +267,38 @@ router.get('/:tmdbMovieId', async (req, res) => {
     }
 
     const inBoardCount = moviesResult.filter(m => m.in_board).length;
+
+    // Auto-record this franchise view into user's viewed franchises list
+    try {
+      const settings = getUserSettings(userId);
+      let list = Array.isArray(settings.viewed_franchises) ? [...settings.viewed_franchises] : [];
+      const keyToMatch = universeKey || String(tmdbMovieId);
+      const fname = universeName || collectionName || (movieDetail ? (movieDetail.title || movieDetail.name) : 'Franchise');
+      const existingIndex = list.findIndex(item => (item.universe_key && item.universe_key === keyToMatch) || String(item.tmdb_id) === String(tmdbMovieId));
+
+      const updatedItem = {
+        key: keyToMatch,
+        universe_key: universeKey || null,
+        tmdb_id: Number(tmdbMovieId),
+        name: fname,
+        is_universe: !!isUniverse,
+        total_movies: moviesResult.length,
+        last_viewed_at: new Date().toISOString()
+      };
+
+      if (existingIndex >= 0) {
+        list[existingIndex] = { ...list[existingIndex], ...updatedItem };
+      } else {
+        list.unshift(updatedItem);
+      }
+
+      list.sort((a, b) => new Date(b.last_viewed_at || 0) - new Date(a.last_viewed_at || 0));
+      if (list.length > 50) list = list.slice(0, 50);
+
+      saveUserSettings(userId, { viewed_franchises: list });
+    } catch (e) {
+      console.warn('Auto-recording franchise view error:', e.message);
+    }
 
     res.json({
       universe_key: universeKey,

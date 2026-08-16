@@ -91,6 +91,7 @@ export default function App() {
 function MainApp({ user, onLogout, onOpenSurvey }) {
   const [search, setSearch] = useState('')
   const [activeView, setActiveView] = useState('movies') // 'movies' | 'space'
+  const [spaceTargetTmdbId, setSpaceTargetTmdbId] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [activeNote, setActiveNote] = useState(null)
   const activeNoteRef = useRef(null)
@@ -98,6 +99,13 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
   const [refreshing, setRefreshing] = useState(false)
   const [refreshToast, setRefreshToast] = useState(null)
   const [loadingNote, setLoadingNote] = useState(true)
+
+  const handleOpenChronology = (tmdbId) => {
+    if (tmdbId) {
+      setSpaceTargetTmdbId(tmdbId)
+    }
+    setActiveView('space')
+  }
 
   const initMoviesNote = useCallback(async () => {
     setLoadingNote(true)
@@ -172,9 +180,9 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
       )}
 
       {activeView === 'movies' ? (
-        <GroupBoard note={activeNote} refreshTrigger={boardKey} search={search} onSearch={setSearch} />
+        <GroupBoard note={activeNote} refreshTrigger={boardKey} search={search} onSearch={setSearch} onOpenChronology={handleOpenChronology} />
       ) : (
-        <ChronologySpace />
+        <ChronologySpace targetTmdbId={spaceTargetTmdbId} />
       )}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onOpenSurvey={onOpenSurvey} />}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { Star, Calendar, Clapperboard, X, Trash2, Clock } from 'lucide-react'
+import { Star, Calendar, Clapperboard, X, Trash2, Clock, Sparkles } from 'lucide-react'
 
 function formatVotes(n) {
   if (!n) return null
@@ -29,28 +29,26 @@ function RatingStars10({ value, onChange }) {
         <span style={{ fontSize: 13, fontWeight: 600, color: '#93c5fd' }}>Sizning bahoingiz:</span>
         <span style={{ fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>{activeVal ? `${activeVal}/10` : 'Baho berilmagan'}</span>
       </div>
-      <div style={{ display: 'flex', gap: 4, justifyContent: 'space-between' }} onMouseLeave={() => setHoverVal(null)}>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(starNum => {
-          const filled = starNum <= activeVal
-          return (
-            <button
-              key={starNum}
-              onClick={(e) => {
-                e.stopPropagation()
-                onChange(starNum)
-              }}
-              onMouseEnter={() => setHoverVal(starNum)}
-              style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-            >
-              <Star
-                size={18}
-                fill={filled ? '#60a5fa' : 'none'}
-                color={filled ? '#60a5fa' : '#3f3f46'}
-                style={{ transition: 'transform 0.1s, color 0.1s, fill 0.1s', transform: hoverVal === starNum ? 'scale(1.25)' : 'scale(1)' }}
-              />
-            </button>
-          )
-        })}
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(star => (
+          <button
+            key={star}
+            type="button"
+            onMouseEnter={() => setHoverVal(star)}
+            onMouseLeave={() => setHoverVal(null)}
+            onClick={() => onChange(star)}
+            style={{
+              background: 'none', border: 'none', padding: 2, cursor: 'pointer',
+              transition: 'transform 0.1s ease', transform: hoverVal === star ? 'scale(1.25)' : 'scale(1)'
+            }}
+          >
+            <Star
+              size={18}
+              fill={star <= activeVal ? '#fbbf24' : 'transparent'}
+              color={star <= activeVal ? '#fbbf24' : 'var(--text-muted)'}
+            />
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -67,7 +65,8 @@ export default function MovieCard({
   onDelete,
   onTouchDragStart,
   onTouchDragMove,
-  onTouchDragEnd
+  onTouchDragEnd,
+  onOpenChronology
 }) {
   const [expanded, setExpanded] = useState(false)
   const [animateOpen, setAnimateOpen] = useState(false)
@@ -574,6 +573,36 @@ export default function MovieCard({
                   >
                     <Star size={11} fill={userRating ? "#60a5fa" : "none"} color={userRating ? "#60a5fa" : "#93c5fd"} />
                     <span>{userRating ? `${userRating}/10` : '+ Baho berish'}</span>
+                  </button>
+                )}
+                {movie.tmdb_id && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setExpanded(false)
+                      if (onOpenChronology) onOpenChronology(movie.tmdb_id)
+                    }}
+                    title="Franchiza xronologiyasini ko'rish"
+                    style={{
+                      background: 'rgba(124, 58, 237, 0.18)',
+                      border: '1px solid rgba(167, 139, 250, 0.4)',
+                      color: '#c084fc',
+                      borderRadius: 6,
+                      padding: '4px 10px',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(124, 58, 237, 0.3)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(124, 58, 237, 0.18)'}
+                  >
+                    <Sparkles size={12} color="#c084fc" />
+                    <span>✨ Xronologiya</span>
                   </button>
                 )}
               </div>

@@ -73,6 +73,8 @@ export const api = {
   searchContent: (type, query) => fetchJSON(`${API_BASE}/content/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query)}`),
   getMovieImages: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/content/images?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}`),
   getFranchiseUniverse: (tmdb_id) => fetchJSON(`${API_BASE}/franchises/${encodeURIComponent(tmdb_id)}`),
+  getViewedFranchises: () => fetchJSON(`${API_BASE}/franchises/viewed`),
+  recordFranchiseView: (data) => fetchJSON(`${API_BASE}/franchises/record-view`, { method: 'POST', body: JSON.stringify(data) }),
 
   // Settings & Profile & Auth
   getSettings: () => fetchJSON(`${API_BASE}/settings`),

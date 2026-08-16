@@ -158,7 +158,7 @@ function RatingStars10({ value, onChange }) {
   )
 }
 
-export default function NoteBoard({ note, refreshTrigger, search = '', onSearch }) {
+export default function NoteBoard({ note, refreshTrigger, search = '', onSearch, onOpenChronology }) {
   const [groups, setGroups] = useState([])
   const [itemsByGroup, setItemsByGroup] = useState({})
   const [showCreateGroup, setShowCreateGroup] = useState(false)
@@ -785,7 +785,8 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch 
       onItemDelete={(item) => handleDeleteItem(item)}
       onMoveItem={handleMoveItem}
       onReorderItem={handleReorderItem}
-      onSaveRating={handleSaveMovieRating}
+      onSaveRating={handleSaveRating}
+      onOpenChronology={onOpenChronology}
       isDragging={draggingGroupId === group.id}
       onGroupDragStart={() => handleGroupDragStart(group.id)}
       onGroupDragEnd={handleGroupDragEnd}
@@ -962,7 +963,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch 
   )
 }
 
-function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, onSaveRating, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
+function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, onSaveRating, onOpenChronology, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
   const color = group.color || '#a78bfa'
   const bg = hexToRgba(color, 0.12)
   const border = hexToRgba(color, 0.3)
@@ -1280,6 +1281,7 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
                 }}
                 onTouchDragMove={(movie, x, y) => handleTouchDragMove(item, x, y)}
                 onTouchDragEnd={(movie, x, y) => handleTouchDragEnd(item, x, y)}
+                onOpenChronology={onOpenChronology}
               />
             ) : (
               <NoteItemCard
