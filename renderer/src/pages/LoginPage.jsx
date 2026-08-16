@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { BookOpen, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { BookOpen, ArrowLeft, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage({ onSwitch }) {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -97,14 +98,40 @@ export default function LoginPage({ onSwitch }) {
                     Parolni unutdingizmi?
                   </span>
                 </div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  style={styles.input}
-                  disabled={loading}
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    style={{ ...styles.input, paddingRight: 40 }}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    tabIndex={-1}
+                    title={showPassword ? "Parolni berkitish" : "Parolni ko'rsatish"}
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 4,
+                      borderRadius: 4,
+                      transition: 'color 0.15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               {error && <div style={styles.error}>{error}</div>}

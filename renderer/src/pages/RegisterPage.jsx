@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, Eye, EyeOff } from 'lucide-react'
 
 export default function RegisterPage({ onSwitch }) {
   const { register } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -65,26 +67,78 @@ export default function RegisterPage({ onSwitch }) {
 
           <div style={styles.field}>
             <label style={styles.label}>Parol</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Kamida 6 ta belgi"
-              style={styles.input}
-              disabled={loading}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Kamida 6 ta belgi"
+                style={{ ...styles.input, paddingRight: 40 }}
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(prev => !prev)}
+                tabIndex={-1}
+                title={showPassword ? "Parolni berkitish" : "Parolni ko'rsatish"}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 4,
+                  borderRadius: 4,
+                  transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <div style={styles.field}>
             <label style={styles.label}>Parolni tasdiqlang</label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={e => setConfirm(e.target.value)}
-              placeholder="Parolni qayta kiriting"
-              style={styles.input}
-              disabled={loading}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showConfirm ? "text" : "password"}
+                value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+                placeholder="Parolni qayta kiriting"
+                style={{ ...styles.input, paddingRight: 40 }}
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(prev => !prev)}
+                tabIndex={-1}
+                title={showConfirm ? "Parolni berkitish" : "Parolni ko'rsatish"}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 4,
+                  borderRadius: 4,
+                  transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+              >
+                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           {error && <div style={styles.error}>{error}</div>}
