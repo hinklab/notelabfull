@@ -45,14 +45,83 @@ function loadFranchiseUniverses() {
   return {};
 }
 
+// Helper to strictly deduplicate and save viewed franchises
+function recordFranchiseView(userId, payload) {
+  const settings = getUserSettings(userId);
+  let list = Array.isArray(settings.viewed_franchises) ? [...settings.viewed_franchises] : [];
+
+  const { tmdb_id, universe_key, name, is_universe, total_movies } = payload;
+  const targetUniverseKey = universe_key || null;
+  const targetTmdbId = tmdb_id ? Number(tmdb_id) : null;
+  const targetName = name || 'Franchise';
+
+  // 1. Match by universe_key if present, else by tmdb_id, else by name
+  const existingIndex = list.findIndex(item => {
+    if (targetUniverseKey && (item.universe_key === targetUniverseKey || item.key === targetUniverseKey)) {
+      return true;
+    }
+    if (targetTmdbId && Number(item.tmdb_id) === targetTmdbId) {
+      return true;
+    }
+    if (item.name && item.name.toLowerCase().trim() === targetName.toLowerCase().trim()) {
+      return true;
+    }
+    return false;
+  });
+
+  const updatedItem = {
+    key: targetUniverseKey || (targetTmdbId ? `movie_${targetTmdbId}` : targetName),
+    universe_key: targetUniverseKey,
+    tmdb_id: targetTmdbId,
+    name: targetName,
+    is_universe: !!is_universe,
+    total_movies: total_movies || 0,
+    last_viewed_at: new Date().toISOString()
+  };
+
+  if (existingIndex >= 0) {
+    list[existingIndex] = { ...list[existingIndex], ...updatedItem };
+  } else {
+    list.unshift(updatedItem);
+  }
+
+  // 2. Perform deep cleaning to strip any historical duplicate entries
+  const seenKeys = new Set();
+  const cleanList = [];
+  for (const item of list) {
+    const k = item.universe_key || item.key || (item.tmdb_id ? `movie_${item.tmdb_id}` : item.name);
+    if (!seenKeys.has(k)) {
+      seenKeys.add(k);
+      cleanList.push(item);
+    }
+  }
+
+  cleanList.sort((a, b) => new Date(b.last_viewed_at || 0) - new Date(a.last_viewed_at || 0));
+  const finalResult = cleanList.slice(0, 50);
+
+  saveUserSettings(userId, { viewed_franchises: finalResult });
+  return finalResult;
+}
+
 // GET /api/franchises/viewed — Return list of user's viewed franchises (most recent first)
 router.get('/viewed', (req, res) => {
   try {
     const userId = req.userId || DEFAULT_USER_ID;
     const settings = getUserSettings(userId);
-    const list = Array.isArray(settings.viewed_franchises) ? [...settings.viewed_franchises] : [];
-    list.sort((a, b) => new Date(b.last_viewed_at || 0) - new Date(a.last_viewed_at || 0));
-    res.json(list);
+    let list = Array.isArray(settings.viewed_franchises) ? [...settings.viewed_franchises] : [];
+
+    // Deduplicate on read
+    const seenKeys = new Set();
+    const cleanList = [];
+    for (const item of list) {
+      const k = item.universe_key || item.key || (item.tmdb_id ? `movie_${item.tmdb_id}` : item.name);
+      if (!seenKeys.has(k)) {
+        seenKeys.add(k);
+        cleanList.push(item);
+      }
+    }
+    cleanList.sort((a, b) => new Date(b.last_viewed_at || 0) - new Date(a.last_viewed_at || 0));
+    res.json(cleanList);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -62,38 +131,13 @@ router.get('/viewed', (req, res) => {
 router.post('/record-view', (req, res) => {
   try {
     const userId = req.userId || DEFAULT_USER_ID;
-    const { tmdb_id, universe_key, name, is_universe, total_movies } = req.body;
+    const { tmdb_id, universe_key } = req.body;
     if (!tmdb_id && !universe_key) {
       return res.status(400).json({ error: 'tmdb_id or universe_key is required.' });
     }
 
-    const settings = getUserSettings(userId);
-    let list = Array.isArray(settings.viewed_franchises) ? [...settings.viewed_franchises] : [];
-
-    const keyToMatch = universe_key || String(tmdb_id);
-    const existingIndex = list.findIndex(item => (item.universe_key && item.universe_key === keyToMatch) || String(item.tmdb_id) === String(tmdb_id));
-
-    const updatedItem = {
-      key: keyToMatch,
-      universe_key: universe_key || null,
-      tmdb_id: tmdb_id ? Number(tmdb_id) : null,
-      name: name || 'Franchise',
-      is_universe: !!is_universe,
-      total_movies: total_movies || 0,
-      last_viewed_at: new Date().toISOString()
-    };
-
-    if (existingIndex >= 0) {
-      list[existingIndex] = { ...list[existingIndex], ...updatedItem };
-    } else {
-      list.unshift(updatedItem);
-    }
-
-    list.sort((a, b) => new Date(b.last_viewed_at || 0) - new Date(a.last_viewed_at || 0));
-    if (list.length > 50) list = list.slice(0, 50);
-
-    saveUserSettings(userId, { viewed_franchises: list });
-    res.json({ success: true, viewed_franchises: list });
+    const result = recordFranchiseView(userId, req.body);
+    res.json({ success: true, viewed_franchises: result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -298,32 +342,14 @@ router.get('/:tmdbMovieId', async (req, res) => {
 
     // Auto-record this franchise view into user's viewed franchises list
     try {
-      const settings = getUserSettings(userId);
-      let list = Array.isArray(settings.viewed_franchises) ? [...settings.viewed_franchises] : [];
-      const keyToMatch = universeKey || String(tmdbMovieId);
       const fname = universeName || collectionName || (movieDetail ? (movieDetail.title || movieDetail.name) : 'Franchise');
-      const existingIndex = list.findIndex(item => (item.universe_key && item.universe_key === keyToMatch) || String(item.tmdb_id) === String(tmdbMovieId));
-
-      const updatedItem = {
-        key: keyToMatch,
-        universe_key: universeKey || null,
+      recordFranchiseView(userId, {
         tmdb_id: Number(tmdbMovieId),
+        universe_key: universeKey || null,
         name: fname,
         is_universe: !!isUniverse,
-        total_movies: moviesResult.length,
-        last_viewed_at: new Date().toISOString()
-      };
-
-      if (existingIndex >= 0) {
-        list[existingIndex] = { ...list[existingIndex], ...updatedItem };
-      } else {
-        list.unshift(updatedItem);
-      }
-
-      list.sort((a, b) => new Date(b.last_viewed_at || 0) - new Date(a.last_viewed_at || 0));
-      if (list.length > 50) list = list.slice(0, 50);
-
-      saveUserSettings(userId, { viewed_franchises: list });
+        total_movies: moviesResult.length
+      });
     } catch (e) {
       console.warn('Auto-recording franchise view error:', e.message);
     }

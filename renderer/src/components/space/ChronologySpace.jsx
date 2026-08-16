@@ -270,15 +270,19 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   {viewedFranchises.length === 0 ? "Ko'rilgan franchizalar yo'q. Kinolardan xronologiyaga kiring!" : "Topilmadi."}
                 </div>
               ) : (
-                filteredFranchises.map((item) => {
+                filteredFranchises.map((item, idx) => {
+                  const itemKey = item.universe_key || item.key || (item.tmdb_id ? `movie_${item.tmdb_id}` : `idx_${idx}`)
                   const isActive = (item.universe_key && universeData?.universe_key === item.universe_key) || (item.tmdb_id && activeTmdbId === item.tmdb_id)
                   return (
-                    <div
-                      key={item.key || item.tmdb_id || item.name}
+                    <button
+                      key={itemKey}
+                      type="button"
                       onClick={() => loadFranchiseData(item.tmdb_id)}
                       style={{
                         padding: '10px 12px',
                         borderRadius: 14,
+                        width: '100%',
+                        textAlign: 'left',
                         background: isActive ? 'rgba(124, 58, 237, 0.25)' : 'rgba(255, 255, 255, 0.03)',
                         border: isActive ? '1px solid rgba(167, 139, 250, 0.5)' : '1px solid rgba(255, 255, 255, 0.06)',
                         cursor: 'pointer',
@@ -298,7 +302,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                         <span>{item.is_universe ? '🌌 UNIVERSE' : '🎬 COLLECTION'}</span>
                         <span style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: 6 }}>{item.total_movies || 0} kinolar</span>
                       </div>
-                    </div>
+                    </button>
                   )
                 })
               )}
