@@ -125,12 +125,20 @@ export default function ChronologySpace({ moviesData, universeName = 'Marvel Cin
     setIsPanning(false)
   }
 
-  // Wheel zoom handler
-  const handleWheel = (e) => {
-    e.preventDefault()
-    const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92
-    setZoom(prev => Math.min(Math.max(prev * zoomFactor, 0.4), 2.2))
-  }
+  // Native non-passive wheel listener to allow e.preventDefault() for smooth zooming without page scroll interference
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+
+    const handleWheel = (e) => {
+      e.preventDefault()
+      const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92
+      setZoom(prev => Math.min(Math.max(prev * zoomFactor, 0.4), 2.2))
+    }
+
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [])
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev * 1.2, 2.2))
   const handleZoomOut = () => setZoom(prev => Math.max(prev / 1.2, 0.4))
@@ -146,7 +154,6 @@ export default function ChronologySpace({ moviesData, universeName = 'Marvel Cin
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
       style={{
         position: 'relative',
         width: '100%',
