@@ -97,5 +97,19 @@
       { "id": 181808, "type": "movie" },
       { "id": 290859, "type": "movie" }
     ]
+  },
+  "kurtlar_vadisi": {
+    "name": "Valley of the Wolves (Kurtlar Vadisi) Universe",
+    "collection_ids": [663490],
+    "known_tmdb_ids": [34587, 48253, 49071, 11818, 35747, 58637, 469469],
+    "chronological_order": [
+      { "id": 34587, "type": "tv", "title": "Valley of the Wolves" },
+      { "id": 11818, "type": "movie", "title": "Valley of the Wolves: Iraq" },
+      { "id": 48253, "type": "tv", "title": "Valley of the Wolves: Terror" },
+      { "id": 49071, "type": "tv", "title": "Valley of the Wolves: Ambush" },
+      { "id": 35747, "type": "movie", "title": "Valley of the Wolves: Gladio" },
+      { "id": 58637, "type": "movie", "title": "Valley of the Wolves: Palestine" },
+      { "id": 469469, "type": "movie", "title": "Valley of the Wolves: Homeland" }
+    ]
   }
 }
