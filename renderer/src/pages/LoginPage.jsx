@@ -45,7 +45,7 @@ export default function LoginPage({ onSwitch }) {
     setForgotLoading(true)
     try {
       if (window.api && window.api.resetPasswordEmail) {
-        const res = await window.api.resetPasswordEmail(forgotEmail.trim())
+        const res = await window.api.resetPasswordEmail(forgotEmail.trim(), window.location.origin)
         setForgotSuccess(res.message || 'Parolni tiklash havolasi yuborildi.')
       }
     } catch (err) {

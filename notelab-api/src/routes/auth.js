@@ -351,7 +351,7 @@ router.patch('/profile', async (req, res) => {
 
 // POST /api/auth/reset-password-email
 router.post('/reset-password-email', async (req, res) => {
-  const { email } = req.body;
+  const { email, redirectTo } = req.body;
   if (!email || !email.trim()) {
     return res.status(400).json({ error: 'Email manzilini kiriting.' });
   }
@@ -361,13 +361,18 @@ router.post('/reset-password-email', async (req, res) => {
 
   if (supabase) {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(emailLower);
+      const redirectUrl = redirectTo || 'http://localhost:5173';
+      const { error } = await supabase.auth.resetPasswordForEmail(emailLower, {
+        redirectTo: redirectUrl,
+      });
       if (!error) {
         return res.json({ success: true, message: 'Parolni tiklash havolasi elektron pochtangizga yuborildi.' });
       }
       console.warn('Supabase resetPasswordForEmail error:', error.message);
+      return res.status(400).json({ error: error.message || 'Pochtaga xabar yuborishda xatolik yuz berdi.' });
     } catch (err) {
       console.warn('Supabase reset password exception:', err.message);
+      return res.status(500).json({ error: err.message || 'Serverda xatolik yuz berdi.' });
     }
   }
 
