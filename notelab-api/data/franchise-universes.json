@@ -2,7 +2,7 @@
   "mcu": {
     "name": "Marvel Cinematic Universe",
     "collection_ids": [131295, 623911, 131292, 131296, 86311, 284433, 422834, 618529, 531241, 529892, 448150, 9485, 284052, 544669],
-    "known_tmdb_ids": [61889, 202555, 128095, 85271, 88396, 67178, 88329, 92749, 92782, 92783, 114472, 122226, 138501, 88397, 61550, 38472, 62126, 62127, 62285, 67136, 91363, 232125, 1013860, 774752, 114471, 241388, 198178, 617127, 969681],
+    "known_tmdb_ids": [61889, 202555, 128095, 85271, 88396, 67178, 88329, 92749, 92782, 92783, 114472, 122226, 138501, 88397, 61550, 38472, 62126, 62127, 62285, 67136, 91363, 232125, 1013860, 774752, 114471, 241388, 198178, 617127, 969681, 213375, 138505, 138503, 1737233],
     "chronological_order": [
       { "id": 1771, "type": "movie", "title": "Captain America: The First Avenger", "stage": 0, "lane": 0, "connects_to": [61550, 24428] },
       { "id": 61550, "type": "tv", "title": "Agent Carter", "stage": 1, "lane": 0, "connects_to": [24428] },
@@ -44,11 +44,12 @@
       { "id": 299534, "type": "movie", "title": "Avengers: Endgame", "stage": 9, "lane": 1, "connects_to": [67178, 85271, 88396, 429617, 91363] },
 
       { "id": 67178, "type": "tv", "title": "Loki", "stage": 10, "lane": 0, "connects_to": [91363, 634649] },
-      { "id": 91363, "type": "tv", "title": "What If...?", "stage": 11, "lane": 0, "connects_to": [453395] },
-      { "id": 85271, "type": "tv", "title": "WandaVision", "stage": 10, "lane": 1, "connects_to": [453395, 138501] },
+      { "id": 91363, "type": "tv", "title": "What If...?", "stage": 11, "lane": 0, "connects_to": [453395, 138505] },
+      { "id": 138505, "type": "tv", "title": "Marvel Zombies", "stage": 12, "lane": 0, "connects_to": [1003598] },
+      { "id": 85271, "type": "tv", "title": "WandaVision", "stage": 10, "lane": 1, "connects_to": [453395, 138501, 213375] },
       { "id": 429617, "type": "movie", "title": "Spider-Man: Far From Home", "stage": 10, "lane": 2, "connects_to": [634649] },
       { "id": 88396, "type": "tv", "title": "The Falcon and the Winter Soldier", "stage": 10, "lane": 3, "connects_to": [88329, 822119] },
-      { "id": 566525, "type": "movie", "title": "Shang-Chi and the Legend of the Ten Rings", "stage": 10, "lane": 4, "connects_to": [1003598] },
+      { "id": 566525, "type": "movie", "title": "Shang-Chi and the Legend of the Ten Rings", "stage": 10, "lane": 4, "connects_to": [1737233] },
       { "id": 524434, "type": "movie", "title": "Eternals", "stage": 10, "lane": 5, "connects_to": [1003598] },
 
       { "id": 634649, "type": "movie", "title": "Spider-Man: No Way Home", "stage": 11, "lane": 2, "connects_to": [453395, 969681] },
@@ -66,7 +67,8 @@
       { "id": 640146, "type": "movie", "title": "Ant-Man and the Wasp: Quantumania", "stage": 13, "lane": 0, "connects_to": [1003596] },
       { "id": 774752, "type": "movie", "title": "The Guardians of the Galaxy Holiday Special", "stage": 13, "lane": 1, "connects_to": [447365] },
       { "id": 447365, "type": "movie", "title": "Guardians of the Galaxy Vol. 3", "stage": 14, "lane": 0, "connects_to": [1003598] },
-      { "id": 138501, "type": "tv", "title": "Agatha All Along", "stage": 13, "lane": 2, "connects_to": [1003596] },
+      { "id": 138501, "type": "tv", "title": "Agatha All Along", "stage": 13, "lane": 2, "connects_to": [213375] },
+      { "id": 213375, "type": "tv", "title": "Vision Quest (VisionQuest)", "stage": 14, "lane": 0, "connects_to": [1003596] },
       { "id": 202555, "type": "tv", "title": "Daredevil: Born Again", "stage": 13, "lane": 3, "connects_to": [970347] },
       { "id": 114472, "type": "tv", "title": "Secret Invasion", "stage": 13, "lane": 4, "connects_to": [609681] },
 
@@ -79,6 +81,7 @@
       { "id": 838209, "type": "movie", "title": "The Fantastic Four: First Steps", "stage": 15, "lane": 1, "connects_to": [1003596] },
       { "id": 241388, "type": "tv", "title": "Eyes of Wakanda", "stage": 15, "lane": 2, "connects_to": [1003598] },
       { "id": 198178, "type": "tv", "title": "Wonder Man", "stage": 15, "lane": 4, "connects_to": [1003596] },
+      { "id": 1737233, "type": "movie", "title": "Shang-Chi 2 (Sequel)", "stage": 15, "lane": 0, "overview": "The direct sequel to Shang-Chi and the Legend of the Ten Rings.", "release_year": "2026", "connects_to": [1003598] },
       { "id": 617127, "type": "movie", "title": "Blade", "stage": 15, "lane": 5, "poster_path": "https://image.tmdb.org/t/p/w500/3U73FqZk8F0Q7tH3r6zQ8hPj7tU.jpg", "overview": "Eric Brooks, also known as Blade, is a dhampir vampire hunter fighting to rid the world of supernatural evil in the Marvel Cinematic Universe.", "release_year": "2025", "connects_to": [1003596] },
 
       { "id": 1003596, "type": "movie", "title": "Avengers: Doomsday", "stage": 16, "lane": 1, "overview": "The fifth Avengers film in the Marvel Cinematic Universe, featuring Doctor Doom as the central multiverse threat.", "connects_to": [969681, 1003598] },
