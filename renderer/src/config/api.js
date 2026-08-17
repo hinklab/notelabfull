@@ -26,19 +26,34 @@ function getUserHeader() {
 
 async function fetchJSON(url, options = {}) {
   const userHeader = getUserHeader()
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...userHeader, ...options.headers },
-    ...options
-  });
-  const contentType = res.headers.get('content-type') || ''
-  if (!res.ok || contentType.includes('text/html')) {
-    const text = await res.text();
-    if (contentType.includes('text/html') || text.trim().startsWith('<!DOCTYPE')) {
-      throw new Error(`API endpoint returned HTML instead of JSON: ${url}`)
+  const controller = new AbortController()
+  const timeoutMs = options.timeout || 3500
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', ...userHeader, ...options.headers },
+      ...options
+    });
+    clearTimeout(timeoutId)
+
+    const contentType = res.headers.get('content-type') || ''
+    if (!res.ok || contentType.includes('text/html')) {
+      const text = await res.text();
+      if (contentType.includes('text/html') || text.trim().startsWith('<!DOCTYPE')) {
+        throw new Error(`API endpoint returned HTML instead of JSON: ${url}`)
+      }
+      throw new Error(`HTTP ${res.status}: ${text}`);
     }
-    throw new Error(`HTTP ${res.status}: ${text}`);
+    return await res.json();
+  } catch (err) {
+    clearTimeout(timeoutId)
+    if (err.name === 'AbortError') {
+      throw new Error(`API request timed out after ${timeoutMs}ms: ${url}`)
+    }
+    throw err
   }
-  return res.json();
 }
 
 // Unified API client

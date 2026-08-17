@@ -111,25 +111,35 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
 
   const initMoviesNote = useCallback(async () => {
     setLoadingNote(true)
+    const fallbackNote = sanitizeNote({ id: 6, name: 'Movies', title: 'Movies', icon: '🎬', type: 'movie', is_movie: true })
+    const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 2000))
+
     try {
-      const data = await window.api.getNotes()
-      const notesList = Array.isArray(data) ? data : []
-      let movieNote = notesList.find(n => n.is_movie || n.type === 'movie' || (n.name || n.title || '').toLowerCase() === 'movies')
+      const dataPromise = window.api.getNotes()
+      const data = await Promise.race([dataPromise, timeoutPromise])
 
-      if (!movieNote) {
-        try {
-          movieNote = await window.api.createNote({ name: 'Movies', icon: '🎬', type: 'movie' })
-        } catch {
-          movieNote = { id: 6, name: 'Movies', title: 'Movies', icon: '🎬', type: 'movie', is_movie: true }
+      if (data) {
+        const notesList = Array.isArray(data) ? data : []
+        let movieNote = notesList.find(n => n.is_movie || n.type === 'movie' || (n.name || n.title || '').toLowerCase() === 'movies')
+
+        if (!movieNote) {
+          try {
+            movieNote = await window.api.createNote({ name: 'Movies', icon: '🎬', type: 'movie' })
+          } catch {
+            movieNote = fallbackNote
+          }
         }
-      }
 
-      const safeNote = sanitizeNote(movieNote)
-      activeNoteRef.current = safeNote
-      setActiveNote(safeNote)
+        const safeNote = sanitizeNote(movieNote)
+        activeNoteRef.current = safeNote
+        setActiveNote(safeNote)
+      } else {
+        console.warn('getNotes timed out after 2s, rendering fallback note immediately')
+        activeNoteRef.current = fallbackNote
+        setActiveNote(fallbackNote)
+      }
     } catch (err) {
       console.warn('Failed to load Movies note from API, using fallback:', err.message)
-      const fallbackNote = sanitizeNote({ id: 6, name: 'Movies', title: 'Movies', icon: '🎬', type: 'movie', is_movie: true })
       activeNoteRef.current = fallbackNote
       setActiveNote(fallbackNote)
     } finally {
