@@ -198,11 +198,11 @@ router.post('/login', async (req, res) => {
 
   if (supabase) {
     try {
-      // 1. Check public.users table
+      // 1. Check public.users table (case-insensitive)
       const { data, error } = await supabase
         .from('users')
         .select('id, email, first_name, last_name, created_at, password_hash')
-        .eq('email', emailLower)
+        .ilike('email', emailLower)
         .maybeSingle();
 
       if (!error && data) {

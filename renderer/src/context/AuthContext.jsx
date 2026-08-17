@@ -99,14 +99,11 @@ export function AuthProvider({ children }) {
       localStorage.setItem('notelab_user', JSON.stringify(data.user))
       return data
     } catch (err) {
-      if (err.message && err.message.includes('Email yoki parol noto\'g\'ri')) {
-        throw err
-      }
-      console.warn('API login failed or unavailable, attempting direct Supabase Cloud login:', err.message)
+      console.warn('API login failed or returned invalid credentials, attempting direct Supabase Cloud login:', err.message)
       // Supabase Direct Cloud Fallback
       const passHash = await sha256(password)
 
-      const res = await fetch(`${SUPABASE_REST_URL}/users?email=eq.${encodeURIComponent(emailLower)}&select=*`, {
+      const res = await fetch(`${SUPABASE_REST_URL}/users?email=ilike.${encodeURIComponent(emailLower)}&select=*`, {
         headers: {
           'apikey': SUPABASE_KEY,
           'Authorization': `Bearer ${SUPABASE_KEY}`
