@@ -112,7 +112,7 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
   const initMoviesNote = useCallback(async () => {
     setLoadingNote(true)
     const fallbackNote = sanitizeNote({ id: 6, name: 'Movies', title: 'Movies', icon: '🎬', type: 'movie', is_movie: true })
-    const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 2000))
+    const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 10000))
 
     try {
       const dataPromise = window.api.getNotes()
