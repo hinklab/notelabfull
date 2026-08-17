@@ -76,7 +76,14 @@ export const api = {
   deleteNote: (id) => fetchJSON(`${API_BASE}/notes/${id}`, { method: 'DELETE' }),
 
   // Groups
-  getGroups: (note_id) => fetchJSON(`${API_BASE}/groups?note_id=${note_id}`),
+  getGroups: async (note_id) => {
+    try {
+      return await fetchJSON(`${API_BASE}/groups?note_id=${note_id}`)
+    } catch (err) {
+      console.warn('api.getGroups failed, returning empty groups:', err.message)
+      return []
+    }
+  },
   createGroup: (note_id, name) => fetchJSON(`${API_BASE}/groups`, { method: 'POST', body: JSON.stringify({ note_id, name }) }),
   updateGroup: (id, data) => fetchJSON(`${API_BASE}/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteGroup: (id) => fetchJSON(`${API_BASE}/groups/${id}`, { method: 'DELETE' }),
@@ -103,7 +110,14 @@ export const api = {
   searchContent: (type, query) => fetchJSON(`${API_BASE}/content/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query)}`),
   getMovieImages: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/content/images?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}`),
   getFranchiseUniverse: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/franchises/${encodeURIComponent(tmdb_id)}${media_type ? `?media_type=${encodeURIComponent(media_type)}` : ''}`),
-  getViewedFranchises: () => fetchJSON(`${API_BASE}/franchises/viewed`),
+  getViewedFranchises: async () => {
+    try {
+      return await fetchJSON(`${API_BASE}/franchises/viewed`)
+    } catch (err) {
+      console.warn('api.getViewedFranchises failed, returning empty list:', err.message)
+      return []
+    }
+  },
   recordFranchiseView: (data) => fetchJSON(`${API_BASE}/franchises/record-view`, { method: 'POST', body: JSON.stringify(data) }),
 
   // Settings & Profile & Auth
@@ -113,7 +127,14 @@ export const api = {
   resetPasswordEmail: (email, redirectTo) => fetchJSON(`${API_BASE}/auth/reset-password-email`, { method: 'POST', body: JSON.stringify({ email, redirectTo: redirectTo || (typeof window !== 'undefined' ? window.location.origin : undefined) }) }),
 
   // Notifications
-  getNotifications: () => fetchJSON(`${API_BASE}/notifications`),
+  getNotifications: async () => {
+    try {
+      return await fetchJSON(`${API_BASE}/notifications`)
+    } catch (err) {
+      console.warn('api.getNotifications failed, returning empty list:', err.message)
+      return []
+    }
+  },
   markNotificationRead: (id) => fetchJSON(`${API_BASE}/notifications/${id}/read`, { method: 'PATCH' }),
   markAllNotificationsRead: () => fetchJSON(`${API_BASE}/notifications/read-all`, { method: 'POST' }),
   deleteNotification: (id) => fetchJSON(`${API_BASE}/notifications/${id}`, { method: 'DELETE' }),
