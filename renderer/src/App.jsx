@@ -11,15 +11,14 @@ import OnboardingSurvey from './components/modals/OnboardingSurvey.jsx'
 import ChronologySpace from './components/space/ChronologySpace.jsx'
 import { Check, AlertCircle } from 'lucide-react'
 
-function normalizeNoteIcon(icon, fallback = '🎬') {
-  if (typeof icon === 'string' && icon.trim()) return icon
-  if (icon && typeof icon === 'object' && typeof icon.icon === 'string' && icon.icon.trim()) return icon.icon
-  return fallback
+function normalizeNoteIcon(icon, fallback = '') {
+  if (!icon) return fallback
+  return icon
 }
 
 function sanitizeNote(note) {
-  if (!note || typeof note !== 'object') return note
-  return { ...note, icon: normalizeNoteIcon(note.icon, '🎬'), is_movie: true }
+  if (!note) return null
+  return { ...note, is_movie: true }
 }
 
 export default function App() {
@@ -111,7 +110,7 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
 
   const initMoviesNote = useCallback(async () => {
     setLoadingNote(true)
-    const fallbackNote = sanitizeNote({ id: 6, name: 'Movies', title: 'Movies', icon: '🎬', type: 'movie', is_movie: true })
+    const fallbackNote = sanitizeNote({ id: 6, name: 'Movies', title: 'Movies', icon: '', type: 'movie', is_movie: true })
     const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 10000))
 
     try {
@@ -124,7 +123,7 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
 
         if (!movieNote) {
           try {
-            movieNote = await window.api.createNote({ name: 'Movies', icon: '🎬', type: 'movie' })
+            movieNote = await window.api.createNote({ name: 'Movies', icon: '', type: 'movie' })
           } catch {
             movieNote = fallbackNote
           }
@@ -172,7 +171,7 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
     )
   }
 
-  const noteLabel = `${normalizeNoteIcon(activeNote.icon, '🎬')} ${activeNote.name}`
+  const noteLabel = activeNote.name || 'Movies'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg-base)' }}>

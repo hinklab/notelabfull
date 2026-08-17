@@ -391,7 +391,19 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                         {item.name}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, color: '#a1a1aa', marginTop: 4 }}>
-                        <span>{item.is_universe ? '🌌 UNIVERSE' : '🎬 COLLECTION'}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          {item.is_universe ? (
+                            <>
+                              <Sparkles size={11} color="#c084fc" />
+                              <span>UNIVERSE</span>
+                            </>
+                          ) : (
+                            <>
+                              <Film size={11} color="#a1a1aa" />
+                              <span>COLLECTION</span>
+                            </>
+                          )}
+                        </span>
                         <span style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: 6, fontWeight: 600 }}>{countToDisplay} kinolar</span>
                       </div>
                     </button>
@@ -776,7 +788,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                           <span>{movie.release_year || movie.release_date?.split('-')[0] || '-'}</span>
                           {movie.rating ? (
                             <span style={{ color: '#fbbf24', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-                              ★ {movie.rating}
+                              <Star size={11} fill="#fbbf24" color="#fbbf24" /> {movie.rating}
                             </span>
                           ) : null}
                         </div>
@@ -1101,7 +1113,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                 <div style={{ marginTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 16 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#f4f4f5', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>🎬 Film Kadrlari (Sahnalar)</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Film size={14} color="#a78bfa" /> Film Kadrlari (Sahnalar)</span>
                       {backdrops.length > 0 && <span style={{ fontSize: 11, color: '#a1a1aa', fontWeight: 400 }}>({backdrops.length} ta kadr)</span>}
                     </span>
                     <span style={{ fontSize: 11, color: '#a1a1aa' }}>Kattalashtirish uchun bosing</span>

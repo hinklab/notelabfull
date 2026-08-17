@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffe
 import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard from '../cards/MovieCard.jsx'
-import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard } from 'lucide-react'
 
 function hexToRgba(hex, alpha) {
   if (!hex || hex.length < 7) return `rgba(124,58,237,${alpha})`
@@ -807,7 +807,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
           groups={groups}
           onAddItem={async (groupId, data, groupName) => {
             await handleAddItem(groupId, data)
-            setToastMessage(`"${data.title}" "${groupName || 'doska'}" bo'limiga qo'shildi! 🎬`)
+            setToastMessage(`"${data.title}" "${groupName || 'doska'}" bo'limiga qo'shildi!`)
             setTimeout(() => setToastMessage(null), 2800)
           }}
           onSearch={onSearch}
@@ -926,7 +926,10 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Filmga baho bering 🎬</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+                <Clapperboard size={20} color="var(--accent, #a78bfa)" />
+                <span>Filmga baho bering</span>
+              </div>
               <button
                 onClick={() => setRatePromptItem(null)}
                 style={{ border: 'none', background: 'var(--bg-input)', color: 'var(--text-muted)', width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -2209,7 +2212,7 @@ function TmdbFallbackSearchPanel({ search, itemsByGroup, groups, onAddItem, onSe
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>{r.release_year || r.year || '—'}</span>
-                    {r.rating ? <span style={{ color: '#fbbf24', fontWeight: 600 }}>★ {r.rating}</span> : null}
+                    {r.rating ? <span style={{ color: '#fbbf24', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}><Star size={11} fill="#fbbf24" color="#fbbf24" /> {r.rating}</span> : null}
                     <span style={{ background: isFuture ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: isFuture ? '#c084fc' : '#60a5fa', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600 }}>
                       ➔ {destName}
                     </span>

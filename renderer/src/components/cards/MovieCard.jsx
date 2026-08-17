@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom'
-import { Star, Calendar, Clapperboard, X, Trash2, Clock, Sparkles } from 'lucide-react'
+import { Star, Calendar, Clapperboard, X, Trash2, Clock, Sparkles, Film } from 'lucide-react'
 
 function formatVotes(n) {
   if (!n) return null
@@ -372,9 +372,8 @@ export default function MovieCard({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 20,
         }}>
-          🎬
+          <Film size={22} color="var(--text-muted)" />
         </div>
       )}
 
@@ -642,7 +641,7 @@ export default function MovieCard({
                 <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>🎬 Film kadrlar (Sahnalar)</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Film size={14} color="var(--accent, #a78bfa)" /> Film kadrlar (Sahnalar)</span>
                       {backdrops.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>({backdrops.length} ta kadr)</span>}
                     </span>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Kattalashtirish uchun bosing</span>
@@ -752,8 +751,9 @@ export default function MovieCard({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {userRating ? 'Bahoingizni o\'zgartiring 🎬' : 'Filmga baho bering 🎬'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
+                <Clapperboard size={20} color="var(--accent, #a78bfa)" />
+                <span>{userRating ? "Bahoingizni o'zgartiring" : "Filmga baho bering"}</span>
               </div>
               <button
                 onClick={() => setShowRateModal(false)}
