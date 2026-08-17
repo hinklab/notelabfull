@@ -5,6 +5,76 @@ const supabaseKey = process.env.SUPABASE_SERVICE_KEY || ['sb_secret_ILO1', 'JHGl
 const TMDB_KEY = process.env.TMDB_KEY || 'c34d44f722c298573a97a32fc4df383a';
 const OMDB_KEY = process.env.OMDB_KEY || '563e076e';
 
+const FRANCHISE_UNIVERSES = {
+  "mcu": {
+    "name": "Marvel Cinematic Universe",
+    "collection_ids": [131295, 623911, 131292, 131296, 86311, 284433, 422834, 618529, 531241, 529892, 448150, 9485, 284052, 544669],
+    "known_tmdb_ids": [61889, 202555, 128095, 85271, 88396, 67178, 88329, 92749, 92782, 92783, 114472, 154427, 138501, 88397],
+    "chronological_order": [
+      { "id": 1771, "type": "movie" }, { "id": 299537, "type": "movie" }, { "id": 1726, "type": "movie" },
+      { "id": 10138, "type": "movie" }, { "id": 1724, "type": "movie" }, { "id": 10195, "type": "movie" },
+      { "id": 24428, "type": "movie" }, { "id": 68721, "type": "movie" }, { "id": 76338, "type": "movie" },
+      { "id": 100402, "type": "movie" }, { "id": 118340, "type": "movie" }, { "id": 283995, "type": "movie" },
+      { "id": 61889, "type": "tv", "title": "Marvel's Daredevil" }, { "id": 99861, "type": "movie" },
+      { "id": 102899, "type": "movie" }, { "id": 271110, "type": "movie" }, { "id": 497698, "type": "movie" },
+      { "id": 284052, "type": "movie" }, { "id": 315635, "type": "movie" }, { "id": 284053, "type": "movie" },
+      { "id": 284054, "type": "movie" }, { "id": 363088, "type": "movie" }, { "id": 299536, "type": "movie" },
+      { "id": 299534, "type": "movie" }, { "id": 85271, "type": "tv", "title": "WandaVision" },
+      { "id": 88396, "type": "tv", "title": "The Falcon and the Winter Soldier" },
+      { "id": 67178, "type": "tv", "title": "Loki" }, { "id": 429617, "type": "movie" },
+      { "id": 566525, "type": "movie" }, { "id": 524434, "type": "movie" }, { "id": 634649, "type": "movie" },
+      { "id": 453395, "type": "movie" }, { "id": 88329, "type": "tv", "title": "Hawkeye" },
+      { "id": 92749, "type": "tv", "title": "Moon Knight" }, { "id": 92782, "type": "tv", "title": "Ms. Marvel" },
+      { "id": 616037, "type": "movie" }, { "id": 92783, "type": "tv", "title": "She-Hulk: Attorney at Law" },
+      { "id": 505642, "type": "movie" }, { "id": 640146, "type": "movie" }, { "id": 447365, "type": "movie" },
+      { "id": 114472, "type": "tv", "title": "Secret Invasion" }, { "id": 609681, "type": "movie" },
+      { "id": 154427, "type": "tv", "title": "Echo" }, { "id": 533535, "type": "movie" },
+      { "id": 138501, "type": "tv", "title": "Agatha All Along" }, { "id": 822119, "type": "movie" },
+      { "id": 128095, "type": "tv", "title": "Under the Banner of Heaven" },
+      { "id": 202555, "type": "tv", "title": "Daredevil: Born Again" },
+      { "id": 970347, "type": "movie" }, { "id": 838209, "type": "movie" },
+      { "id": 1003596, "type": "movie" }, { "id": 1003598, "type": "movie" }
+    ]
+  },
+  "dceu": {
+    "name": "DC Extended Universe",
+    "collection_ids": [468552, 209112, 297761, 297762, 297802, 287947],
+    "known_tmdb_ids": [],
+    "chronological_order": [
+      { "id": 49529, "type": "movie" }, { "id": 209112, "type": "movie" }, { "id": 297761, "type": "movie" },
+      { "id": 297762, "type": "movie" }, { "id": 141052, "type": "movie" }, { "id": 297802, "type": "movie" },
+      { "id": 287947, "type": "movie" }, { "id": 475557, "type": "movie" }, { "id": 464052, "type": "movie" },
+      { "id": 436969, "type": "movie" }, { "id": 436270, "type": "movie" }, { "id": 594767, "type": "movie" },
+      { "id": 298618, "type": "movie" }, { "id": 565770, "type": "movie" }, { "id": 572802, "type": "movie" }
+    ]
+  },
+  "star_wars": {
+    "name": "Star Wars Universe",
+    "collection_ids": [10, 845946],
+    "known_tmdb_ids": [],
+    "chronological_order": [
+      { "id": 1893, "type": "movie" }, { "id": 1894, "type": "movie" }, { "id": 1895, "type": "movie" },
+      { "id": 330459, "type": "movie" }, { "id": 348350, "type": "movie" }, { "id": 11, "type": "movie" },
+      { "id": 1891, "type": "movie" }, { "id": 1892, "type": "movie" }, { "id": 140607, "type": "movie" },
+      { "id": 181808, "type": "movie" }, { "id": 290859, "type": "movie" }
+    ]
+  },
+  "kurtlar_vadisi": {
+    "name": "Valley of the Wolves (Kurtlar Vadisi) Universe",
+    "collection_ids": [663490],
+    "known_tmdb_ids": [34587, 48253, 49071, 11818, 35747, 58637, 469469],
+    "chronological_order": [
+      { "id": 34587, "type": "tv", "title": "Valley of the Wolves" },
+      { "id": 11818, "type": "movie", "title": "Valley of the Wolves: Iraq" },
+      { "id": 48253, "type": "tv", "title": "Valley of the Wolves: Terror" },
+      { "id": 49071, "type": "tv", "title": "Valley of the Wolves: Ambush" },
+      { "id": 35747, "type": "movie", "title": "Valley of the Wolves: Gladio" },
+      { "id": 58637, "type": "movie", "title": "Valley of the Wolves: Palestine" },
+      { "id": 469469, "type": "movie", "title": "Valley of the Wolves: Homeland" }
+    ]
+  }
+};
+
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: { persistSession: false }
 });
@@ -277,6 +347,226 @@ module.exports = async (req, res) => {
     }
 
     // ═══════════════════════════════════════
+    // FRANCHISES
+    // ═══════════════════════════════════════
+    if (path === 'franchises/viewed' && req.method === 'GET') {
+      const { data } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
+      return res.status(200).json(data?.viewed_franchises || []);
+    }
+    if (path === 'franchises/record-view' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const { data: existing } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
+      let viewed = existing?.viewed_franchises || [];
+      const key = body.universe_key || body.key;
+      viewed = viewed.filter(v => v.universe_key !== key && v.key !== key);
+      viewed.unshift({ universe_key: key, name: body.name || key, movie_count: body.movie_count || 0, last_viewed_at: new Date().toISOString() });
+      await supabase.from('user_settings').upsert({ user_id: userId, viewed_franchises: viewed, updated_at: new Date().toISOString() });
+      return res.status(200).json({ success: true });
+    }
+
+    // GET /api/franchises/:tmdbMovieId
+    const franchiseMatch = path.match(/^franchises\/(\d+)$/);
+    if (franchiseMatch && req.method === 'GET') {
+      const tmdbMovieId = Number(franchiseMatch[1]);
+      const requestedMediaType = query.media_type || 'movie';
+
+      // 1. Fetch movie details from TMDB
+      let movieDetail = null;
+      let actualMediaType = requestedMediaType;
+      try {
+        const primaryUrl = requestedMediaType === 'tv'
+          ? `https://api.themoviedb.org/3/tv/${tmdbMovieId}?api_key=${TMDB_KEY}&language=en-US`
+          : `https://api.themoviedb.org/3/movie/${tmdbMovieId}?api_key=${TMDB_KEY}&language=en-US`;
+        const r1 = await fetch(primaryUrl);
+        if (r1.ok) {
+          movieDetail = await r1.json();
+        } else if (r1.status === 404) {
+          const fallbackUrl = requestedMediaType === 'tv'
+            ? `https://api.themoviedb.org/3/movie/${tmdbMovieId}?api_key=${TMDB_KEY}&language=en-US`
+            : `https://api.themoviedb.org/3/tv/${tmdbMovieId}?api_key=${TMDB_KEY}&language=en-US`;
+          const r2 = await fetch(fallbackUrl);
+          if (r2.ok) {
+            movieDetail = await r2.json();
+            actualMediaType = requestedMediaType === 'tv' ? 'movie' : 'tv';
+          }
+        }
+      } catch (e) {}
+
+      if (!movieDetail) {
+        return res.status(404).json({ error: 'Movie not found on TMDB' });
+      }
+
+      // 2. Check if movie belongs to a curated universe
+      let matchedUniverseKey = null;
+      let matchedUniverse = null;
+
+      for (const [key, universe] of Object.entries(FRANCHISE_UNIVERSES)) {
+        const collectionId = movieDetail.belongs_to_collection?.id;
+        const matchesCollection = collectionId && universe.collection_ids?.includes(collectionId);
+        const matchesKnownId = universe.known_tmdb_ids?.includes(tmdbMovieId);
+        const matchesOrder = universe.chronological_order?.some(item => (typeof item === 'object' ? item.id : item) === tmdbMovieId);
+
+        if (matchesCollection || matchesKnownId || matchesOrder) {
+          matchedUniverseKey = key;
+          matchedUniverse = universe;
+          break;
+        }
+      }
+
+      // Fetch user's movies from Supabase for board comparison
+      const { data: userMoviesData } = await supabase.from('movies').select('*').eq('user_id', userId);
+      const userMovies = userMoviesData || [];
+
+      // Helper to check user board match
+      const checkBoardMatch = (tmdbId) => {
+        const found = userMovies.find(m => Number(m.tmdb_id) === Number(tmdbId));
+        return { in_board: !!found, user_movie: found || null };
+      };
+
+      if (matchedUniverse) {
+        // Case A: Curated Universe
+        const rawItems = matchedUniverse.chronological_order;
+        const movies = await Promise.all(
+          rawItems.map(async (item, index) => {
+            const tmdbId = typeof item === 'object' ? item.id : item;
+            const itemType = (typeof item === 'object' && item.type) ? item.type : 'movie';
+            const boardStatus = checkBoardMatch(tmdbId);
+
+            if (boardStatus.user_movie) {
+              const um = boardStatus.user_movie;
+              return {
+                tmdb_id: tmdbId,
+                media_type: um.media_type || itemType,
+                title: um.title,
+                release_date: um.release_date,
+                release_year: um.release_year,
+                rating: um.rating,
+                poster_path: um.poster_path,
+                overview: um.overview,
+                chronology_index: index + 1,
+                in_board: true,
+                user_movie: um
+              };
+            }
+
+            try {
+              const itemUrl = `https://api.themoviedb.org/3/${itemType}/${tmdbId}?api_key=${TMDB_KEY}&language=en-US`;
+              const ir = await fetch(itemUrl);
+              if (ir.ok) {
+                const idata = await ir.json();
+                const releaseDate = idata.release_date || idata.first_air_date || null;
+                return {
+                  tmdb_id: tmdbId,
+                  media_type: itemType,
+                  title: idata.title || idata.name || item.title || 'Untitled',
+                  release_date: releaseDate,
+                  release_year: releaseDate ? releaseDate.split('-')[0] : '-',
+                  rating: idata.vote_average ? Number(idata.vote_average.toFixed(1)) : null,
+                  poster_path: idata.poster_path ? `https://image.tmdb.org/t/p/w500${idata.poster_path}` : null,
+                  overview: idata.overview || '',
+                  chronology_index: index + 1,
+                  in_board: false,
+                  user_movie: null
+                };
+              }
+            } catch (e) {}
+
+            return {
+              tmdb_id: tmdbId,
+              media_type: itemType,
+              title: item.title || `Movie ${tmdbId}`,
+              release_date: null,
+              release_year: '-',
+              rating: null,
+              poster_path: null,
+              overview: '',
+              chronology_index: index + 1,
+              in_board: false,
+              user_movie: null
+            };
+          })
+        );
+
+        return res.status(200).json({
+          universe_key: matchedUniverseKey,
+          universe_name: matchedUniverse.name,
+          collection_name: movieDetail.belongs_to_collection?.name || null,
+          is_universe: true,
+          total_movies: movies.length,
+          in_board_count: movies.filter(m => m.in_board).length,
+          movies
+        });
+      }
+
+      // Case B: TMDB Collection (unmapped universe)
+      if (movieDetail.belongs_to_collection) {
+        const collectionId = movieDetail.belongs_to_collection.id;
+        try {
+          const colUrl = `https://api.themoviedb.org/3/collection/${collectionId}?api_key=${TMDB_KEY}&language=en-US`;
+          const cr = await fetch(colUrl);
+          if (cr.ok) {
+            const colData = await cr.json();
+            const rawParts = colData.parts || [];
+            rawParts.sort((a, b) => (a.release_date || '').localeCompare(b.release_date || ''));
+
+            const movies = rawParts.map((part, index) => {
+              const boardStatus = checkBoardMatch(part.id);
+              const releaseDate = part.release_date || null;
+              return {
+                tmdb_id: part.id,
+                media_type: 'movie',
+                title: part.title || 'Untitled',
+                release_date: releaseDate,
+                release_year: releaseDate ? releaseDate.split('-')[0] : '-',
+                rating: part.vote_average ? Number(part.vote_average.toFixed(1)) : null,
+                poster_path: part.poster_path ? `https://image.tmdb.org/t/p/w500${part.poster_path}` : null,
+                overview: part.overview || '',
+                chronology_index: index + 1,
+                in_board: boardStatus.in_board,
+                user_movie: boardStatus.user_movie
+              };
+            });
+
+            return res.status(200).json({
+              universe_key: null,
+              universe_name: null,
+              collection_name: colData.name || movieDetail.belongs_to_collection.name,
+              is_universe: false,
+              total_movies: movies.length,
+              in_board_count: movies.filter(m => m.in_board).length,
+              movies
+            });
+          }
+        } catch (e) {}
+      }
+
+      // Case C: Standalone Movie
+      const boardStatus = checkBoardMatch(tmdbMovieId);
+      const releaseDate = movieDetail.release_date || movieDetail.first_air_date || null;
+      return res.status(200).json({
+        universe_key: null,
+        universe_name: null,
+        collection_name: null,
+        is_universe: false,
+        total_movies: 1,
+        in_board_count: boardStatus.in_board ? 1 : 0,
+        movies: [{
+          tmdb_id: tmdbMovieId,
+          media_type: actualMediaType,
+          title: movieDetail.title || movieDetail.name || 'Untitled',
+          release_date: releaseDate,
+          release_year: releaseDate ? releaseDate.split('-')[0] : '-',
+          rating: movieDetail.vote_average ? Number(movieDetail.vote_average.toFixed(1)) : null,
+          poster_path: movieDetail.poster_path ? `https://image.tmdb.org/t/p/w500${movieDetail.poster_path}` : null,
+          overview: movieDetail.overview || '',
+          chronology_index: 1,
+          in_board: boardStatus.in_board,
+          user_movie: boardStatus.user_movie
+        }]
+      });
+    }
+
+    // ═══════════════════════════════════════
     // NOTIFICATIONS
     // ═══════════════════════════════════════
     if (path === 'notifications' && req.method === 'GET') {
@@ -308,24 +598,6 @@ module.exports = async (req, res) => {
     if (path === 'settings' && req.method === 'PUT') {
       const body = await parseBody(req);
       await supabase.from('user_settings').upsert({ ...body, user_id: userId, updated_at: new Date().toISOString() });
-      return res.status(200).json({ success: true });
-    }
-
-    // ═══════════════════════════════════════
-    // FRANCHISES
-    // ═══════════════════════════════════════
-    if (path === 'franchises/viewed' && req.method === 'GET') {
-      const { data } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
-      return res.status(200).json(data?.viewed_franchises || []);
-    }
-    if (path === 'franchises/record-view' && req.method === 'POST') {
-      const body = await parseBody(req);
-      const { data: existing } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
-      let viewed = existing?.viewed_franchises || [];
-      const key = body.universe_key || body.key;
-      viewed = viewed.filter(v => v.universe_key !== key && v.key !== key);
-      viewed.unshift({ universe_key: key, name: body.name || key, movie_count: body.movie_count || 0, last_viewed_at: new Date().toISOString() });
-      await supabase.from('user_settings').upsert({ user_id: userId, viewed_franchises: viewed, updated_at: new Date().toISOString() });
       return res.status(200).json({ success: true });
     }
 
