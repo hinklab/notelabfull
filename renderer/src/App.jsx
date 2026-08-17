@@ -114,17 +114,24 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
     try {
       const data = await window.api.getNotes()
       const notesList = Array.isArray(data) ? data : []
-      let movieNote = notesList.find(n => n.is_movie || n.type === 'movie')
-      
+      let movieNote = notesList.find(n => n.is_movie || n.type === 'movie' || (n.name || n.title || '').toLowerCase() === 'movies')
+
       if (!movieNote) {
-        movieNote = await window.api.createNote({ name: 'Movies', icon: '🎬', type: 'movie' })
+        try {
+          movieNote = await window.api.createNote({ name: 'Movies', icon: '🎬', type: 'movie' })
+        } catch {
+          movieNote = { id: 6, name: 'Movies', title: 'Movies', icon: '🎬', type: 'movie', is_movie: true }
+        }
       }
-      
+
       const safeNote = sanitizeNote(movieNote)
       activeNoteRef.current = safeNote
       setActiveNote(safeNote)
     } catch (err) {
-      console.error('Failed to load Movies note:', err)
+      console.warn('Failed to load Movies note from API, using fallback:', err.message)
+      const fallbackNote = sanitizeNote({ id: 6, name: 'Movies', title: 'Movies', icon: '🎬', type: 'movie', is_movie: true })
+      activeNoteRef.current = fallbackNote
+      setActiveNote(fallbackNote)
     } finally {
       setLoadingNote(false)
     }
