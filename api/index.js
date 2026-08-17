@@ -11,29 +11,66 @@ const FRANCHISE_UNIVERSES = {
     "collection_ids": [131295, 623911, 131292, 131296, 86311, 284433, 422834, 618529, 531241, 529892, 448150, 9485, 284052, 544669],
     "known_tmdb_ids": [61889, 202555, 128095, 85271, 88396, 67178, 88329, 92749, 92782, 92783, 114472, 154427, 138501, 88397],
     "chronological_order": [
-      { "id": 1771, "type": "movie" }, { "id": 299537, "type": "movie" }, { "id": 1726, "type": "movie" },
-      { "id": 10138, "type": "movie" }, { "id": 1724, "type": "movie" }, { "id": 10195, "type": "movie" },
-      { "id": 24428, "type": "movie" }, { "id": 68721, "type": "movie" }, { "id": 76338, "type": "movie" },
-      { "id": 100402, "type": "movie" }, { "id": 118340, "type": "movie" }, { "id": 283995, "type": "movie" },
-      { "id": 61889, "type": "tv", "title": "Marvel's Daredevil" }, { "id": 99861, "type": "movie" },
-      { "id": 102899, "type": "movie" }, { "id": 271110, "type": "movie" }, { "id": 497698, "type": "movie" },
-      { "id": 284052, "type": "movie" }, { "id": 315635, "type": "movie" }, { "id": 284053, "type": "movie" },
-      { "id": 284054, "type": "movie" }, { "id": 363088, "type": "movie" }, { "id": 299536, "type": "movie" },
-      { "id": 299534, "type": "movie" }, { "id": 85271, "type": "tv", "title": "WandaVision" },
-      { "id": 88396, "type": "tv", "title": "The Falcon and the Winter Soldier" },
-      { "id": 67178, "type": "tv", "title": "Loki" }, { "id": 429617, "type": "movie" },
-      { "id": 566525, "type": "movie" }, { "id": 524434, "type": "movie" }, { "id": 634649, "type": "movie" },
-      { "id": 453395, "type": "movie" }, { "id": 88329, "type": "tv", "title": "Hawkeye" },
-      { "id": 92749, "type": "tv", "title": "Moon Knight" }, { "id": 92782, "type": "tv", "title": "Ms. Marvel" },
-      { "id": 616037, "type": "movie" }, { "id": 92783, "type": "tv", "title": "She-Hulk: Attorney at Law" },
-      { "id": 505642, "type": "movie" }, { "id": 640146, "type": "movie" }, { "id": 447365, "type": "movie" },
-      { "id": 114472, "type": "tv", "title": "Secret Invasion" }, { "id": 609681, "type": "movie" },
-      { "id": 154427, "type": "tv", "title": "Echo" }, { "id": 533535, "type": "movie" },
-      { "id": 138501, "type": "tv", "title": "Agatha All Along" }, { "id": 822119, "type": "movie" },
-      { "id": 128095, "type": "tv", "title": "Under the Banner of Heaven" },
-      { "id": 202555, "type": "tv", "title": "Daredevil: Born Again" },
-      { "id": 970347, "type": "movie" }, { "id": 838209, "type": "movie" },
-      { "id": 1003596, "type": "movie" }, { "id": 1003598, "type": "movie" }
+      { "id": 1771, "type": "movie", "title": "Captain America: The First Avenger", "stage": 0, "lane": 0, "connects_to": [24428] },
+      { "id": 299537, "type": "movie", "title": "Captain Marvel", "stage": 0, "lane": 1, "connects_to": [24428] },
+      { "id": 1726, "type": "movie", "title": "Iron Man", "stage": 0, "lane": 2, "connects_to": [10138] },
+      { "id": 10138, "type": "movie", "title": "Iron Man 2", "stage": 1, "lane": 2, "connects_to": [24428] },
+      { "id": 1724, "type": "movie", "title": "The Incredible Hulk", "stage": 1, "lane": 0, "connects_to": [24428] },
+      { "id": 10195, "type": "movie", "title": "Thor", "stage": 1, "lane": 1, "connects_to": [24428] },
+
+      { "id": 24428, "type": "movie", "title": "The Avengers", "stage": 2, "lane": 1, "connects_to": [68721, 76338, 100402] },
+
+      { "id": 68721, "type": "movie", "title": "Iron Man 3", "stage": 3, "lane": 2, "connects_to": [99861] },
+      { "id": 76338, "type": "movie", "title": "Thor: The Dark World", "stage": 3, "lane": 1, "connects_to": [118340] },
+      { "id": 118340, "type": "movie", "title": "Guardians of the Galaxy", "stage": 3, "lane": 0, "connects_to": [283995] },
+      { "id": 283995, "type": "movie", "title": "Guardians of the Galaxy Vol. 2", "stage": 4, "lane": 0, "connects_to": [299536] },
+      { "id": 100402, "type": "movie", "title": "Captain America: The Winter Soldier", "stage": 3, "lane": 3, "connects_to": [99861, 61889] },
+      { "id": 61889, "type": "tv", "title": "Marvel's Daredevil", "stage": 4, "lane": 3, "connects_to": [202555] },
+
+      { "id": 99861, "type": "movie", "title": "Avengers: Age of Ultron", "stage": 4, "lane": 1, "connects_to": [102899, 271110] },
+      { "id": 102899, "type": "movie", "title": "Ant-Man", "stage": 4, "lane": 2, "connects_to": [271110] },
+
+      { "id": 271110, "type": "movie", "title": "Captain America: Civil War", "stage": 5, "lane": 1, "connects_to": [497698, 284052, 315635, 284054] },
+
+      { "id": 497698, "type": "movie", "title": "Black Widow", "stage": 6, "lane": 0, "connects_to": [299536] },
+      { "id": 284052, "type": "movie", "title": "Black Panther", "stage": 6, "lane": 1, "connects_to": [299536] },
+      { "id": 315635, "type": "movie", "title": "Spider-Man: Homecoming", "stage": 6, "lane": 2, "connects_to": [299536] },
+      { "id": 284054, "type": "movie", "title": "Doctor Strange", "stage": 6, "lane": 3, "connects_to": [284053] },
+      { "id": 284053, "type": "movie", "title": "Thor: Ragnarok", "stage": 7, "lane": 3, "connects_to": [299536] },
+      { "id": 363088, "type": "movie", "title": "Ant-Man and the Wasp", "stage": 7, "lane": 2, "connects_to": [299534] },
+
+      { "id": 299536, "type": "movie", "title": "Avengers: Infinity War", "stage": 8, "lane": 1, "connects_to": [299534] },
+      { "id": 299534, "type": "movie", "title": "Avengers: Endgame", "stage": 9, "lane": 1, "connects_to": [85271, 88396, 67178, 429617] },
+
+      { "id": 67178, "type": "tv", "title": "Loki", "stage": 10, "lane": 0, "connects_to": [634649] },
+      { "id": 85271, "type": "tv", "title": "WandaVision", "stage": 10, "lane": 1, "connects_to": [453395] },
+      { "id": 429617, "type": "movie", "title": "Spider-Man: Far From Home", "stage": 10, "lane": 2, "connects_to": [634649] },
+      { "id": 88396, "type": "tv", "title": "The Falcon and the Winter Soldier", "stage": 10, "lane": 3, "connects_to": [88329] },
+      { "id": 566525, "type": "movie", "title": "Shang-Chi and the Legend of the Ten Rings", "stage": 10, "lane": 4, "connects_to": [] },
+
+      { "id": 634649, "type": "movie", "title": "Spider-Man: No Way Home", "stage": 11, "lane": 2, "connects_to": [453395] },
+      { "id": 453395, "type": "movie", "title": "Doctor Strange in the Multiverse of Madness", "stage": 12, "lane": 1, "connects_to": [138501] },
+      { "id": 88329, "type": "tv", "title": "Hawkeye", "stage": 11, "lane": 3, "connects_to": [154427] },
+      { "id": 154427, "type": "tv", "title": "Echo", "stage": 12, "lane": 3, "connects_to": [202555] },
+      { "id": 202555, "type": "tv", "title": "Daredevil: Born Again", "stage": 13, "lane": 3, "connects_to": [] },
+
+      { "id": 524434, "type": "movie", "title": "Eternals", "stage": 11, "lane": 0, "connects_to": [] },
+      { "id": 92749, "type": "tv", "title": "Moon Knight", "stage": 11, "lane": 4, "connects_to": [] },
+      { "id": 92782, "type": "tv", "title": "Ms. Marvel", "stage": 11, "lane": 5, "connects_to": [609681] },
+      { "id": 616037, "type": "movie", "title": "Thor: Love and Thunder", "stage": 12, "lane": 0, "connects_to": [] },
+      { "id": 92783, "type": "tv", "title": "She-Hulk: Attorney at Law", "stage": 12, "lane": 4, "connects_to": [] },
+      { "id": 505642, "type": "movie", "title": "Black Panther: Wakanda Forever", "stage": 12, "lane": 2, "connects_to": [] },
+      { "id": 640146, "type": "movie", "title": "Ant-Man and the Wasp: Quantumania", "stage": 13, "lane": 0, "connects_to": [] },
+      { "id": 447365, "type": "movie", "title": "Guardians of the Galaxy Vol. 3", "stage": 13, "lane": 1, "connects_to": [] },
+      { "id": 114472, "type": "tv", "title": "Secret Invasion", "stage": 13, "lane": 4, "connects_to": [609681] },
+      { "id": 609681, "type": "movie", "title": "The Marvels", "stage": 14, "lane": 1, "connects_to": [] },
+      { "id": 138501, "type": "tv", "title": "Agatha All Along", "stage": 13, "lane": 2, "connects_to": [] },
+      { "id": 533535, "type": "movie", "title": "Deadpool & Wolverine", "stage": 14, "lane": 2, "connects_to": [] },
+      { "id": 822119, "type": "movie", "title": "Captain America: Brave New World", "stage": 14, "lane": 3, "connects_to": [970347] },
+      { "id": 970347, "type": "movie", "title": "Thunderbolts*", "stage": 15, "lane": 3, "connects_to": [] },
+      { "id": 838209, "type": "movie", "title": "The Fantastic Four: First Steps", "stage": 15, "lane": 1, "connects_to": [1003596] },
+      { "id": 1003596, "type": "movie", "title": "Avengers: Doomsday", "stage": 16, "lane": 1, "connects_to": [1003598] },
+      { "id": 1003598, "type": "movie", "title": "Avengers: Secret Wars", "stage": 17, "lane": 1, "connects_to": [] }
     ]
   },
   "dceu": {
@@ -41,11 +78,16 @@ const FRANCHISE_UNIVERSES = {
     "collection_ids": [468552, 209112, 297761, 297762, 297802, 287947],
     "known_tmdb_ids": [],
     "chronological_order": [
-      { "id": 49529, "type": "movie" }, { "id": 209112, "type": "movie" }, { "id": 297761, "type": "movie" },
-      { "id": 297762, "type": "movie" }, { "id": 141052, "type": "movie" }, { "id": 297802, "type": "movie" },
-      { "id": 287947, "type": "movie" }, { "id": 475557, "type": "movie" }, { "id": 464052, "type": "movie" },
-      { "id": 436969, "type": "movie" }, { "id": 436270, "type": "movie" }, { "id": 594767, "type": "movie" },
-      { "id": 298618, "type": "movie" }, { "id": 565770, "type": "movie" }, { "id": 572802, "type": "movie" }
+      { "id": 49529, "type": "movie", "title": "Wonder Woman", "stage": 0, "lane": 0, "connects_to": [209112] },
+      { "id": 209112, "type": "movie", "title": "Batman v Superman: Dawn of Justice", "stage": 1, "lane": 1, "connects_to": [297761, 141052] },
+      { "id": 297761, "type": "movie", "title": "Suicide Squad", "stage": 2, "lane": 0, "connects_to": [436969] },
+      { "id": 141052, "type": "movie", "title": "Justice League", "stage": 2, "lane": 1, "connects_to": [297802, 287947, 436270] },
+      { "id": 297802, "type": "movie", "title": "Aquaman", "stage": 3, "lane": 0, "connects_to": [572802] },
+      { "id": 287947, "type": "movie", "title": "Shazam!", "stage": 3, "lane": 1, "connects_to": [594767] },
+      { "id": 436969, "type": "movie", "title": "The Suicide Squad", "stage": 3, "lane": 2, "connects_to": [565770] },
+      { "id": 436270, "type": "movie", "title": "Black Adam", "stage": 4, "lane": 1, "connects_to": [565770] },
+      { "id": 298618, "type": "movie", "title": "The Flash", "stage": 4, "lane": 0, "connects_to": [572802] },
+      { "id": 572802, "type": "movie", "title": "Aquaman and the Lost Kingdom", "stage": 5, "lane": 1, "connects_to": [] }
     ]
   },
   "star_wars": {
@@ -53,10 +95,17 @@ const FRANCHISE_UNIVERSES = {
     "collection_ids": [10, 845946],
     "known_tmdb_ids": [],
     "chronological_order": [
-      { "id": 1893, "type": "movie" }, { "id": 1894, "type": "movie" }, { "id": 1895, "type": "movie" },
-      { "id": 330459, "type": "movie" }, { "id": 348350, "type": "movie" }, { "id": 11, "type": "movie" },
-      { "id": 1891, "type": "movie" }, { "id": 1892, "type": "movie" }, { "id": 140607, "type": "movie" },
-      { "id": 181808, "type": "movie" }, { "id": 290859, "type": "movie" }
+      { "id": 1893, "type": "movie", "title": "Star Wars: Episode I - The Phantom Menace", "stage": 0, "lane": 0, "connects_to": [1894] },
+      { "id": 1894, "type": "movie", "title": "Star Wars: Episode II - Attack of the Clones", "stage": 1, "lane": 0, "connects_to": [1895] },
+      { "id": 1895, "type": "movie", "title": "Star Wars: Episode III - Revenge of the Sith", "stage": 2, "lane": 0, "connects_to": [348350, 330459] },
+      { "id": 348350, "type": "movie", "title": "Solo: A Star Wars Story", "stage": 3, "lane": 0, "connects_to": [330459] },
+      { "id": 330459, "type": "movie", "title": "Rogue One: A Star Wars Story", "stage": 4, "lane": 0, "connects_to": [11] },
+      { "id": 11, "type": "movie", "title": "Star Wars: Episode IV - A New Hope", "stage": 5, "lane": 0, "connects_to": [1891] },
+      { "id": 1891, "type": "movie", "title": "Star Wars: Episode V - The Empire Strikes Back", "stage": 6, "lane": 0, "connects_to": [1892] },
+      { "id": 1892, "type": "movie", "title": "Star Wars: Episode VI - Return of the Jedi", "stage": 7, "lane": 0, "connects_to": [140607] },
+      { "id": 140607, "type": "movie", "title": "Star Wars: Episode VII - The Force Awakens", "stage": 8, "lane": 0, "connects_to": [181808] },
+      { "id": 181808, "type": "movie", "title": "Star Wars: Episode VIII - The Last Jedi", "stage": 9, "lane": 0, "connects_to": [290859] },
+      { "id": 290859, "type": "movie", "title": "Star Wars: Episode IX - The Rise of Skywalker", "stage": 10, "lane": 0, "connects_to": [] }
     ]
   },
   "kurtlar_vadisi": {
@@ -64,13 +113,13 @@ const FRANCHISE_UNIVERSES = {
     "collection_ids": [663490],
     "known_tmdb_ids": [34587, 48253, 49071, 11818, 35747, 58637, 469469],
     "chronological_order": [
-      { "id": 34587, "type": "tv", "title": "Valley of the Wolves" },
-      { "id": 11818, "type": "movie", "title": "Valley of the Wolves: Iraq" },
-      { "id": 48253, "type": "tv", "title": "Valley of the Wolves: Terror" },
-      { "id": 49071, "type": "tv", "title": "Valley of the Wolves: Ambush" },
-      { "id": 35747, "type": "movie", "title": "Valley of the Wolves: Gladio" },
-      { "id": 58637, "type": "movie", "title": "Valley of the Wolves: Palestine" },
-      { "id": 469469, "type": "movie", "title": "Valley of the Wolves: Homeland" }
+      { "id": 34587, "type": "tv", "title": "Valley of the Wolves (Original Series)", "stage": 0, "lane": 0, "connects_to": [11818, 48253] },
+      { "id": 11818, "type": "movie", "title": "Valley of the Wolves: Iraq", "stage": 1, "lane": 0, "connects_to": [49071] },
+      { "id": 48253, "type": "tv", "title": "Valley of the Wolves: Terror", "stage": 1, "lane": 1, "connects_to": [49071] },
+      { "id": 49071, "type": "tv", "title": "Valley of the Wolves: Ambush", "stage": 2, "lane": 0, "connects_to": [35747, 58637] },
+      { "id": 35747, "type": "movie", "title": "Valley of the Wolves: Gladio", "stage": 3, "lane": 0, "connects_to": [469469] },
+      { "id": 58637, "type": "movie", "title": "Valley of the Wolves: Palestine", "stage": 3, "lane": 1, "connects_to": [469469] },
+      { "id": 469469, "type": "movie", "title": "Valley of the Wolves: Homeland", "stage": 4, "lane": 0, "connects_to": [] }
     ]
   }
 };
@@ -455,6 +504,10 @@ module.exports = async (req, res) => {
             const itemType = (typeof item === 'object' && item.type) ? item.type : 'movie';
             const boardStatus = checkBoardMatch(tmdbId);
 
+            const stage = (typeof item === 'object' && item.stage !== undefined) ? item.stage : null;
+            const lane = (typeof item === 'object' && item.lane !== undefined) ? item.lane : null;
+            const connects_to = (typeof item === 'object' && Array.isArray(item.connects_to)) ? item.connects_to : [];
+
             if (boardStatus.user_movie) {
               const um = boardStatus.user_movie;
               return {
@@ -467,6 +520,9 @@ module.exports = async (req, res) => {
                 poster_path: um.poster_path,
                 overview: um.overview,
                 chronology_index: index + 1,
+                stage,
+                lane,
+                connects_to,
                 in_board: true,
                 user_movie: um
               };
@@ -488,6 +544,9 @@ module.exports = async (req, res) => {
                   poster_path: idata.poster_path ? `https://image.tmdb.org/t/p/w500${idata.poster_path}` : null,
                   overview: idata.overview || '',
                   chronology_index: index + 1,
+                  stage,
+                  lane,
+                  connects_to,
                   in_board: false,
                   user_movie: null
                 };
@@ -504,6 +563,9 @@ module.exports = async (req, res) => {
               poster_path: null,
               overview: '',
               chronology_index: index + 1,
+              stage,
+              lane,
+              connects_to,
               in_board: false,
               user_movie: null
             };

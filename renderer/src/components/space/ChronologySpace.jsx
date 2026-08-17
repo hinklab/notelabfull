@@ -394,63 +394,79 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
         {(() => {
           const CARD_W = 280
           const CARD_H = 96
-          const COL_STEP = 410
-          const ROW_STEP = 136
-          const BASE_Y = 280
+          const COL_STEP = 390
+          const ROW_STEP = 132
+          const BASE_Y = 240
 
-          // Calculate multi-branch stages: e.g. [2, 3, 1, 3, 1, 3, 2, 3, 1, 3]
-          const pattern = movies.length <= 4 ? [1, 1, 1, 1] : [2, 3, 1, 3, 1, 3, 2, 3, 1, 3, 2, 3]
-          const stages = []
-          let curIdx = 0
-          let pIdx = 0
-
-          while (curIdx < movies.length) {
-            const size = Math.min(pattern[pIdx % pattern.length], movies.length - curIdx)
-            stages.push(movies.slice(curIdx, curIdx + size))
-            curIdx += size
-            pIdx++
-          }
-
-          // Build positioned node list and connection links
+          const hasExplicitLayout = movies.some(m => m.stage !== null && m.stage !== undefined)
           const positionedNodes = []
           const connections = []
 
-          stages.forEach((stageMovies, stageIdx) => {
-            const totalInStage = stageMovies.length
-            const stageNodes = stageMovies.map((movie, rowIdx) => {
-              const x = (sidebarOpen ? 180 : 80) + stageIdx * COL_STEP
-              const y = BASE_Y + (rowIdx - (totalInStage - 1) / 2) * ROW_STEP
-              const node = { movie, x, y, stageIdx, rowIdx, id: movie.tmdb_id || `${stageIdx}_${rowIdx}` }
-              positionedNodes.push(node)
-              return node
+          if (hasExplicitLayout) {
+            // 1. Position nodes based on canonical story stages and character lanes
+            movies.forEach((movie, idx) => {
+              const stage = movie.stage !== undefined && movie.stage !== null ? movie.stage : idx
+              const lane = movie.lane !== undefined && movie.lane !== null ? movie.lane : 0
+              const x = (sidebarOpen ? 180 : 80) + stage * COL_STEP
+              const y = BASE_Y + lane * ROW_STEP
+              positionedNodes.push({ movie, x, y, id: movie.tmdb_id || idx, stage, lane })
             })
 
-            // Generate bezier connections to previous stage
-            if (stageIdx > 0) {
-              const prevStageNodes = positionedNodes.filter(n => n.stageIdx === stageIdx - 1)
-              
-              if (prevStageNodes.length === 1) {
-                // Expansion: 1 preceding node connects to all nodes in current stage
-                stageNodes.forEach(target => {
-                  connections.push({ from: prevStageNodes[0], to: target })
-                })
-              } else if (stageNodes.length === 1) {
-                // Convergence: all preceding nodes merge into the single target node
-                prevStageNodes.forEach(source => {
-                  connections.push({ from: source, to: stageNodes[0] })
-                })
-              } else {
-                // Parallel tracks: connect matching tracks or distribute
-                prevStageNodes.forEach((source, sIdx) => {
-                  const targetIdx = Math.min(sIdx, stageNodes.length - 1)
-                  connections.push({ from: source, to: stageNodes[targetIdx] })
-                })
-              }
+            // 2. Build explicit DAG connections from connects_to
+            positionedNodes.forEach(source => {
+              const targets = source.movie.connects_to || []
+              targets.forEach(targetId => {
+                const targetNode = positionedNodes.find(n => Number(n.movie.tmdb_id) === Number(targetId))
+                if (targetNode) {
+                  connections.push({ from: source, to: targetNode })
+                }
+              })
+            })
+          } else {
+            // Fallback: Intelligent multi-branch stages for general collections
+            const pattern = movies.length <= 4 ? [1, 1, 1, 1] : [2, 3, 1, 3, 1, 3, 2, 3, 1, 3, 2, 3]
+            const stages = []
+            let curIdx = 0
+            let pIdx = 0
+
+            while (curIdx < movies.length) {
+              const size = Math.min(pattern[pIdx % pattern.length], movies.length - curIdx)
+              stages.push(movies.slice(curIdx, curIdx + size))
+              curIdx += size
+              pIdx++
             }
-          })
+
+            stages.forEach((stageMovies, stageIdx) => {
+              const totalInStage = stageMovies.length
+              const stageNodes = stageMovies.map((movie, rowIdx) => {
+                const x = (sidebarOpen ? 180 : 80) + stageIdx * COL_STEP
+                const y = BASE_Y + (rowIdx - (totalInStage - 1) / 2) * ROW_STEP
+                const node = { movie, x, y, stageIdx, rowIdx, id: movie.tmdb_id || `${stageIdx}_${rowIdx}` }
+                positionedNodes.push(node)
+                return node
+              })
+
+              if (stageIdx > 0) {
+                const prevStageNodes = positionedNodes.filter(n => n.stageIdx === stageIdx - 1)
+                if (prevStageNodes.length === 1) {
+                  stageNodes.forEach(target => connections.push({ from: prevStageNodes[0], to: target }))
+                } else if (stageNodes.length === 1) {
+                  prevStageNodes.forEach(source => connections.push({ from: source, to: stageNodes[0] }))
+                } else {
+                  prevStageNodes.forEach((source, sIdx) => {
+                    const targetIdx = Math.min(sIdx, stageNodes.length - 1)
+                    connections.push({ from: source, to: stageNodes[targetIdx] })
+                  })
+                }
+              }
+            })
+          }
+
+          const maxX = Math.max(...positionedNodes.map(n => n.x), 1000)
+          const maxY = Math.max(...positionedNodes.map(n => n.y), 800)
 
           return (
-            <div style={{ position: 'relative', width: (stages.length + 1) * COL_STEP + 400, height: 1600 }}>
+            <div style={{ position: 'relative', width: maxX + 600, height: maxY + 400 }}>
               {/* SVG Layer for Bezier Connection Cables & Junctions */}
               <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
                 <defs>
