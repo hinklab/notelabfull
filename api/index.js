@@ -351,17 +351,38 @@ module.exports = async (req, res) => {
     // ═══════════════════════════════════════
     if (path === 'franchises/viewed' && req.method === 'GET') {
       const { data } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
-      return res.status(200).json(data?.viewed_franchises || []);
+      let viewed = data?.viewed_franchises || [];
+
+      // If user hasn't viewed any custom franchise yet, provide the curated universe defaults
+      if (!Array.isArray(viewed) || viewed.length === 0) {
+        viewed = [
+          { key: 'mcu', universe_key: 'mcu', tmdb_id: 1726, media_type: 'movie', name: 'Marvel Cinematic Universe', is_universe: true, total_movies: 52, last_viewed_at: new Date().toISOString() },
+          { key: 'star_wars', universe_key: 'star_wars', tmdb_id: 11, media_type: 'movie', name: 'Star Wars Universe', is_universe: true, total_movies: 11, last_viewed_at: new Date().toISOString() },
+          { key: 'dceu', universe_key: 'dceu', tmdb_id: 49529, media_type: 'movie', name: 'DC Extended Universe', is_universe: true, total_movies: 15, last_viewed_at: new Date().toISOString() },
+          { key: 'kurtlar_vadisi', universe_key: 'kurtlar_vadisi', tmdb_id: 34587, media_type: 'tv', name: 'Valley of the Wolves (Kurtlar Vadisi)', is_universe: true, total_movies: 7, last_viewed_at: new Date().toISOString() }
+        ];
+      }
+
+      return res.status(200).json(viewed);
     }
     if (path === 'franchises/record-view' && req.method === 'POST') {
       const body = await parseBody(req);
       const { data: existing } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
       let viewed = existing?.viewed_franchises || [];
-      const key = body.universe_key || body.key;
-      viewed = viewed.filter(v => v.universe_key !== key && v.key !== key);
-      viewed.unshift({ universe_key: key, name: body.name || key, movie_count: body.movie_count || 0, last_viewed_at: new Date().toISOString() });
-      await supabase.from('user_settings').upsert({ user_id: userId, viewed_franchises: viewed, updated_at: new Date().toISOString() });
-      return res.status(200).json({ success: true });
+      const key = body.universe_key || body.key || (body.tmdb_id ? `movie_${body.tmdb_id}` : body.name);
+      viewed = viewed.filter(v => v.universe_key !== key && v.key !== key && String(v.tmdb_id) !== String(body.tmdb_id));
+      viewed.unshift({
+        key,
+        universe_key: body.universe_key || null,
+        tmdb_id: body.tmdb_id ? Number(body.tmdb_id) : null,
+        media_type: body.media_type || 'movie',
+        name: body.name || key,
+        is_universe: !!body.is_universe,
+        total_movies: body.total_movies || body.movie_count || 0,
+        last_viewed_at: new Date().toISOString()
+      });
+      await supabase.from('user_settings').upsert({ user_id: userId, viewed_franchises: viewed.slice(0, 50), updated_at: new Date().toISOString() });
+      return res.status(200).json({ success: true, viewed_franchises: viewed });
     }
 
     // GET /api/franchises/:tmdbMovieId
@@ -422,6 +443,8 @@ module.exports = async (req, res) => {
         const found = userMovies.find(m => Number(m.tmdb_id) === Number(tmdbId));
         return { in_board: !!found, user_movie: found || null };
       };
+
+      let finalResult = null;
 
       if (matchedUniverse) {
         // Case A: Curated Universe
@@ -487,7 +510,7 @@ module.exports = async (req, res) => {
           })
         );
 
-        return res.status(200).json({
+        finalResult = {
           universe_key: matchedUniverseKey,
           universe_name: matchedUniverse.name,
           collection_name: movieDetail.belongs_to_collection?.name || null,
@@ -495,11 +518,9 @@ module.exports = async (req, res) => {
           total_movies: movies.length,
           in_board_count: movies.filter(m => m.in_board).length,
           movies
-        });
-      }
-
-      // Case B: TMDB Collection (unmapped universe)
-      if (movieDetail.belongs_to_collection) {
+        };
+      } else if (movieDetail.belongs_to_collection) {
+        // Case B: TMDB Collection (unmapped universe)
         const collectionId = movieDetail.belongs_to_collection.id;
         try {
           const colUrl = `https://api.themoviedb.org/3/collection/${collectionId}?api_key=${TMDB_KEY}&language=en-US`;
@@ -527,7 +548,7 @@ module.exports = async (req, res) => {
               };
             });
 
-            return res.status(200).json({
+            finalResult = {
               universe_key: null,
               universe_name: null,
               collection_name: colData.name || movieDetail.belongs_to_collection.name,
@@ -535,35 +556,67 @@ module.exports = async (req, res) => {
               total_movies: movies.length,
               in_board_count: movies.filter(m => m.in_board).length,
               movies
-            });
+            };
           }
         } catch (e) {}
       }
 
-      // Case C: Standalone Movie
-      const boardStatus = checkBoardMatch(tmdbMovieId);
-      const releaseDate = movieDetail.release_date || movieDetail.first_air_date || null;
-      return res.status(200).json({
-        universe_key: null,
-        universe_name: null,
-        collection_name: null,
-        is_universe: false,
-        total_movies: 1,
-        in_board_count: boardStatus.in_board ? 1 : 0,
-        movies: [{
+      if (!finalResult) {
+        // Case C: Standalone Movie
+        const boardStatus = checkBoardMatch(tmdbMovieId);
+        const releaseDate = movieDetail.release_date || movieDetail.first_air_date || null;
+        finalResult = {
+          universe_key: null,
+          universe_name: null,
+          collection_name: null,
+          is_universe: false,
+          total_movies: 1,
+          in_board_count: boardStatus.in_board ? 1 : 0,
+          movies: [{
+            tmdb_id: tmdbMovieId,
+            media_type: actualMediaType,
+            title: movieDetail.title || movieDetail.name || 'Untitled',
+            release_date: releaseDate,
+            release_year: releaseDate ? releaseDate.split('-')[0] : '-',
+            rating: movieDetail.vote_average ? Number(movieDetail.vote_average.toFixed(1)) : null,
+            poster_path: movieDetail.poster_path ? `https://image.tmdb.org/t/p/w500${movieDetail.poster_path}` : null,
+            overview: movieDetail.overview || '',
+            chronology_index: 1,
+            in_board: boardStatus.in_board,
+            user_movie: boardStatus.user_movie
+          }]
+        };
+      }
+
+      // Auto-record viewed franchise into Supabase user_settings
+      try {
+        const recordKey = matchedUniverseKey || (movieDetail.belongs_to_collection ? `col_${movieDetail.belongs_to_collection.id}` : `movie_${tmdbMovieId}`);
+        const recordName = matchedUniverse ? matchedUniverse.name : (movieDetail.belongs_to_collection ? movieDetail.belongs_to_collection.name : (movieDetail.title || movieDetail.name));
+        const recordCount = finalResult.movies.length;
+
+        const { data: existingRow } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
+        let viewedList = existingRow?.viewed_franchises || [];
+        viewedList = viewedList.filter(v => v.universe_key !== recordKey && v.key !== recordKey && String(v.tmdb_id) !== String(tmdbMovieId));
+        viewedList.unshift({
+          key: recordKey,
+          universe_key: matchedUniverseKey || null,
           tmdb_id: tmdbMovieId,
           media_type: actualMediaType,
-          title: movieDetail.title || movieDetail.name || 'Untitled',
-          release_date: releaseDate,
-          release_year: releaseDate ? releaseDate.split('-')[0] : '-',
-          rating: movieDetail.vote_average ? Number(movieDetail.vote_average.toFixed(1)) : null,
-          poster_path: movieDetail.poster_path ? `https://image.tmdb.org/t/p/w500${movieDetail.poster_path}` : null,
-          overview: movieDetail.overview || '',
-          chronology_index: 1,
-          in_board: boardStatus.in_board,
-          user_movie: boardStatus.user_movie
-        }]
-      });
+          name: recordName,
+          is_universe: !!matchedUniverse,
+          total_movies: recordCount,
+          last_viewed_at: new Date().toISOString()
+        });
+        await supabase.from('user_settings').upsert({
+          user_id: userId,
+          viewed_franchises: viewedList.slice(0, 50),
+          updated_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.warn('Error auto-recording franchise view:', e.message);
+      }
+
+      return res.status(200).json(finalResult);
     }
 
     // ═══════════════════════════════════════
