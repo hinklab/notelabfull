@@ -391,157 +391,294 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
         left: 0,
         transition: isPanning ? 'none' : 'transform 0.06s cubic-bezier(0.1, 1, 0.1, 1)',
       }}>
-        {/* Horizontal Sequence Container */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 70, paddingTop: 120, paddingLeft: sidebarOpen ? 60 : 40 }}>
-          {movies.map((movie, idx) => (
-            <React.Fragment key={movie.tmdb_id || idx}>
-              {/* Chronology Movie Card */}
-              <div
-                className="space-card-clickable"
-                onClick={() => onSelectMovieForDetail && onSelectMovieForDetail(movie)}
-                style={{
-                  position: 'relative',
-                  width: 220,
-                  background: '#12131c',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  borderRadius: 20,
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
-                  cursor: 'pointer',
-                  transition: 'transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-8px) scale(1.03)'
-                  e.currentTarget.style.borderColor = '#a78bfa'
-                  e.currentTarget.style.boxShadow = '0 30px 70px rgba(124, 58, 237, 0.35)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'translateY(0) scale(1)'
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)'
-                  e.currentTarget.style.boxShadow = '0 20px 50px rgba(0, 0, 0, 0.6)'
-                }}
-              >
-                {/* Chronology Badge Pill */}
-                <div style={{
-                  position: 'absolute',
-                  top: 12,
-                  left: 12,
-                  zIndex: 3,
-                  background: 'rgba(15, 15, 26, 0.85)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: 20,
-                  padding: '4px 10px',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: '#a78bfa',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}>
-                  #{movie.chronology_index || (idx + 1)}
-                </div>
+        {(() => {
+          const CARD_W = 280
+          const CARD_H = 96
+          const COL_STEP = 410
+          const ROW_STEP = 136
+          const BASE_Y = 280
 
-                {/* Poster Container with Mask Fade Overlay */}
-                <div style={{ position: 'relative', width: '100%', height: 300, overflow: 'hidden' }}>
-                  <img
-                    src={movie.poster_path || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="90" fill="%231e2030"><rect width="60" height="90"/></svg>'}
-                    alt={movie.title}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      display: 'block',
-                      maskImage: 'linear-gradient(to bottom, black 55%, transparent 100%)',
-                      WebkitMaskImage: 'linear-gradient(to bottom, black 55%, transparent 100%)',
-                    }}
-                  />
-                  {/* Subtle Gradient Overlay */}
+          // Calculate multi-branch stages: e.g. [2, 3, 1, 3, 1, 3, 2, 3, 1, 3]
+          const pattern = movies.length <= 4 ? [1, 1, 1, 1] : [2, 3, 1, 3, 1, 3, 2, 3, 1, 3, 2, 3]
+          const stages = []
+          let curIdx = 0
+          let pIdx = 0
+
+          while (curIdx < movies.length) {
+            const size = Math.min(pattern[pIdx % pattern.length], movies.length - curIdx)
+            stages.push(movies.slice(curIdx, curIdx + size))
+            curIdx += size
+            pIdx++
+          }
+
+          // Build positioned node list and connection links
+          const positionedNodes = []
+          const connections = []
+
+          stages.forEach((stageMovies, stageIdx) => {
+            const totalInStage = stageMovies.length
+            const stageNodes = stageMovies.map((movie, rowIdx) => {
+              const x = (sidebarOpen ? 180 : 80) + stageIdx * COL_STEP
+              const y = BASE_Y + (rowIdx - (totalInStage - 1) / 2) * ROW_STEP
+              const node = { movie, x, y, stageIdx, rowIdx, id: movie.tmdb_id || `${stageIdx}_${rowIdx}` }
+              positionedNodes.push(node)
+              return node
+            })
+
+            // Generate bezier connections to previous stage
+            if (stageIdx > 0) {
+              const prevStageNodes = positionedNodes.filter(n => n.stageIdx === stageIdx - 1)
+              
+              if (prevStageNodes.length === 1) {
+                // Expansion: 1 preceding node connects to all nodes in current stage
+                stageNodes.forEach(target => {
+                  connections.push({ from: prevStageNodes[0], to: target })
+                })
+              } else if (stageNodes.length === 1) {
+                // Convergence: all preceding nodes merge into the single target node
+                prevStageNodes.forEach(source => {
+                  connections.push({ from: source, to: stageNodes[0] })
+                })
+              } else {
+                // Parallel tracks: connect matching tracks or distribute
+                prevStageNodes.forEach((source, sIdx) => {
+                  const targetIdx = Math.min(sIdx, stageNodes.length - 1)
+                  connections.push({ from: source, to: stageNodes[targetIdx] })
+                })
+              }
+            }
+          })
+
+          return (
+            <div style={{ position: 'relative', width: (stages.length + 1) * COL_STEP + 400, height: 1600 }}>
+              {/* SVG Layer for Bezier Connection Cables & Junctions */}
+              <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
+                <defs>
+                  <linearGradient id="cable-glow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.4" />
+                    <stop offset="50%" stopColor="#c084fc" stopOpacity="0.9" />
+                    <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.5" />
+                  </linearGradient>
+                  <filter id="cable-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
+
+                {connections.map((conn, cIdx) => {
+                  const x1 = conn.from.x + CARD_W
+                  const y1 = conn.from.y + CARD_H / 2
+                  const x2 = conn.to.x
+                  const y2 = conn.to.y + CARD_H / 2
+                  const dx = (x2 - x1) * 0.5
+                  const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`
+
+                  return (
+                    <g key={`conn_${cIdx}`}>
+                      {/* Ambient outer glow */}
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke="rgba(167, 139, 250, 0.25)"
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                      />
+                      {/* Main illuminated cable */}
+                      <path
+                        d={d}
+                        fill="none"
+                        stroke="url(#cable-glow-grad)"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        filter="url(#cable-glow)"
+                      />
+                      {/* Origin and target junction dots */}
+                      <circle cx={x1} cy={y1} r="4" fill="#c084fc" filter="url(#cable-glow)" />
+                      <circle cx={x2} cy={y2} r="4" fill="#a78bfa" filter="url(#cable-glow)" />
+                    </g>
+                  )
+                })}
+              </svg>
+
+              {/* Positioned Node Cards (Horizontal Board Card Style) */}
+              {positionedNodes.map(({ movie, x, y }) => (
+                <div
+                  key={movie.tmdb_id || movie.title}
+                  className="space-card-clickable"
+                  onClick={() => onSelectMovieForDetail && onSelectMovieForDetail(movie)}
+                  style={{
+                    position: 'absolute',
+                    left: x,
+                    top: y,
+                    width: CARD_W,
+                    height: CARD_H,
+                    background: '#12131f',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                    borderRadius: 14,
+                    display: 'flex',
+                    cursor: 'pointer',
+                    zIndex: 2,
+                    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65)',
+                    transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-4px) scale(1.03)'
+                    e.currentTarget.style.borderColor = '#a78bfa'
+                    e.currentTarget.style.boxShadow = '0 18px 48px rgba(124, 58, 237, 0.4)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)'
+                    e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.65)'
+                  }}
+                >
+                  {/* Left Connector Handle */}
                   <div style={{
                     position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(to bottom, transparent 40%, #12131c 100%)',
+                    left: -5,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    background: '#a78bfa',
+                    border: '2px solid #090a0f',
+                    boxShadow: '0 0 8px rgba(167, 139, 250, 0.9)',
+                    zIndex: 3
                   }} />
-                </div>
 
-                {/* Movie Details Below Poster */}
-                <div style={{ padding: '0 16px 18px 16px', marginTop: -20, position: 'relative', zIndex: 2 }}>
+                  {/* Right Connector Handle */}
                   <div style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: '#ffffff',
-                    lineHeight: 1.3,
-                    marginBottom: 6,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
+                    position: 'absolute',
+                    right: -5,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    background: '#c084fc',
+                    border: '2px solid #090a0f',
+                    boxShadow: '0 0 8px rgba(192, 132, 252, 0.9)',
+                    zIndex: 3
+                  }} />
+
+                  {/* Poster Thumbnail on Left */}
+                  <div style={{
+                    position: 'relative',
+                    width: 68,
+                    height: CARD_H,
+                    borderRadius: '13px 0 0 13px',
                     overflow: 'hidden',
+                    flexShrink: 0,
+                    background: '#181926'
                   }}>
-                    {movie.title}
+                    <img
+                      src={movie.poster_path || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="90" fill="%231e2030"><rect width="60" height="90"/></svg>'}
+                      alt={movie.title}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block'
+                      }}
+                    />
+                    {/* Index Pill Overlay */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 4,
+                      left: 4,
+                      background: 'rgba(15, 15, 26, 0.88)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      borderRadius: 10,
+                      padding: '2px 6px',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      color: '#a78bfa'
+                    }}>
+                      #{movie.chronology_index || 1}
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: '#a1a1aa', marginBottom: 12 }}>
-                    <span>{movie.release_year || movie.release_date?.split('-')[0] || '-'}</span>
-                    {movie.rating ? <span style={{ color: '#fbbf24', fontWeight: 600 }}>★ {movie.rating}</span> : null}
-                  </div>
-
-                  {/* User Board Status Badge */}
-                  <div>
-                    {movie.in_board ? (
-                      <div style={{
-                        background: 'rgba(52, 211, 153, 0.15)',
-                        border: '1px solid rgba(52, 211, 153, 0.35)',
-                        color: '#34d399',
-                        borderRadius: 8,
-                        padding: '6px 10px',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <CheckCircle size={12} />
-                          <span>{movie.user_movie?.section?.toUpperCase() || 'IN BOARD'}</span>
-                        </span>
-                        {movie.user_movie?.user_rating ? <span>⭐ {movie.user_movie.user_rating}</span> : null}
-                      </div>
-                    ) : (
-                      <div style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: '#a1a1aa',
-                        borderRadius: 8,
-                        padding: '6px 10px',
-                        fontSize: 11,
-                        fontWeight: 500,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6
-                      }}>
-                        <span>Bazada yo'q</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Connecting Illuminated Arrow between consecutive cards */}
-              {idx < movies.length - 1 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  {/* Card Details on Right */}
                   <div style={{
-                    width: 32,
-                    height: 2,
-                    background: 'linear-gradient(to right, rgba(167, 139, 250, 0.3), rgba(167, 139, 250, 0.8))',
-                    boxShadow: '0 0 8px rgba(167, 139, 250, 0.6)'
-                  }} />
-                  <ArrowRight size={18} color="#a78bfa" style={{ filter: 'drop-shadow(0 0 6px rgba(167, 139, 250, 0.8))' }} />
+                    flex: 1,
+                    minWidth: 0,
+                    padding: '8px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div>
+                      {/* Movie Title */}
+                      <div style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        color: '#f4f4f5',
+                        lineHeight: 1.25,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        marginBottom: 3
+                      }}>
+                        {movie.title}
+                      </div>
+
+                      {/* Year & Rating Subtitle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#a1a1aa' }}>
+                        <span>{movie.release_year || movie.release_date?.split('-')[0] || '-'}</span>
+                        {movie.rating ? (
+                          <span style={{ color: '#fbbf24', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                            ★ {movie.rating}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Status Badge (Board Status) */}
+                    <div>
+                      {movie.in_board ? (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          background: 'rgba(52, 211, 153, 0.15)',
+                          border: '1px solid rgba(52, 211, 153, 0.35)',
+                          color: '#34d399',
+                          borderRadius: 6,
+                          padding: '2px 7px',
+                          fontSize: 10,
+                          fontWeight: 700
+                        }}>
+                          <CheckCircle size={10} />
+                          <span>{movie.user_movie?.section?.toUpperCase() || 'IN BOARD'}</span>
+                          {movie.user_movie?.user_rating ? <span style={{ marginLeft: 3, color: '#fbbf24' }}>★{movie.user_movie.user_rating}</span> : null}
+                        </div>
+                      ) : (
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          background: 'rgba(255, 255, 255, 0.06)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: '#a1a1aa',
+                          borderRadius: 6,
+                          padding: '2px 7px',
+                          fontSize: 10,
+                          fontWeight: 500
+                        }}>
+                          <span>Bazada yo'q</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+              ))}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Floating Canvas Controls (Zoom / Reset) */}
