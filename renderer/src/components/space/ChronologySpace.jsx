@@ -17,6 +17,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   const [viewedFranchises, setViewedFranchises] = useState([])
   const [sidebarSearch, setSidebarSearch] = useState('')
   const [activeTmdbId, setActiveTmdbId] = useState(targetTmdbId)
+  const [hoveredNodeId, setHoveredNodeId] = useState(null)
 
   const canvasRef = useRef(null)
   const zoomRef = useRef(zoom)
@@ -470,13 +471,13 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               {/* SVG Layer for Bezier Connection Cables & Junctions */}
               <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}>
                 <defs>
-                  <linearGradient id="cable-glow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.4" />
-                    <stop offset="50%" stopColor="#c084fc" stopOpacity="0.9" />
-                    <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.5" />
+                  <linearGradient id="cable-active-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.8" />
+                    <stop offset="50%" stopColor="#c084fc" stopOpacity="1" />
+                    <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.8" />
                   </linearGradient>
-                  <filter id="cable-glow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
+                  <filter id="cable-soft-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="2.5" result="blur" />
                     <feComposite in="SourceGraphic" in2="blur" operator="over" />
                   </filter>
                 </defs>
@@ -489,94 +490,130 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   const dx = (x2 - x1) * 0.5
                   const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`
 
+                  const isConnHovered = hoveredNodeId && (
+                    conn.from.id === hoveredNodeId ||
+                    conn.to.id === hoveredNodeId ||
+                    String(conn.from.movie?.tmdb_id) === String(hoveredNodeId) ||
+                    String(conn.to.movie?.tmdb_id) === String(hoveredNodeId)
+                  )
+                  const isAnyHovered = !!hoveredNodeId
+
                   return (
-                    <g key={`conn_${cIdx}`}>
-                      {/* Ambient outer glow */}
-                      <path
-                        d={d}
-                        fill="none"
-                        stroke="rgba(167, 139, 250, 0.25)"
-                        strokeWidth="5"
-                        strokeLinecap="round"
-                      />
-                      {/* Main illuminated cable */}
-                      <path
-                        d={d}
-                        fill="none"
-                        stroke="url(#cable-glow-grad)"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        filter="url(#cable-glow)"
-                      />
-                      {/* Origin and target junction dots */}
-                      <circle cx={x1} cy={y1} r="4" fill="#c084fc" filter="url(#cable-glow)" />
-                      <circle cx={x2} cy={y2} r="4" fill="#a78bfa" filter="url(#cable-glow)" />
+                    <g key={`conn_${cIdx}`} style={{ transition: 'opacity 0.2s ease' }}>
+                      {isConnHovered ? (
+                        <>
+                          {/* Ambient soft glow on active hover */}
+                          <path
+                            d={d}
+                            fill="none"
+                            stroke="rgba(167, 139, 250, 0.3)"
+                            strokeWidth="5"
+                            strokeLinecap="round"
+                          />
+                          {/* Active illuminated cable */}
+                          <path
+                            d={d}
+                            fill="none"
+                            stroke="url(#cable-active-grad)"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                            filter="url(#cable-soft-glow)"
+                          />
+                          {/* Illuminated junction dots */}
+                          <circle cx={x1} cy={y1} r="4" fill="#c084fc" filter="url(#cable-soft-glow)" />
+                          <circle cx={x2} cy={y2} r="4" fill="#a78bfa" filter="url(#cable-soft-glow)" />
+                        </>
+                      ) : (
+                        <>
+                          {/* Default low-contrast subtle line */}
+                          <path
+                            d={d}
+                            fill="none"
+                            stroke={isAnyHovered ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.12)"}
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                          />
+                          {/* Subtle junction dots */}
+                          <circle cx={x1} cy={y1} r="3" fill={isAnyHovered ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.22)"} />
+                          <circle cx={x2} cy={y2} r="3" fill={isAnyHovered ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.22)"} />
+                        </>
+                      )}
                     </g>
                   )
                 })}
               </svg>
 
               {/* Positioned Node Cards (Horizontal Board Card Style) */}
-              {positionedNodes.map(({ movie, x, y }) => (
-                <div
-                  key={movie.tmdb_id || movie.title}
-                  className="space-card-clickable"
-                  onClick={() => onSelectMovieForDetail && onSelectMovieForDetail(movie)}
-                  style={{
-                    position: 'absolute',
-                    left: x,
-                    top: y,
-                    width: CARD_W,
-                    height: CARD_H,
-                    background: '#12131f',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: 14,
-                    display: 'flex',
-                    cursor: 'pointer',
-                    zIndex: 2,
-                    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65)',
-                    transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = 'translateY(-4px) scale(1.03)'
-                    e.currentTarget.style.borderColor = '#a78bfa'
-                    e.currentTarget.style.boxShadow = '0 18px 48px rgba(124, 58, 237, 0.4)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = 'translateY(0) scale(1)'
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)'
-                    e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.65)'
-                  }}
-                >
-                  {/* Left Connector Handle */}
-                  <div style={{
-                    position: 'absolute',
-                    left: -5,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    background: '#a78bfa',
-                    border: '2px solid #090a0f',
-                    boxShadow: '0 0 8px rgba(167, 139, 250, 0.9)',
-                    zIndex: 3
-                  }} />
+              {positionedNodes.map(({ movie, x, y, id }) => {
+                const isCardHovered = hoveredNodeId === id || String(movie.tmdb_id) === String(hoveredNodeId)
+                const isConnectedToHovered = hoveredNodeId && connections.some(c => 
+                  (c.from.id === id && (c.to.id === hoveredNodeId || String(c.to.movie?.tmdb_id) === String(hoveredNodeId))) ||
+                  (c.to.id === id && (c.from.id === hoveredNodeId || String(c.from.movie?.tmdb_id) === String(hoveredNodeId)))
+                )
 
-                  {/* Right Connector Handle */}
-                  <div style={{
-                    position: 'absolute',
-                    right: -5,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    background: '#c084fc',
-                    border: '2px solid #090a0f',
-                    boxShadow: '0 0 8px rgba(192, 132, 252, 0.9)',
-                    zIndex: 3
-                  }} />
+                return (
+                  <div
+                    key={movie.tmdb_id || movie.title}
+                    className="space-card-clickable"
+                    onClick={() => onSelectMovieForDetail && onSelectMovieForDetail(movie)}
+                    onMouseEnter={() => setHoveredNodeId(movie.tmdb_id || id)}
+                    onMouseLeave={() => setHoveredNodeId(null)}
+                    style={{
+                      position: 'absolute',
+                      left: x,
+                      top: y,
+                      width: CARD_W,
+                      height: CARD_H,
+                      background: '#12131f',
+                      border: isCardHovered
+                        ? '1px solid #a78bfa'
+                        : isConnectedToHovered
+                          ? '1px solid rgba(167, 139, 250, 0.5)'
+                          : '1px solid rgba(255, 255, 255, 0.12)',
+                      borderRadius: 14,
+                      display: 'flex',
+                      cursor: 'pointer',
+                      zIndex: isCardHovered ? 10 : 2,
+                      boxShadow: isCardHovered
+                        ? '0 16px 44px rgba(124, 58, 237, 0.45)'
+                        : isConnectedToHovered
+                          ? '0 10px 28px rgba(124, 58, 237, 0.25)'
+                          : '0 8px 24px rgba(0, 0, 0, 0.55)',
+                      transform: isCardHovered ? 'translateY(-4px) scale(1.03)' : 'translateY(0) scale(1)',
+                      transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+                    }}
+                  >
+                    {/* Left Connector Handle */}
+                    <div style={{
+                      position: 'absolute',
+                      left: -5,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      background: isCardHovered || isConnectedToHovered ? '#a78bfa' : 'rgba(255, 255, 255, 0.35)',
+                      border: '2px solid #090a0f',
+                      boxShadow: isCardHovered || isConnectedToHovered ? '0 0 8px rgba(167, 139, 250, 0.9)' : 'none',
+                      transition: 'all 0.18s ease',
+                      zIndex: 3
+                    }} />
+
+                    {/* Right Connector Handle */}
+                    <div style={{
+                      position: 'absolute',
+                      right: -5,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      background: isCardHovered || isConnectedToHovered ? '#c084fc' : 'rgba(255, 255, 255, 0.35)',
+                      border: '2px solid #090a0f',
+                      boxShadow: isCardHovered || isConnectedToHovered ? '0 0 8px rgba(192, 132, 252, 0.9)' : 'none',
+                      transition: 'all 0.18s ease',
+                      zIndex: 3
+                    }} />
 
                   {/* Poster Thumbnail on Left */}
                   <div style={{
@@ -691,7 +728,8 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+            })}
             </div>
           )
         })()}
