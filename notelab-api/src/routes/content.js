@@ -189,49 +189,60 @@ router.get('/images', async (req, res) => {
     const type = media_type === 'tv' ? 'tv' : 'movie';
     const scenes = [];
 
-    // 1. Fetch TMDB horizontal backdrops (movie scene stills, strictly aspect_ratio > 1.3)
+    // 1. Fetch Official Film Clips & Trailer Scene Stills (Actual in-motion film frames)
     try {
-      const imgUrl = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/images?api_key=${encodeURIComponent(tmdbKey)}`;
+      const videoUrl = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/videos?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+      const vr = await fetch(videoUrl);
+      if (vr.ok) {
+        const vdata = await vr.json();
+        const clips = (vdata.results || []).filter(v => v.site === 'YouTube' && (v.type === 'Clip' || v.type === 'Trailer' || v.type === 'Teaser'));
+        clips.slice(0, 3).forEach(v => {
+          scenes.push(`https://img.youtube.com/vi/${v.key}/hqdefault.jpg`);
+        });
+      }
+    } catch (e) {
+      console.warn('Error fetching TMDB video scene stills:', e.message);
+    }
+
+    // 2. For TV Series: Fetch genuine episode stills
+    if (type === 'tv' && scenes.length < 5) {
+      try {
+        const sr = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(tmdb_id)}/season/1?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`);
+        if (sr.ok) {
+          const sd = await sr.json();
+          (sd.episodes || []).forEach(ep => {
+            if (ep.still_path && scenes.length < 6) {
+              scenes.push(`https://image.tmdb.org/t/p/w780${ep.still_path}`);
+            }
+          });
+        }
+      } catch (e) {}
+    }
+
+    // 3. Fetch TMDB Production Backdrops (skipping index 0 to avoid promotional textless poster key art)
+    try {
+      const imgUrl = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/images?api_key=${encodeURIComponent(tmdbKey)}&include_image_language=en,null`;
       const r = await fetch(imgUrl);
       if (r.ok) {
         const data = await r.json();
-        const backdrops = (data.backdrops || [])
-          .filter(b => b.aspect_ratio && b.aspect_ratio > 1.3) // strictly horizontal scene stills, NO vertical posters
-          .slice(0, 5);
-
-        backdrops.forEach(b => {
-          scenes.push(`https://image.tmdb.org/t/p/w780${b.file_path}`);
+        const backdrops = (data.backdrops || []).filter(b => b.aspect_ratio && b.aspect_ratio >= 1.5);
+        const sceneBackdrops = backdrops.length > 2 ? backdrops.slice(1) : backdrops;
+        sceneBackdrops.forEach(b => {
+          if (scenes.length < 6) {
+            scenes.push(`https://image.tmdb.org/t/p/w780${b.file_path}`);
+          }
         });
       }
     } catch (e) {
       console.warn('Error fetching TMDB backdrops:', e.message);
     }
 
-    // 2. If fewer than 4 scene stills (or unreleased movies without backdrops), fetch YouTube trailer scene stills
-    if (scenes.length < 4) {
-      try {
-        const videoUrl = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/videos?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
-        const vr = await fetch(videoUrl);
-        if (vr.ok) {
-          const vdata = await vr.json();
-          const videos = (vdata.results || []).filter(v => v.site === 'YouTube');
-          for (const v of videos) {
-            if (scenes.length >= 5) break;
-            const yUrl = `https://img.youtube.com/vi/${v.key}/hqdefault.jpg`;
-            if (!scenes.includes(yUrl)) {
-              scenes.push(yUrl);
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Error fetching TMDB video stills:', e.message);
-      }
-    }
-
-    res.json({ backdrops: scenes.slice(0, 5) });
+    // Deduplicate scenes
+    const uniqueScenes = Array.from(new Set(scenes)).slice(0, 6);
+    return res.json({ backdrops: uniqueScenes });
   } catch (err) {
-    console.error('Content Images Error:', err.message);
-    res.status(500).json({ backdrops: [] });
+    console.error('Content images error:', err);
+    return res.status(500).json({ error: err.message });
   }
 });
 

@@ -388,34 +388,60 @@ module.exports = async (req, res) => {
     }
 
     // ═══════════════════════════════════════
-    // CONTENT IMAGES
+    // CONTENT IMAGES (GENUINE FILM SCENE STILLS)
     // ═══════════════════════════════════════
     if (path === 'content/images' && req.method === 'GET') {
       const { tmdb_id, media_type } = query;
       if (!tmdb_id || !TMDB_KEY) return res.status(200).json({ backdrops: [] });
       const type = media_type === 'tv' ? 'tv' : 'movie';
       const scenes = [];
+
+      // 1. Fetch Official Film Clips & Trailer Scene Stills (Actual in-motion film frames)
       try {
-        const r = await fetch(`https://api.themoviedb.org/3/${type}/${tmdb_id}/images?api_key=${TMDB_KEY}`);
-        if (r.ok) {
-          const d = await r.json();
-          (d.backdrops || []).filter(b => b.aspect_ratio > 1.3).slice(0, 5).forEach(b => {
-            scenes.push(`https://image.tmdb.org/t/p/w780${b.file_path}`);
+        const vr = await fetch(`https://api.themoviedb.org/3/${type}/${tmdb_id}/videos?api_key=${TMDB_KEY}&language=en-US`);
+        if (vr.ok) {
+          const vd = await vr.json();
+          const clips = (vd.results || []).filter(v => v.site === 'YouTube' && (v.type === 'Clip' || v.type === 'Trailer' || v.type === 'Teaser'));
+          clips.slice(0, 3).forEach(v => {
+            scenes.push(`https://img.youtube.com/vi/${v.key}/hqdefault.jpg`);
           });
         }
       } catch (e) {}
-      if (scenes.length < 4) {
+
+      // 2. For TV Series: Fetch genuine episode stills
+      if (type === 'tv' && scenes.length < 5) {
         try {
-          const vr = await fetch(`https://api.themoviedb.org/3/${type}/${tmdb_id}/videos?api_key=${TMDB_KEY}&language=en-US`);
-          if (vr.ok) {
-            const vd = await vr.json();
-            (vd.results || []).filter(v => v.site === 'YouTube').forEach(v => {
-              if (scenes.length < 5) scenes.push(`https://img.youtube.com/vi/${v.key}/hqdefault.jpg`);
+          const sr = await fetch(`https://api.themoviedb.org/3/tv/${tmdb_id}/season/1?api_key=${TMDB_KEY}&language=en-US`);
+          if (sr.ok) {
+            const sd = await sr.json();
+            (sd.episodes || []).forEach(ep => {
+              if (ep.still_path && scenes.length < 6) {
+                scenes.push(`https://image.tmdb.org/t/p/w780${ep.still_path}`);
+              }
             });
           }
         } catch (e) {}
       }
-      return res.status(200).json({ backdrops: scenes.slice(0, 5) });
+
+      // 3. Fetch TMDB Production Backdrops (skipping index 0 to avoid promotional textless poster art)
+      try {
+        const r = await fetch(`https://api.themoviedb.org/3/${type}/${tmdb_id}/images?api_key=${TMDB_KEY}&include_image_language=en,null`);
+        if (r.ok) {
+          const d = await r.json();
+          const backdrops = (d.backdrops || []).filter(b => b.aspect_ratio && b.aspect_ratio >= 1.5);
+          // If we have multiple backdrops, start from index 1 to avoid textless poster key art
+          const sceneBackdrops = backdrops.length > 2 ? backdrops.slice(1) : backdrops;
+          sceneBackdrops.forEach(b => {
+            if (scenes.length < 6) {
+              scenes.push(`https://image.tmdb.org/t/p/w780${b.file_path}`);
+            }
+          });
+        }
+      } catch (e) {}
+
+      // Deduplicate scenes
+      const uniqueScenes = Array.from(new Set(scenes)).slice(0, 6);
+      return res.status(200).json({ backdrops: uniqueScenes });
     }
 
     // ═══════════════════════════════════════
