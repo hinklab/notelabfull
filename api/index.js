@@ -9,7 +9,7 @@ const FRANCHISE_UNIVERSES = {
   "mcu": {
     "name": "Marvel Cinematic Universe",
     "collection_ids": [131295, 623911, 131292, 131296, 86311, 284433, 422834, 618529, 531241, 529892, 448150, 9485, 284052, 544669],
-    "known_tmdb_ids": [61889, 202555, 128095, 85271, 88396, 67178, 88329, 92749, 92782, 92783, 114472, 154427, 138501, 88397, 61550, 38472, 62126, 62127, 62285, 67136, 91363, 114469, 1013860, 774752, 114479, 240411, 204541, 617127, 1003597],
+    "known_tmdb_ids": [61889, 202555, 128095, 85271, 88396, 67178, 88329, 92749, 92782, 92783, 114472, 122226, 138501, 88397, 61550, 38472, 62126, 62127, 62285, 67136, 91363, 232125, 1013860, 774752, 114471, 241388, 198178, 617127, 969681],
     "chronological_order": [
       { "id": 1771, "type": "movie", "title": "Captain America: The First Avenger", "stage": 0, "lane": 0, "connects_to": [61550, 24428] },
       { "id": 61550, "type": "tv", "title": "Agent Carter", "stage": 1, "lane": 0, "connects_to": [24428] },
@@ -25,8 +25,8 @@ const FRANCHISE_UNIVERSES = {
       { "id": 76338, "type": "movie", "title": "Thor: The Dark World", "stage": 3, "lane": 1, "connects_to": [118340] },
       { "id": 100402, "type": "movie", "title": "Captain America: The Winter Soldier", "stage": 3, "lane": 3, "connects_to": [99861, 61889] },
       { "id": 118340, "type": "movie", "title": "Guardians of the Galaxy", "stage": 3, "lane": 0, "connects_to": [283995] },
-      { "id": 283995, "type": "movie", "title": "Guardians of the Galaxy Vol. 2", "stage": 4, "lane": 0, "connects_to": [114469, 299536] },
-      { "id": 114469, "type": "tv", "title": "I Am Groot", "stage": 5, "lane": 0, "connects_to": [299536] },
+      { "id": 283995, "type": "movie", "title": "Guardians of the Galaxy Vol. 2", "stage": 4, "lane": 0, "connects_to": [232125, 299536] },
+      { "id": 232125, "type": "tv", "title": "I Am Groot", "stage": 5, "lane": 0, "connects_to": [299536] },
 
       { "id": 61889, "type": "tv", "title": "Marvel's Daredevil", "stage": 4, "lane": 3, "connects_to": [38472, 62285] },
       { "id": 38472, "type": "tv", "title": "Jessica Jones", "stage": 4, "lane": 4, "connects_to": [62126, 62285] },
@@ -58,15 +58,15 @@ const FRANCHISE_UNIVERSES = {
       { "id": 566525, "type": "movie", "title": "Shang-Chi and the Legend of the Ten Rings", "stage": 10, "lane": 4, "connects_to": [1003598] },
       { "id": 524434, "type": "movie", "title": "Eternals", "stage": 10, "lane": 5, "connects_to": [1003598] },
 
-      { "id": 634649, "type": "movie", "title": "Spider-Man: No Way Home", "stage": 11, "lane": 2, "connects_to": [453395, 1003597] },
+      { "id": 634649, "type": "movie", "title": "Spider-Man: No Way Home", "stage": 11, "lane": 2, "connects_to": [453395, 969681] },
       { "id": 453395, "type": "movie", "title": "Doctor Strange in the Multiverse of Madness", "stage": 12, "lane": 1, "connects_to": [138501, 1003596] },
-      { "id": 88329, "type": "tv", "title": "Hawkeye", "stage": 11, "lane": 3, "connects_to": [154427] },
+      { "id": 88329, "type": "tv", "title": "Hawkeye", "stage": 11, "lane": 3, "connects_to": [122226] },
       { "id": 92749, "type": "tv", "title": "Moon Knight", "stage": 11, "lane": 4, "connects_to": [1003596] },
       { "id": 92782, "type": "tv", "title": "Ms. Marvel", "stage": 11, "lane": 5, "connects_to": [609681] },
 
       { "id": 616037, "type": "movie", "title": "Thor: Love and Thunder", "stage": 12, "lane": 0, "connects_to": [1003596] },
-      { "id": 505642, "type": "movie", "title": "Black Panther: Wakanda Forever", "stage": 12, "lane": 2, "connects_to": [114479, 240411] },
-      { "id": 154427, "type": "tv", "title": "Echo", "stage": 12, "lane": 3, "connects_to": [202555] },
+      { "id": 505642, "type": "movie", "title": "Black Panther: Wakanda Forever", "stage": 12, "lane": 2, "connects_to": [114471, 241388] },
+      { "id": 122226, "type": "tv", "title": "Echo", "stage": 12, "lane": 3, "connects_to": [202555] },
       { "id": 92783, "type": "tv", "title": "She-Hulk: Attorney at Law", "stage": 12, "lane": 4, "connects_to": [1003596] },
       { "id": 1013860, "type": "movie", "title": "Werewolf by Night", "stage": 12, "lane": 5, "connects_to": [617127] },
 
@@ -80,17 +80,17 @@ const FRANCHISE_UNIVERSES = {
       { "id": 609681, "type": "movie", "title": "The Marvels", "stage": 14, "lane": 1, "connects_to": [1003596] },
       { "id": 533535, "type": "movie", "title": "Deadpool & Wolverine", "stage": 14, "lane": 2, "connects_to": [1003596, 1003598] },
       { "id": 822119, "type": "movie", "title": "Captain America: Brave New World", "stage": 14, "lane": 3, "connects_to": [970347] },
-      { "id": 114479, "type": "tv", "title": "Ironheart", "stage": 14, "lane": 4, "connects_to": [1003596] },
+      { "id": 114471, "type": "tv", "title": "Ironheart", "stage": 14, "lane": 4, "connects_to": [1003596] },
 
       { "id": 970347, "type": "movie", "title": "Thunderbolts*", "stage": 15, "lane": 3, "connects_to": [1003596] },
       { "id": 838209, "type": "movie", "title": "The Fantastic Four: First Steps", "stage": 15, "lane": 1, "connects_to": [1003596] },
-      { "id": 240411, "type": "tv", "title": "Eyes of Wakanda", "stage": 15, "lane": 2, "connects_to": [1003598] },
-      { "id": 204541, "type": "tv", "title": "Wonder Man", "stage": 15, "lane": 4, "connects_to": [1003596] },
-      { "id": 617127, "type": "movie", "title": "Blade", "stage": 15, "lane": 5, "connects_to": [1003596] },
+      { "id": 241388, "type": "tv", "title": "Eyes of Wakanda", "stage": 15, "lane": 2, "connects_to": [1003598] },
+      { "id": 198178, "type": "tv", "title": "Wonder Man", "stage": 15, "lane": 4, "connects_to": [1003596] },
+      { "id": 617127, "type": "movie", "title": "Blade", "stage": 15, "lane": 5, "poster_path": "https://image.tmdb.org/t/p/w500/3U73FqZk8F0Q7tH3r6zQ8hPj7tU.jpg", "overview": "Eric Brooks, also known as Blade, is a dhampir vampire hunter fighting to rid the world of supernatural evil in the Marvel Cinematic Universe.", "release_year": "2025", "connects_to": [1003596] },
 
-      { "id": 1003596, "type": "movie", "title": "Avengers: Doomsday", "stage": 16, "lane": 1, "connects_to": [1003597, 1003598] },
-      { "id": 1003597, "type": "movie", "title": "Spider-Man 4", "stage": 17, "lane": 2, "connects_to": [1003598] },
-      { "id": 1003598, "type": "movie", "title": "Avengers: Secret Wars", "stage": 18, "lane": 1, "connects_to": [] }
+      { "id": 1003596, "type": "movie", "title": "Avengers: Doomsday", "stage": 16, "lane": 1, "overview": "The fifth Avengers film in the Marvel Cinematic Universe, featuring Doctor Doom as the central multiverse threat.", "connects_to": [969681, 1003598] },
+      { "id": 969681, "type": "movie", "title": "Spider-Man: Brand New Day", "stage": 17, "lane": 2, "overview": "The fourth MCU Spider-Man film following Peter Parker as he navigates a brand new era.", "connects_to": [1003598] },
+      { "id": 1003598, "type": "movie", "title": "Avengers: Secret Wars", "stage": 18, "lane": 1, "overview": "The epic culmination of the Multiverse Saga where entire timelines collide for the future of the multiverse.", "connects_to": [] }
     ]
   },
   "dceu": {
@@ -553,16 +553,19 @@ module.exports = async (req, res) => {
               const ir = await fetch(itemUrl);
               if (ir.ok) {
                 const idata = await ir.json();
-                const releaseDate = idata.release_date || idata.first_air_date || null;
+                const releaseDate = idata.release_date || idata.first_air_date || item.release_date || null;
+                const posterPath = idata.poster_path ? `https://image.tmdb.org/t/p/w500${idata.poster_path}` : (item.poster_path || null);
+                const overview = (idata.overview && idata.overview.trim().length > 0) ? idata.overview : (item.overview || '');
                 return {
                   tmdb_id: tmdbId,
                   media_type: itemType,
                   title: idata.title || idata.name || item.title || 'Untitled',
                   release_date: releaseDate,
-                  release_year: releaseDate ? releaseDate.split('-')[0] : '-',
-                  rating: idata.vote_average ? Number(idata.vote_average.toFixed(1)) : null,
-                  poster_path: idata.poster_path ? `https://image.tmdb.org/t/p/w500${idata.poster_path}` : null,
-                  overview: idata.overview || '',
+                  release_year: releaseDate ? releaseDate.split('-')[0] : (item.release_year || '-'),
+                  rating: idata.vote_average ? Number(idata.vote_average.toFixed(1)) : (item.rating || null),
+                  vote_count: idata.vote_count || 0,
+                  poster_path: posterPath,
+                  overview,
                   chronology_index: index + 1,
                   stage,
                   lane,
@@ -577,11 +580,11 @@ module.exports = async (req, res) => {
               tmdb_id: tmdbId,
               media_type: itemType,
               title: item.title || `Movie ${tmdbId}`,
-              release_date: null,
-              release_year: '-',
-              rating: null,
-              poster_path: null,
-              overview: '',
+              release_date: item.release_date || null,
+              release_year: item.release_year || '-',
+              rating: item.rating || null,
+              poster_path: item.poster_path || null,
+              overview: item.overview || '',
               chronology_index: index + 1,
               stage,
               lane,

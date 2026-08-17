@@ -493,7 +493,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
         position: 'absolute',
         top: 0,
         left: 0,
-        transition: isPanning ? 'none' : 'transform 0.06s cubic-bezier(0.1, 1, 0.1, 1)',
+        transition: isPanning ? 'none' : 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
       }}>
         {(() => {
           const CARD_W = 280
@@ -602,16 +602,17 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   const isAnyHovered = !!hoveredNodeId
 
                   return (
-                    <g key={`conn_${cIdx}`} style={{ transition: 'opacity 0.2s ease' }}>
+                    <g key={`conn_${cIdx}`}>
                       {isConnHovered ? (
                         <>
                           {/* Ambient soft glow on active hover */}
                           <path
                             d={d}
                             fill="none"
-                            stroke="rgba(167, 139, 250, 0.3)"
+                            stroke="rgba(167, 139, 250, 0.35)"
                             strokeWidth="5"
                             strokeLinecap="round"
+                            style={{ transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)' }}
                           />
                           {/* Active illuminated cable */}
                           <path
@@ -621,10 +622,11 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                             strokeWidth="2.2"
                             strokeLinecap="round"
                             filter="url(#cable-soft-glow)"
+                            style={{ transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)' }}
                           />
                           {/* Illuminated junction dots */}
-                          <circle cx={x1} cy={y1} r="4" fill="#c084fc" filter="url(#cable-soft-glow)" />
-                          <circle cx={x2} cy={y2} r="4" fill="#a78bfa" filter="url(#cable-soft-glow)" />
+                          <circle cx={x1} cy={y1} r="4" fill="#c084fc" filter="url(#cable-soft-glow)" style={{ transition: 'all 0.22s ease' }} />
+                          <circle cx={x2} cy={y2} r="4" fill="#a78bfa" filter="url(#cable-soft-glow)" style={{ transition: 'all 0.22s ease' }} />
                         </>
                       ) : (
                         <>
@@ -632,13 +634,14 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                           <path
                             d={d}
                             fill="none"
-                            stroke={isAnyHovered ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.12)"}
+                            stroke={isAnyHovered ? "rgba(255, 255, 255, 0.03)" : "rgba(255, 255, 255, 0.12)"}
                             strokeWidth="1.5"
                             strokeLinecap="round"
+                            style={{ transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)' }}
                           />
                           {/* Subtle junction dots */}
-                          <circle cx={x1} cy={y1} r="3" fill={isAnyHovered ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.22)"} />
-                          <circle cx={x2} cy={y2} r="3" fill={isAnyHovered ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.22)"} />
+                          <circle cx={x1} cy={y1} r="3" fill={isAnyHovered ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.22)"} style={{ transition: 'all 0.22s ease' }} />
+                          <circle cx={x2} cy={y2} r="3" fill={isAnyHovered ? "rgba(255, 255, 255, 0.08)" : "rgba(255, 255, 255, 0.22)"} style={{ transition: 'all 0.22s ease' }} />
                         </>
                       )}
                     </g>
@@ -668,23 +671,23 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                       top: y,
                       width: CARD_W,
                       height: CARD_H,
-                      background: '#12131f',
+                      background: isCardHovered ? '#151726' : '#12131f',
                       border: isCardHovered
                         ? '1px solid #a78bfa'
                         : isConnectedToHovered
-                          ? '1px solid rgba(167, 139, 250, 0.5)'
+                          ? '1px solid rgba(167, 139, 250, 0.45)'
                           : '1px solid rgba(255, 255, 255, 0.12)',
                       borderRadius: 14,
                       display: 'flex',
                       cursor: 'pointer',
-                      zIndex: isCardHovered ? 10 : 2,
+                      zIndex: isCardHovered ? 12 : isConnectedToHovered ? 5 : 2,
                       boxShadow: isCardHovered
-                        ? '0 16px 44px rgba(124, 58, 237, 0.45)'
+                        ? '0 16px 40px rgba(124, 58, 237, 0.35)'
                         : isConnectedToHovered
-                          ? '0 10px 28px rgba(124, 58, 237, 0.25)'
-                          : '0 8px 24px rgba(0, 0, 0, 0.55)',
-                      transform: isCardHovered ? 'translateY(-4px) scale(1.03)' : 'translateY(0) scale(1)',
-                      transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+                          ? '0 10px 24px rgba(124, 58, 237, 0.2)'
+                          : '0 6px 20px rgba(0, 0, 0, 0.55)',
+                      transform: isCardHovered ? 'translateY(-3px) scale(1.02)' : 'translateY(0) scale(1)',
+                      transition: 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease',
                     }}
                   >
                     {/* Left Connector Handle */}
@@ -897,7 +900,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
       {selectedMovie && ReactDOM.createPortal(
         <div
           onClick={() => setSelectedMovie(null)}
-          className="space-modal"
+          className="space-modal smooth-modal-backdrop"
           style={{
             position: 'fixed',
             inset: 0,
@@ -913,6 +916,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
         >
           <div
             onClick={e => e.stopPropagation()}
+            className="smooth-modal-content"
             style={{
               position: 'relative',
               width: 'min(740px, 94vw)',
