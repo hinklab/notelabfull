@@ -1,3 +1,5 @@
+import { supabaseFallback } from './supabaseFallback.js'
+
 function getApiBase() {
   const envUrl = import.meta.env.VITE_API_URL;
   if (!envUrl || !envUrl.trim() || envUrl.includes('onrender')) return '/api';
@@ -58,45 +60,43 @@ async function fetchJSON(url, options = {}) {
 
 // Unified API client
 export const api = {
-  // Notes
+  // Notes — with Supabase JS SDK fallback
   getNotes: async () => {
     try {
       return await fetchJSON(`${API_BASE}/notes`)
     } catch (err) {
-      console.warn('api.getNotes API failed, trying Supabase Cloud REST fallback:', err.message)
+      console.warn('api.getNotes failed, using Supabase SDK fallback:', err.message)
       try {
-        const userHeader = getUserHeader()
-        const userId = userHeader['x-user-id']
-        const SUPABASE_KEY = ['sb_secret_ILO1', 'JHGlLGsmNTpwptBG9Q_', 'g3IkDJ7I'].join('')
-        const SUPABASE_REST = 'https://spntzkotmgsghoahqkne.supabase.co/rest/v1'
-
-        if (userId) {
-          const r = await fetch(`${SUPABASE_REST}/notes?user_id=eq.${encodeURIComponent(userId)}&select=*`, {
-            headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-          })
-          if (r.ok) {
-            const notes = await r.json()
-            if (Array.isArray(notes) && notes.length > 0) return notes
-          }
-        }
+        return await supabaseFallback.getNotes()
       } catch (fbErr) {
-        console.warn('Supabase notes fallback error:', fbErr.message)
+        console.warn('Supabase fallback getNotes also failed:', fbErr.message)
+        return [{ id: 6, name: 'Movies', title: 'Movies', icon: '🎬', type: 'movie', is_movie: true }]
       }
-
-      return [{ id: 6, name: 'Movies', title: 'Movies', icon: '🎬', type: 'movie', is_movie: true }]
     }
   },
   createNote: (data) => fetchJSON(`${API_BASE}/notes`, { method: 'POST', body: JSON.stringify(data) }),
   updateNote: (id, data) => fetchJSON(`${API_BASE}/notes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteNote: (id) => fetchJSON(`${API_BASE}/notes/${id}`, { method: 'DELETE' }),
 
-  // Groups
+  // Groups — with Supabase JS SDK fallback
   getGroups: async (note_id) => {
     try {
       return await fetchJSON(`${API_BASE}/groups?note_id=${note_id}`)
     } catch (err) {
-      console.warn('api.getGroups failed, returning empty groups:', err.message)
-      return []
+      console.warn('api.getGroups failed, using Supabase SDK fallback:', err.message)
+      try {
+        const groups = await supabaseFallback.getGroups(note_id)
+        if (groups.length > 0) return groups
+      } catch (fbErr) {
+        console.warn('Supabase fallback getGroups also failed:', fbErr.message)
+      }
+      // Return default movie groups structure
+      return [
+        { id: 1, note_id: Number(note_id), name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
+        { id: 2, note_id: Number(note_id), name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
+        { id: 3, note_id: Number(note_id), name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
+        { id: 4, note_id: Number(note_id), name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
+      ]
     }
   },
   createGroup: (note_id, name) => fetchJSON(`${API_BASE}/groups`, { method: 'POST', body: JSON.stringify({ note_id, name }) }),
@@ -112,8 +112,20 @@ export const api = {
   moveItem: (id, to_group_id, position) => fetchJSON(`${API_BASE}/items/move`, { method: 'POST', body: JSON.stringify({ id, to_group_id, position }) }),
   reorderItems: (group_id, ids) => fetchJSON(`${API_BASE}/items/reorder`, { method: 'POST', body: JSON.stringify({ group_id, ids }) }),
 
-  // Movies
-  getMovies: (note_id) => fetchJSON(`${API_BASE}/movies?note_id=${note_id || ''}`),
+  // Movies — with Supabase JS SDK fallback
+  getMovies: async (note_id) => {
+    try {
+      return await fetchJSON(`${API_BASE}/movies?note_id=${note_id || ''}`)
+    } catch (err) {
+      console.warn('api.getMovies failed, using Supabase SDK fallback:', err.message)
+      try {
+        return await supabaseFallback.getMovies(note_id)
+      } catch (fbErr) {
+        console.warn('Supabase fallback getMovies also failed:', fbErr.message)
+        return []
+      }
+    }
+  },
   addMovie: (data) => fetchJSON(`${API_BASE}/movies`, { method: 'POST', body: JSON.stringify(data) }),
   updateMovie: (id, data) => fetchJSON(`${API_BASE}/movies/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteMovie: (id) => fetchJSON(`${API_BASE}/movies/${id}`, { method: 'DELETE' }),
@@ -129,25 +141,44 @@ export const api = {
     try {
       return await fetchJSON(`${API_BASE}/franchises/viewed`)
     } catch (err) {
-      console.warn('api.getViewedFranchises failed, returning empty list:', err.message)
-      return []
+      console.warn('api.getViewedFranchises failed, using Supabase SDK fallback:', err.message)
+      try {
+        return await supabaseFallback.getViewedFranchises()
+      } catch {
+        return []
+      }
     }
   },
   recordFranchiseView: (data) => fetchJSON(`${API_BASE}/franchises/record-view`, { method: 'POST', body: JSON.stringify(data) }),
 
   // Settings & Profile & Auth
-  getSettings: () => fetchJSON(`${API_BASE}/settings`),
+  getSettings: async () => {
+    try {
+      return await fetchJSON(`${API_BASE}/settings`)
+    } catch (err) {
+      console.warn('api.getSettings failed, using Supabase SDK fallback:', err.message)
+      try {
+        return await supabaseFallback.getSettings()
+      } catch {
+        return {}
+      }
+    }
+  },
   saveSettings: (data) => fetchJSON(`${API_BASE}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
   updateProfile: (data) => fetchJSON(`${API_BASE}/auth/profile`, { method: 'PATCH', body: JSON.stringify(data) }),
   resetPasswordEmail: (email, redirectTo) => fetchJSON(`${API_BASE}/auth/reset-password-email`, { method: 'POST', body: JSON.stringify({ email, redirectTo: redirectTo || (typeof window !== 'undefined' ? window.location.origin : undefined) }) }),
 
-  // Notifications
+  // Notifications — with Supabase JS SDK fallback
   getNotifications: async () => {
     try {
       return await fetchJSON(`${API_BASE}/notifications`)
     } catch (err) {
-      console.warn('api.getNotifications failed, returning empty list:', err.message)
-      return []
+      console.warn('api.getNotifications failed, using Supabase SDK fallback:', err.message)
+      try {
+        return await supabaseFallback.getNotifications()
+      } catch {
+        return []
+      }
     }
   },
   markNotificationRead: (id) => fetchJSON(`${API_BASE}/notifications/${id}/read`, { method: 'PATCH' }),
