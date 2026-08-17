@@ -235,48 +235,85 @@ router.get('/:tmdbMovieId', async (req, res) => {
       universeName = universeConfig.name;
 
       const chronoOrderItems = universeConfig.chronological_order;
-      const movieDetails = await Promise.all(
-        chronoOrderItems.map(async (item) => {
+      moviesResult = await Promise.all(
+        chronoOrderItems.map(async (item, index) => {
+          const tmdbId = typeof item === 'object' ? item.id : item;
+          const itemType = typeof item === 'object' ? (item.type || 'movie') : 'movie';
+          const stage = (typeof item === 'object' && item.stage !== undefined) ? item.stage : null;
+          const lane = (typeof item === 'object' && item.lane !== undefined) ? item.lane : null;
+          const connects_to = (typeof item === 'object' && Array.isArray(item.connects_to)) ? item.connects_to : [];
+          const userM = userMovieMap.get(String(tmdbId));
+
+          if (userM) {
+            return {
+              tmdb_id: tmdbId,
+              media_type: userM.media_type || itemType,
+              title: userM.title || (typeof item === 'object' ? item.title : `Movie ${tmdbId}`),
+              release_date: userM.release_date || null,
+              release_year: userM.release_year || '-',
+              rating: userM.rating || null,
+              poster_path: userM.poster_path || null,
+              overview: userM.overview || '',
+              chronology_index: index + 1,
+              stage,
+              lane,
+              connects_to,
+              in_board: true,
+              user_movie: {
+                id: userM.id,
+                section: userM.section,
+                user_rating: userM.user_rating || null,
+              }
+            };
+          }
+
           try {
-            const itemId = typeof item === 'object' ? item.id : item;
-            const itemType = typeof item === 'object' ? (item.type || 'movie') : 'movie';
             const endpoint = itemType === 'tv' ? 'tv' : 'movie';
-            const url = `https://api.themoviedb.org/3/${endpoint}/${itemId}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+            const url = `https://api.themoviedb.org/3/${endpoint}/${tmdbId}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
             const r = await fetch(url);
             if (r.ok) {
               const resData = await r.json();
-              return { ...resData, _media_type: itemType };
+              const releaseDate = resData.release_date || resData.first_air_date || (typeof item === 'object' ? item.release_date : null);
+              const posterPath = resData.poster_path ? `https://image.tmdb.org/t/p/w500${resData.poster_path}` : (typeof item === 'object' ? item.poster_path : null);
+              const overview = (resData.overview && resData.overview.trim().length > 0) ? resData.overview : (typeof item === 'object' ? item.overview || '' : '');
+              return {
+                tmdb_id: tmdbId,
+                media_type: itemType,
+                title: resData.title || resData.name || (typeof item === 'object' ? item.title : `Movie ${tmdbId}`),
+                release_date: releaseDate,
+                release_year: releaseDate ? releaseDate.split('-')[0] : (typeof item === 'object' ? item.release_year || '-' : '-'),
+                rating: resData.vote_average ? Number(resData.vote_average.toFixed(1)) : (typeof item === 'object' ? item.rating || null : null),
+                vote_count: resData.vote_count || 0,
+                poster_path: posterPath,
+                overview,
+                chronology_index: index + 1,
+                stage,
+                lane,
+                connects_to,
+                in_board: false,
+                user_movie: null
+              };
             }
           } catch (e) {}
-          return null;
+
+          return {
+            tmdb_id: tmdbId,
+            media_type: itemType,
+            title: (typeof item === 'object' && item.title) ? item.title : `Movie ${tmdbId}`,
+            release_date: (typeof item === 'object' && item.release_date) ? item.release_date : null,
+            release_year: (typeof item === 'object' && item.release_year) ? item.release_year : '-',
+            rating: (typeof item === 'object' && item.rating) ? item.rating : null,
+            poster_path: (typeof item === 'object' && item.poster_path) ? item.poster_path : null,
+            overview: (typeof item === 'object' && item.overview) ? item.overview : '',
+            chronology_index: index + 1,
+            stage,
+            lane,
+            connects_to,
+            in_board: false,
+            user_movie: null
+          };
         })
       );
-
-      const validDetails = movieDetails.filter(Boolean);
-      moviesResult = validDetails.map((d, index) => {
-        const posterPath = d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : null;
-        const releaseDate = d.release_date || d.first_air_date || null;
-        const releaseYear = releaseDate ? releaseDate.split('-')[0] : '-';
-        const userM = userMovieMap.get(String(d.id));
-
-        return {
-          tmdb_id: d.id,
-          media_type: d._media_type || (d.first_air_date ? 'tv' : 'movie'),
-          title: d.title || d.name,
-          release_date: releaseDate,
-          release_year: releaseYear,
-          rating: d.vote_average ? Number(d.vote_average.toFixed(1)) : null,
-          poster_path: posterPath,
-          overview: d.overview || '',
-          chronology_index: index + 1,
-          in_board: !!userM,
-          user_movie: userM ? {
-            id: userM.id,
-            section: userM.section,
-            user_rating: userM.user_rating || null,
-          } : null
-        };
-      });
 
     } else if (collection && collection.id) {
       // CASE B: Unmapped standalone collection (e.g. Dark Knight Trilogy)
