@@ -100,7 +100,37 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
         const data = await window.api.getFranchiseUniverse(tmdbId, mediaType)
         setUniverseData(data)
         setActiveTmdbId(tmdbId)
-        // Refresh viewed franchises list
+
+        // Optimistically update viewedFranchises state so sidebar updates instantly
+        if (data) {
+          const fName = data.universe_name || data.collection_name || data.movies?.[0]?.title || 'Franchise'
+          const fKey = data.universe_key || (data.universe_name ? data.universe_name : `movie_${tmdbId}`)
+          const isUniv = !!data.is_universe
+          const totalCount = data.total_movies || data.movies?.length || 0
+
+          setViewedFranchises(prev => {
+            const list = Array.isArray(prev) ? [...prev] : []
+            const filtered = list.filter(item => {
+              if (data.universe_key && (item.universe_key === data.universe_key || item.key === data.universe_key)) return false
+              if (String(item.tmdb_id) === String(tmdbId)) return false
+              if (item.name && item.name.toLowerCase().trim() === fName.toLowerCase().trim()) return false
+              return true
+            })
+            filtered.unshift({
+              key: fKey,
+              universe_key: data.universe_key || null,
+              tmdb_id: Number(tmdbId),
+              media_type: mediaType || data.movies?.[0]?.media_type || 'movie',
+              name: fName,
+              is_universe: isUniv,
+              total_movies: totalCount,
+              last_viewed_at: new Date().toISOString()
+            })
+            return filtered.slice(0, 50)
+          })
+        }
+
+        // Refresh viewed franchises list from backend
         fetchViewedFranchises()
       }
     } catch (err) {
@@ -369,7 +399,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                     <button
                       key={itemKey}
                       type="button"
-                      onClick={() => loadFranchiseData(item.tmdb_id)}
+                      onClick={() => loadFranchiseData(item.tmdb_id, item.media_type)}
                       style={{
                         padding: '10px 12px',
                         borderRadius: 14,

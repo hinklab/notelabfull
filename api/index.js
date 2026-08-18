@@ -448,15 +448,15 @@ module.exports = async (req, res) => {
     // FRANCHISES
     // ═══════════════════════════════════════
     if (path === 'franchises/viewed' && req.method === 'GET') {
-      const { data } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
-      let viewed = data?.viewed_franchises || [];
+      const { data } = await supabase.from('user_settings').select('settings').eq('id', `viewed_franchises_${userId}`).maybeSingle();
+      let viewed = data?.settings?.viewed_franchises || [];
 
       // If user hasn't viewed any custom franchise yet, provide the curated universe defaults
       if (!Array.isArray(viewed) || viewed.length === 0) {
         viewed = [
-          { key: 'mcu', universe_key: 'mcu', tmdb_id: 1726, media_type: 'movie', name: 'Marvel Cinematic Universe', is_universe: true, total_movies: 52, last_viewed_at: new Date().toISOString() },
+          { key: 'mcu', universe_key: 'mcu', tmdb_id: 1726, media_type: 'movie', name: 'Marvel Cinematic Universe', is_universe: true, total_movies: 69, last_viewed_at: new Date().toISOString() },
           { key: 'star_wars', universe_key: 'star_wars', tmdb_id: 11, media_type: 'movie', name: 'Star Wars Universe', is_universe: true, total_movies: 11, last_viewed_at: new Date().toISOString() },
-          { key: 'dceu', universe_key: 'dceu', tmdb_id: 49529, media_type: 'movie', name: 'DC Extended Universe', is_universe: true, total_movies: 15, last_viewed_at: new Date().toISOString() },
+          { key: 'dceu', universe_key: 'dceu', tmdb_id: 49529, media_type: 'movie', name: 'DC Extended Universe', is_universe: true, total_movies: 10, last_viewed_at: new Date().toISOString() },
           { key: 'kurtlar_vadisi', universe_key: 'kurtlar_vadisi', tmdb_id: 34587, media_type: 'tv', name: 'Valley of the Wolves (Kurtlar Vadisi)', is_universe: true, total_movies: 7, last_viewed_at: new Date().toISOString() }
         ];
       }
@@ -465,8 +465,8 @@ module.exports = async (req, res) => {
     }
     if (path === 'franchises/record-view' && req.method === 'POST') {
       const body = await parseBody(req);
-      const { data: existing } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
-      let viewed = existing?.viewed_franchises || [];
+      const { data: existing } = await supabase.from('user_settings').select('settings').eq('id', `viewed_franchises_${userId}`).maybeSingle();
+      let viewed = existing?.settings?.viewed_franchises || [];
       const key = body.universe_key || body.key || (body.tmdb_id ? `movie_${body.tmdb_id}` : body.name);
       viewed = viewed.filter(v => v.universe_key !== key && v.key !== key && String(v.tmdb_id) !== String(body.tmdb_id));
       viewed.unshift({
@@ -479,7 +479,12 @@ module.exports = async (req, res) => {
         total_movies: body.total_movies || body.movie_count || 0,
         last_viewed_at: new Date().toISOString()
       });
-      await supabase.from('user_settings').upsert({ user_id: userId, viewed_franchises: viewed.slice(0, 50), updated_at: new Date().toISOString() });
+      await supabase.from('user_settings').upsert({
+        id: `viewed_franchises_${userId}`,
+        user_id: userId,
+        settings: { viewed_franchises: viewed.slice(0, 50) },
+        updated_at: new Date().toISOString()
+      });
       return res.status(200).json({ success: true, viewed_franchises: viewed });
     }
 
@@ -708,8 +713,8 @@ module.exports = async (req, res) => {
         const recordName = matchedUniverse ? matchedUniverse.name : (movieDetail.belongs_to_collection ? movieDetail.belongs_to_collection.name : (movieDetail.title || movieDetail.name));
         const recordCount = finalResult.movies.length;
 
-        const { data: existingRow } = await supabase.from('user_settings').select('viewed_franchises').eq('user_id', userId).maybeSingle();
-        let viewedList = existingRow?.viewed_franchises || [];
+        const { data: existingRow } = await supabase.from('user_settings').select('settings').eq('id', `viewed_franchises_${userId}`).maybeSingle();
+        let viewedList = existingRow?.settings?.viewed_franchises || [];
         viewedList = viewedList.filter(v => v.universe_key !== recordKey && v.key !== recordKey && String(v.tmdb_id) !== String(tmdbMovieId));
         viewedList.unshift({
           key: recordKey,
@@ -722,8 +727,9 @@ module.exports = async (req, res) => {
           last_viewed_at: new Date().toISOString()
         });
         await supabase.from('user_settings').upsert({
+          id: `viewed_franchises_${userId}`,
           user_id: userId,
-          viewed_franchises: viewedList.slice(0, 50),
+          settings: { viewed_franchises: viewedList.slice(0, 50) },
           updated_at: new Date().toISOString()
         });
       } catch (e) {
