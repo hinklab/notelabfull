@@ -143,6 +143,36 @@ router.post('/record-view', (req, res) => {
   }
 });
 
+// DELETE /api/franchises/viewed — Remove a franchise from history
+router.delete('/viewed', (req, res) => {
+  try {
+    const userId = req.userId || DEFAULT_USER_ID;
+    const rawKey = req.body?.key || req.body?.universe_key || req.body?.tmdb_id || req.query?.key || req.query?.tmdb_id;
+    const targetKey = String(rawKey || '').trim();
+
+    const settings = getUserSettings(userId);
+    let list = Array.isArray(settings.viewed_franchises) ? [...settings.viewed_franchises] : [];
+
+    list = list.filter(item => {
+      const itemK = String(item.key || '').trim();
+      const itemU = String(item.universe_key || '').trim();
+      const itemT = String(item.tmdb_id || '').trim();
+      const itemN = String(item.name || '').trim();
+
+      if (itemK && (itemK === targetKey || itemK === `movie_${targetKey}`)) return false;
+      if (itemU && itemU === targetKey) return false;
+      if (itemT && (itemT === targetKey || `movie_${itemT}` === targetKey)) return false;
+      if (itemN && itemN.toLowerCase() === targetKey.toLowerCase()) return false;
+      return true;
+    });
+
+    saveUserSettings(userId, { viewed_franchises: list });
+    res.json({ success: true, viewed_franchises: list });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/franchises/:tmdbMovieId
 router.get('/:tmdbMovieId', async (req, res) => {
   try {

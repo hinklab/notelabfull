@@ -95,6 +95,7 @@ export const api = {
   getFranchiseUniverse: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/franchises/${encodeURIComponent(tmdb_id)}${media_type ? `?media_type=${encodeURIComponent(media_type)}` : ''}`),
   getViewedFranchises: () => fetchJSON(`${API_BASE}/franchises/viewed`),
   recordFranchiseView: (data) => fetchJSON(`${API_BASE}/franchises/record-view`, { method: 'POST', body: JSON.stringify(data) }),
+  removeViewedFranchise: (key) => fetchJSON(`${API_BASE}/franchises/viewed`, { method: 'DELETE', body: JSON.stringify({ key }) }),
 
   // Settings & Profile & Auth
   getSettings: () => fetchJSON(`${API_BASE}/settings`),

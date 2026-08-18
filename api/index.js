@@ -487,6 +487,45 @@ module.exports = async (req, res) => {
       });
       return res.status(200).json({ success: true, viewed_franchises: viewed });
     }
+    if (path === 'franchises/viewed' && req.method === 'DELETE') {
+      const body = await parseBody(req);
+      const rawKey = body.key || body.universe_key || body.tmdb_id || query.key || query.tmdb_id;
+      const targetKey = String(rawKey || '').trim();
+      const { data: existing } = await supabase.from('user_settings').select('settings').eq('id', `viewed_franchises_${userId}`).maybeSingle();
+      let viewed = existing?.settings?.viewed_franchises;
+      
+      // If user hasn't created a custom list yet, initialize from defaults first
+      if (!Array.isArray(viewed)) {
+        viewed = [
+          { key: 'mcu', universe_key: 'mcu', tmdb_id: 1726, media_type: 'movie', name: 'Marvel Cinematic Universe', is_universe: true, total_movies: 69, last_viewed_at: new Date().toISOString() },
+          { key: 'star_wars', universe_key: 'star_wars', tmdb_id: 11, media_type: 'movie', name: 'Star Wars Universe', is_universe: true, total_movies: 11, last_viewed_at: new Date().toISOString() },
+          { key: 'dceu', universe_key: 'dceu', tmdb_id: 49529, media_type: 'movie', name: 'DC Extended Universe', is_universe: true, total_movies: 10, last_viewed_at: new Date().toISOString() },
+          { key: 'kurtlar_vadisi', universe_key: 'kurtlar_vadisi', tmdb_id: 34587, media_type: 'tv', name: 'Valley of the Wolves (Kurtlar Vadisi)', is_universe: true, total_movies: 7, last_viewed_at: new Date().toISOString() }
+        ];
+      }
+
+      viewed = viewed.filter(item => {
+        const itemK = String(item.key || '').trim();
+        const itemU = String(item.universe_key || '').trim();
+        const itemT = String(item.tmdb_id || '').trim();
+        const itemN = String(item.name || '').trim();
+
+        if (itemK && (itemK === targetKey || itemK === `movie_${targetKey}`)) return false;
+        if (itemU && itemU === targetKey) return false;
+        if (itemT && (itemT === targetKey || `movie_${itemT}` === targetKey)) return false;
+        if (itemN && itemN.toLowerCase() === targetKey.toLowerCase()) return false;
+        return true;
+      });
+
+      await supabase.from('user_settings').upsert({
+        id: `viewed_franchises_${userId}`,
+        user_id: userId,
+        settings: { viewed_franchises: viewed },
+        updated_at: new Date().toISOString()
+      });
+
+      return res.status(200).json({ success: true, viewed_franchises: viewed });
+    }
 
     // GET /api/franchises/:tmdbMovieId
     const franchiseMatch = path.match(/^franchises\/(\d+)$/);

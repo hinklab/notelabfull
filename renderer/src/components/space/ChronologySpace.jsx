@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import ReactDOM from 'react-dom'
-import { Plus, Minus, RotateCcw, Sparkles, CheckCircle, Clock, Film, Star, ArrowRight, ChevronLeft, ChevronRight, Search, ListFilter, AlertCircle, ExternalLink, X, Calendar, PlusCircle, Check, Loader2 } from 'lucide-react'
+import { Plus, Minus, RotateCcw, Sparkles, CheckCircle, Clock, Film, Star, ArrowRight, ChevronLeft, ChevronRight, Search, ListFilter, AlertCircle, ExternalLink, X, Calendar, PlusCircle, Check, Loader2, Trash2 } from 'lucide-react'
 
 function formatVotes(n) {
   if (!n) return null
@@ -36,6 +36,8 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   const [sidebarSearch, setSidebarSearch] = useState('')
   const [activeTmdbId, setActiveTmdbId] = useState(targetTmdbId)
   const [hoveredNodeId, setHoveredNodeId] = useState(null)
+  const [hoveredFranchiseKey, setHoveredFranchiseKey] = useState(null)
+  const [confirmDeleteKey, setConfirmDeleteKey] = useState(null)
 
   // Card Detail Modal States
   const [selectedMovie, setSelectedMovie] = useState(null)
@@ -138,6 +140,32 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
       setError(err.message || 'Xronologiya ma\'lumotlarini yuklashda xatolik yuz berdi.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Remove franchise from viewed history
+  const handleRemoveFranchise = async (item, e = null) => {
+    if (e) e.stopPropagation()
+    const itemKey = item.universe_key || item.key || item.tmdb_id
+
+    // Optimistically update frontend state
+    setViewedFranchises(prev => {
+      const list = Array.isArray(prev) ? prev : []
+      return list.filter(f => {
+        const k = f.universe_key || f.key || f.tmdb_id
+        return k !== itemKey && f.name !== item.name
+      })
+    })
+    setConfirmDeleteKey(null)
+
+    try {
+      if (window.api && window.api.removeViewedFranchise) {
+        await window.api.removeViewedFranchise(itemKey)
+      }
+      setToastMessage(`"${item.name}" tarixdan olib tashlandi.`)
+      setTimeout(() => setToastMessage(null), 3000)
+    } catch (err) {
+      console.warn('Failed removing franchise view:', err)
     }
   }
 
@@ -394,49 +422,104 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   const itemKey = item.universe_key || item.key || (item.tmdb_id ? `movie_${item.tmdb_id}` : `idx_${idx}`)
                   const isActive = (item.universe_key && universeData?.universe_key === item.universe_key) || (item.tmdb_id && activeTmdbId === item.tmdb_id)
                   const countToDisplay = (item.universe_key && universeData?.universe_key === item.universe_key) ? universeData.movies.length : (item.total_movies || item.movie_count || 0)
+                  const isHovered = hoveredFranchiseKey === itemKey
+                  const isConfirmingDelete = confirmDeleteKey === itemKey
 
                   return (
-                    <button
+                    <div
                       key={itemKey}
-                      type="button"
-                      onClick={() => loadFranchiseData(item.tmdb_id, item.media_type)}
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: 14,
-                        width: '100%',
-                        textAlign: 'left',
-                        background: isActive ? 'rgba(124, 58, 237, 0.25)' : 'rgba(255, 255, 255, 0.03)',
-                        border: isActive ? '1px solid rgba(167, 139, 250, 0.5)' : '1px solid rgba(255, 255, 255, 0.06)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={e => {
-                        if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)'
-                      }}
-                      onMouseLeave={e => {
-                        if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'
+                      style={{ position: 'relative', width: '100%' }}
+                      onMouseEnter={() => setHoveredFranchiseKey(itemKey)}
+                      onMouseLeave={() => {
+                        setHoveredFranchiseKey(null)
+                        if (confirmDeleteKey === itemKey) setConfirmDeleteKey(null)
                       }}
                     >
-                      <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? '#a78bfa' : '#f4f4f5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.name}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, color: '#a1a1aa', marginTop: 4 }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          {item.is_universe ? (
-                            <>
-                              <Sparkles size={11} color="#c084fc" />
-                              <span>UNIVERSE</span>
-                            </>
-                          ) : (
-                            <>
-                              <Film size={11} color="#a1a1aa" />
-                              <span>COLLECTION</span>
-                            </>
-                          )}
-                        </span>
-                        <span style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: 6, fontWeight: 600 }}>{countToDisplay} kinolar</span>
-                      </div>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!isConfirmingDelete) {
+                            loadFranchiseData(item.tmdb_id, item.media_type)
+                          }
+                        }}
+                        style={{
+                          padding: '10px 12px',
+                          paddingRight: isHovered || isConfirmingDelete ? 36 : 12,
+                          borderRadius: 14,
+                          width: '100%',
+                          textAlign: 'left',
+                          background: isActive ? 'rgba(124, 58, 237, 0.25)' : 'rgba(255, 255, 255, 0.03)',
+                          border: isActive ? '1px solid rgba(167, 139, 250, 0.5)' : '1px solid rgba(255, 255, 255, 0.06)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={e => {
+                          if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)'
+                        }}
+                        onMouseLeave={e => {
+                          if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'
+                        }}
+                      >
+                        <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? '#a78bfa' : '#f4f4f5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.name}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, color: '#a1a1aa', marginTop: 4 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            {item.is_universe ? (
+                              <>
+                                <Sparkles size={11} color="#c084fc" />
+                                <span>UNIVERSE</span>
+                              </>
+                            ) : (
+                              <>
+                                <Film size={11} color="#a1a1aa" />
+                                <span>COLLECTION</span>
+                              </>
+                            )}
+                          </span>
+                          <span style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: 6, fontWeight: 600 }}>{countToDisplay} kinolar</span>
+                        </div>
+                      </button>
+
+                      {/* Delete Action Button with 2-step confirmation */}
+                      {(isHovered || isConfirmingDelete) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (isConfirmingDelete) {
+                              handleRemoveFranchise(item, e)
+                            } else {
+                              setConfirmDeleteKey(itemKey)
+                            }
+                          }}
+                          title={isConfirmingDelete ? "O'chirishni tasdiqlash uchun yana bosing" : "Tarixdan olib tashlash"}
+                          style={{
+                            position: 'absolute',
+                            top: '50%',
+                            right: 8,
+                            transform: 'translateY(-50%)',
+                            border: 'none',
+                            background: isConfirmingDelete ? '#ef4444' : 'rgba(239, 68, 68, 0.15)',
+                            color: isConfirmingDelete ? '#ffffff' : '#f87171',
+                            borderRadius: 8,
+                            padding: isConfirmingDelete ? '3px 7px' : '5px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            zIndex: 5,
+                            boxShadow: isConfirmingDelete ? '0 2px 8px rgba(239,68,68,0.5)' : 'none',
+                            transition: 'all 0.18s ease'
+                          }}
+                        >
+                          <Trash2 size={12} />
+                          {isConfirmingDelete && <span>O'chirish</span>}
+                        </button>
+                      )}
+                    </div>
                   )
                 })
               )}
