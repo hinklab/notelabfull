@@ -267,27 +267,27 @@ export default function NotificationPanel({
 
                   return (
                     <button
-                      onClick={() => handleAddMovie(notif)}
+                      onClick={() => handleAddFromNotif(notif)}
                       disabled={isDisabled}
                       style={{
                         marginTop: 8,
                         padding: '4px 10px',
                         borderRadius: 6,
-                        background: isAdded ? '#22c55e' : 'var(--accent, #8b5cf6)',
-                        color: '#fff',
-                        border: 'none',
-                        fontSize: 11,
+                        background: isAdded ? 'rgba(16, 185, 129, 0.15)' : 'var(--accent)',
+                        color: isAdded ? '#34d399' : '#fff',
+                        border: isAdded ? '1px solid rgba(16, 185, 129, 0.3)' : 'none',
+                        fontSize: 12,
                         fontWeight: 600,
                         cursor: isDisabled ? 'not-allowed' : 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 4,
+                        gap: 5,
                         opacity: isDisabled ? 0.7 : 1,
                         transition: 'background 0.2s, opacity 0.2s',
                       }}
                     >
-                      <Plus size={12} />
-                      <span>{isAdded ? 'Qo\'shildi ✓' : isLoading ? 'Qo\'shilmoqda...' : 'Qo\'shish +'}</span>
+                      {isAdded ? <Check size={12} /> : <Plus size={12} />}
+                      <span>{isAdded ? 'Qo\'shildi' : isLoading ? 'Qo\'shilmoqda...' : 'Qo\'shish'}</span>
                     </button>
                   )
                 })()}

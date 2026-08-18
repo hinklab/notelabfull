@@ -4,6 +4,7 @@ import App from './App.jsx'
 import './styles/globals.css'
 import api from './config/api.js'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { AlertTriangle } from 'lucide-react'
 
 if (!window.api) {
   window.api = api
@@ -36,8 +37,9 @@ class ErrorBoundary extends React.Component {
           boxSizing: 'border-box',
           overflow: 'auto',
         }}>
-          <h1 style={{ color: '#ef4444', fontSize: 20, marginBottom: 12 }}>
-            ⚠️ Application Error Encountered
+          <h1 style={{ color: '#ef4444', fontSize: 20, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertTriangle size={22} color="#ef4444" />
+            <span>Application Error Encountered</span>
           </h1>
           <div style={{ color: '#fca5a5', fontSize: 14, marginBottom: 16, background: '#1c1917', padding: 12, borderRadius: 8, border: '1px solid #441c1c' }}>
             <strong>Error:</strong> {this.state.error?.toString()}

@@ -601,7 +601,7 @@ export default function MovieCard({
                     onMouseLeave={e => e.currentTarget.style.background = 'rgba(124, 58, 237, 0.18)'}
                   >
                     <Sparkles size={12} color="#c084fc" />
-                    <span>✨ Xronologiya</span>
+                    <span>Xronologiya</span>
                   </button>
                 )}
               </div>

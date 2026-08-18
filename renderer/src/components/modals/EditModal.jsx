@@ -70,7 +70,7 @@ export default function EditModal({ movie, onSave, onClose }) {
 }
 
 export function AddModal({ section, onSave, onClose }) {
-  return <MovieForm title={`+ ${SECTIONS[section]} ga qo'shish`} initial={{}} onSave={onSave} onClose={onClose} />
+  return <MovieForm title={`${SECTIONS[section]} ga qo'shish`} initial={{}} onSave={onSave} onClose={onClose} />
 }
 
 function Row({ label, children, style }) {

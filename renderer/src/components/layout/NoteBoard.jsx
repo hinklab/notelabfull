@@ -1654,8 +1654,8 @@ function NoteItemModal({ item, note, onClose, onSave, onDelete, isEdit }) {
               {noteType !== 'custom' && (
                 <button
                   onClick={openEnrich}
-                  style={{ background: showEnrich ? 'rgba(124,58,237,0.25)' : 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 5, color: '#a78bfa', fontSize: 10, padding: '1px 7px', cursor: 'pointer', fontFamily: 'inherit' }}
-                >{enriching ? '...' : '🔍 API dan qidirish'}</button>
+                  style={{ background: showEnrich ? 'rgba(124,58,237,0.25)' : 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 5, color: '#a78bfa', fontSize: 10, padding: '2px 7px', cursor: 'pointer', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                >{enriching ? <Loader2 size={10} className="animate-spin" /> : <><Search size={10} /> <span>API dan qidirish</span></>}</button>
               )}
             </div>
             {showEnrich && (
@@ -1915,8 +1915,8 @@ function AddItemModal({ onClose, onSave, note, existingMovies = [], groups = [] 
                         </span>
                       )}
                       {isDuplicate && (
-                        <span style={{ color: '#f59e0b', fontSize: 10, fontWeight: 600, background: 'rgba(245,158,11,0.12)', padding: '1px 7px', borderRadius: 4 }}>
-                          ✓ {dupSection}
+                        <span style={{ color: '#f59e0b', fontSize: 10, fontWeight: 600, background: 'rgba(245,158,11,0.12)', padding: '1px 7px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                          <Check size={10} /> <span>{dupSection}</span>
                         </span>
                       )}
                     </div>
@@ -2213,8 +2213,8 @@ function TmdbFallbackSearchPanel({ search, itemsByGroup, groups, onAddItem, onSe
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>{r.release_year || r.year || '—'}</span>
                     {r.rating ? <span style={{ color: '#fbbf24', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}><Star size={11} fill="#fbbf24" color="#fbbf24" /> {r.rating}</span> : null}
-                    <span style={{ background: isFuture ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: isFuture ? '#c084fc' : '#60a5fa', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600 }}>
-                      ➔ {destName}
+                    <span style={{ background: isFuture ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: isFuture ? '#c084fc' : '#60a5fa', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <ArrowRight size={10} /> <span>{destName}</span>
                     </span>
                   </div>
                 </div>
