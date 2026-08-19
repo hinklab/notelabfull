@@ -8,20 +8,24 @@ const API_BASE = getApiBase();
 
 function getUserHeader() {
   try {
+    const lang = localStorage.getItem('language') === 'ru' ? 'ru-RU' : 'en-US'
+    const headers = {
+      'x-language': lang,
+      'accept-language': lang
+    }
     const saved = localStorage.getItem('notelab_user')
     if (saved) {
       const u = JSON.parse(saved)
       if (u && u.id) {
-        return {
-          'x-user-id': u.id,
-          'x-user-email': u.email || '',
-          'x-user-first-name': u.first_name || '',
-          'x-user-last-name': u.last_name || ''
-        }
+        headers['x-user-id'] = u.id
+        headers['x-user-email'] = u.email || ''
+        headers['x-user-first-name'] = u.first_name || ''
+        headers['x-user-last-name'] = u.last_name || ''
       }
     }
+    return headers
   } catch {}
-  return {}
+  return { 'x-language': 'en-US' }
 }
 
 async function fetchJSON(url, options = {}) {
@@ -91,9 +95,16 @@ export const api = {
   refreshAllMovies: (params) => fetchJSON(`${API_BASE}/movies/refresh-all${params?.auto ? '?auto=true' : ''}`, { method: 'POST' }),
 
   // Content Search, Media Images & Franchises
-  searchContent: (type, query) => fetchJSON(`${API_BASE}/content/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query)}`),
+  searchContent: (type, query, lang) => fetchJSON(`${API_BASE}/content/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query)}&language=${lang === 'ru' ? 'ru-RU' : 'en-US'}`),
+  getMovieDetails: (tmdb_id, media_type, lang) => fetchJSON(`${API_BASE}/content/details?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}&language=${lang === 'ru' ? 'ru-RU' : 'en-US'}`),
+  getMovieTranslations: (items, lang) => fetchJSON(`${API_BASE}/content/translations`, { method: 'POST', body: JSON.stringify({ items, language: lang === 'ru' ? 'ru-RU' : 'en-US' }) }),
   getMovieImages: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/content/images?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}`),
-  getFranchiseUniverse: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/franchises/${encodeURIComponent(tmdb_id)}${media_type ? `?media_type=${encodeURIComponent(media_type)}` : ''}`, { timeout: 15000 }),
+  getFranchiseUniverse: (tmdb_id, media_type, lang) => {
+    const params = new URLSearchParams()
+    if (media_type) params.set('media_type', media_type)
+    if (lang) params.set('language', lang === 'ru' ? 'ru-RU' : 'en-US')
+    return fetchJSON(`${API_BASE}/franchises/${encodeURIComponent(tmdb_id)}${params.toString() ? `?${params.toString()}` : ''}`, { timeout: 15000 })
+  },
   getViewedFranchises: () => fetchJSON(`${API_BASE}/franchises/viewed`),
   recordFranchiseView: (data) => fetchJSON(`${API_BASE}/franchises/record-view`, { method: 'POST', body: JSON.stringify(data) }),
   removeViewedFranchise: (key) => fetchJSON(`${API_BASE}/franchises/viewed`, { method: 'DELETE', body: JSON.stringify({ key }) }),

@@ -1201,9 +1201,7 @@
         "title": "Moon Knight",
         "stage": 11,
         "lane": 4,
-        "connects_to": [
-          1003596
-        ],
+        "connects_to": [],
         "release_date": "2022-03-30",
         "release_year": "2022",
         "rating": 7.6,

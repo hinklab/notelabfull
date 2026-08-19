@@ -4,6 +4,7 @@ import App from './App.jsx'
 import './styles/globals.css'
 import api from './config/api.js'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { LanguageProvider } from './context/LanguageContext.jsx'
 import { AlertTriangle } from 'lucide-react'
 
 if (!window.api) {
@@ -38,32 +39,31 @@ class ErrorBoundary extends React.Component {
           overflow: 'auto',
         }}>
           <h1 style={{ color: '#ef4444', fontSize: 20, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AlertTriangle size={22} color="#ef4444" />
-            <span>Application Error Encountered</span>
+            <AlertTriangle size={24} />
+            Application Error
           </h1>
-          <div style={{ color: '#fca5a5', fontSize: 14, marginBottom: 16, background: '#1c1917', padding: 12, borderRadius: 8, border: '1px solid #441c1c' }}>
-            <strong>Error:</strong> {this.state.error?.toString()}
-          </div>
-          <h3 style={{ color: '#e5e7eb', fontSize: 14, marginBottom: 8 }}>Component Stack Trace:</h3>
+          <p style={{ color: '#d4d4d8', marginBottom: 16, fontFamily: 'sans-serif' }}>
+            Something went wrong while rendering the app.
+          </p>
           <pre style={{
             background: '#18181b',
-            color: '#a1a1aa',
             padding: 16,
             borderRadius: 8,
-            overflowX: 'auto',
-            fontSize: 12,
-            lineHeight: 1.5,
             border: '1px solid #27272a',
+            overflow: 'auto',
+            maxHeight: 200,
             whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
           }}>
-            {this.state.errorInfo?.componentStack || 'No component stack available.'}
+            {this.state.error && this.state.error.toString()}
+            {this.state.errorInfo && this.state.errorInfo.componentStack}
           </pre>
           <button
             onClick={() => window.location.reload()}
             style={{
               marginTop: 16,
               padding: '8px 16px',
-              background: '#7c3aed',
+              background: '#ef4444',
               color: '#fff',
               border: 'none',
               borderRadius: 6,
@@ -86,9 +86,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
-        <App />
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
       </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>
 )
-

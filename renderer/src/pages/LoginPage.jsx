@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { BookOpen, ArrowLeft, CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { useLanguage } from '../context/LanguageContext.jsx'
 
 export default function LoginPage({ onSwitch }) {
   const { login } = useAuth()
+  const { t } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -20,7 +22,7 @@ export default function LoginPage({ onSwitch }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email.trim() || !password.trim()) {
-      setError('Email va parol kiriting')
+      setError(t('auth.enterEmailPassword', null, 'Email va parol kiriting'))
       return
     }
     setError('')
@@ -37,7 +39,7 @@ export default function LoginPage({ onSwitch }) {
   const handleForgotSubmit = async (e) => {
     e.preventDefault()
     if (!forgotEmail.trim()) {
-      setForgotError('Email manzilini kiriting.')
+      setForgotError(t('auth.enterEmail', null, 'Email manzilini kiriting.'))
       return
     }
     setForgotError('')
@@ -46,10 +48,10 @@ export default function LoginPage({ onSwitch }) {
     try {
       if (window.api && window.api.resetPasswordEmail) {
         const res = await window.api.resetPasswordEmail(forgotEmail.trim(), window.location.origin)
-        setForgotSuccess(res.message || 'Parolni tiklash havolasi yuborildi.')
+        setForgotSuccess(res.message || t('auth.resetLinkSent', null, 'Parolni tiklash havolasi yuborildi.'))
       }
     } catch (err) {
-      setForgotError(err.message || 'Xatolik yuz berdi.')
+      setForgotError(err.message || t('auth.errorOccurred', null, 'Xatolik yuz berdi.'))
     } finally {
       setForgotLoading(false)
     }
@@ -68,12 +70,12 @@ export default function LoginPage({ onSwitch }) {
 
         {!showForgot ? (
           <>
-            <h2 style={styles.title}>Kirish</h2>
-            <p style={styles.subtitle}>Hisobingizga kiring</p>
+            <h2 style={styles.title}>{t('auth.loginTitle')}</h2>
+            <p style={styles.subtitle}>{t('auth.loginSubtitle')}</p>
 
             <form onSubmit={handleSubmit} style={styles.form}>
               <div style={styles.field}>
-                <label style={styles.label}>Email</label>
+                <label style={styles.label}>{t('auth.email')}</label>
                 <input
                   type="email"
                   value={email}
@@ -87,7 +89,7 @@ export default function LoginPage({ onSwitch }) {
 
               <div style={styles.field}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={styles.label}>Parol</label>
+                  <label style={styles.label}>{t('auth.password')}</label>
                   <span
                     onClick={() => {
                       setForgotEmail(email)
@@ -95,7 +97,7 @@ export default function LoginPage({ onSwitch }) {
                     }}
                     style={{ fontSize: 12, color: 'var(--accent)', cursor: 'pointer', fontWeight: 500 }}
                   >
-                    Parolni unutdingizmi?
+                    {t('auth.forgotPassword')}
                   </span>
                 </div>
                 <div style={{ position: 'relative', width: '100%' }}>
@@ -111,7 +113,6 @@ export default function LoginPage({ onSwitch }) {
                     type="button"
                     onClick={() => setShowPassword(prev => !prev)}
                     tabIndex={-1}
-                    title={showPassword ? "Parolni berkitish" : "Parolni ko'rsatish"}
                     style={{
                       position: 'absolute',
                       right: 12,
@@ -139,14 +140,14 @@ export default function LoginPage({ onSwitch }) {
               {error && <div style={styles.error}>{error}</div>}
 
               <button type="submit" style={{ ...styles.btn, opacity: loading ? 0.6 : 1 }} disabled={loading}>
-                {loading ? 'Kirilmoqda...' : 'Kirish'}
+                {loading ? '...' : t('auth.loginButton')}
               </button>
             </form>
 
             <p style={styles.switchText}>
-              Hisobingiz yo'qmi?{' '}
+              {t('auth.noAccount')}{' '}
               <span style={styles.switchLink} onClick={onSwitch}>
-                Ro'yxatdan o'tish
+                {t('auth.registerLink')}
               </span>
             </p>
           </>
@@ -168,23 +169,23 @@ export default function LoginPage({ onSwitch }) {
                 marginBottom: 16,
               }}
             >
-              <ArrowLeft size={14} /> Ortga qaytish
+              <ArrowLeft size={14} /> {t('auth.backToLogin', null, 'Ortga qaytish')}
             </div>
 
-            <h2 style={styles.title}>Parolni tiklash</h2>
-            <p style={styles.subtitle}>Email manzilingizga parolni tiklash havolasini yuboramiz</p>
+            <h2 style={styles.title}>{t('auth.forgotTitle', null, 'Parolni tiklash')}</h2>
+            <p style={styles.subtitle}>{t('auth.forgotSubtitle', null, 'Email manzilingizga parolni tiklash havolasini yuboramiz')}</p>
 
             {forgotSuccess ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, padding: 16, color: '#10b981', fontSize: 13, lineHeight: 1.45 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                  <CheckCircle2 size={18} /> Yuborildi!
+                  <CheckCircle2 size={18} /> {t('auth.sent', null, 'Yuborildi!')}
                 </div>
                 <div>{forgotSuccess}</div>
               </div>
             ) : (
               <form onSubmit={handleForgotSubmit} style={styles.form}>
                 <div style={styles.field}>
-                  <label style={styles.label}>Email manzil</label>
+                  <label style={styles.label}>{t('auth.email')}</label>
                   <input
                     type="email"
                     value={forgotEmail}
@@ -199,7 +200,7 @@ export default function LoginPage({ onSwitch }) {
                 {forgotError && <div style={styles.error}>{forgotError}</div>}
 
                 <button type="submit" style={{ ...styles.btn, opacity: forgotLoading ? 0.6 : 1 }} disabled={forgotLoading}>
-                  {forgotLoading ? 'Yuborilmoqda...' : 'Tiklash havolasini yuborish'}
+                  {forgotLoading ? '...' : t('auth.sendResetLink', null, 'Tiklash havolasini yuborish')}
                 </button>
               </form>
             )}

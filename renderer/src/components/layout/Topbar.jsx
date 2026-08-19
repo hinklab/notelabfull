@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { RefreshCw, Settings, Power, Film, Bell, HelpCircle, Sparkles } from 'lucide-react'
 import NotificationPanel from './NotificationPanel.jsx'
+import { useLanguage } from '../../context/LanguageContext.jsx'
 
 export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onRefresh, refreshing, noteLabel, user, onLogout, onAddMovieSuccess, activeView = 'movies', onViewChange }) {
+  const { t } = useLanguage()
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
   const panelRef = useRef(null)
@@ -52,11 +54,12 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
   ]
 
   const [isSearchFocused, setIsSearchFocused] = useState(false)
-  const [animatedPlaceholder, setAnimatedPlaceholder] = useState('Qidirish...')
+  const [animatedPlaceholder, setAnimatedPlaceholder] = useState(t('common.search'))
 
   useEffect(() => {
+    const searchPrefix = t('common.search').replace('...', '')
     if (isSearchFocused || search) {
-      setAnimatedPlaceholder('Qidirish...')
+      setAnimatedPlaceholder(t('common.search'))
       return
     }
 
@@ -70,7 +73,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
 
       if (!isDeleting) {
         charIdx++
-        setAnimatedPlaceholder(`Qidirish: "${currentTitle.slice(0, charIdx)}"`)
+        setAnimatedPlaceholder(`${searchPrefix}: "${currentTitle.slice(0, charIdx)}"`)
 
         if (charIdx >= currentTitle.length) {
           isDeleting = true
@@ -80,7 +83,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         }
       } else {
         charIdx--
-        setAnimatedPlaceholder(charIdx > 0 ? `Qidirish: "${currentTitle.slice(0, charIdx)}"` : 'Qidirish...')
+        setAnimatedPlaceholder(charIdx > 0 ? `${searchPrefix}: "${currentTitle.slice(0, charIdx)}"` : t('common.search'))
 
         if (charIdx <= 0) {
           isDeleting = false
@@ -97,7 +100,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
     return () => {
       if (timer) clearTimeout(timer)
     }
-  }, [isSearchFocused, search])
+  }, [isSearchFocused, search, t])
 
   const handleMarkRead = async (id) => {
     try {
@@ -185,7 +188,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
               }}
             >
               <Film size={13} />
-              <span>Movies</span>
+              <span>{t('nav.movies')}</span>
             </button>
             <button
               type="button"
@@ -206,7 +209,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
               }}
             >
               <Sparkles size={13} />
-              <span>Space</span>
+              <span>{t('nav.space')}</span>
             </button>
           </div>
         </span>
@@ -254,7 +257,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
             <button
               onClick={handleRefreshClick}
               disabled={refreshing}
-              title="Filmlar ma'lumotlarini yangilash"
+              title={t('common.retry')}
               style={{
                 WebkitAppRegion: 'no-drag',
                 background: 'transparent',
@@ -278,7 +281,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         <div style={{ position: 'relative' }} ref={panelRef}>
           <button
             onClick={() => setShowNotifications(prev => !prev)}
-            title="Xabarnomalar"
+            title={t('notifications.title')}
             style={{
               WebkitAppRegion: 'no-drag',
               background: showNotifications ? 'rgba(139, 92, 246, 0.12)' : 'transparent',
@@ -350,7 +353,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         {/* Settings tugmasi */}
         <button
           onClick={onSettings}
-          title="Sozlamalar"
+          title={t('settings.title')}
           style={{
             WebkitAppRegion: 'no-drag',
             background: 'transparent',

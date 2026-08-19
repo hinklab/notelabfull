@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
-import { User, Sun, Moon, LogOut, X, Check } from 'lucide-react'
+import { User, Sun, Moon, LogOut, X, Check, Globe } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { useLanguage } from '../../context/LanguageContext.jsx'
 
 export default function SettingsModal({ onClose, onOpenSurvey }) {
   const { user, updateUser, logout } = useAuth()
+  const { language, setLanguage, t } = useLanguage()
   const [activeTab, setActiveTab] = useState('profile') // 'profile' | 'appearance' | 'logout'
 
   // Tab 1: Profile state
@@ -31,7 +33,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
       setTimeout(() => setProfileSaved(false), 2000)
     } catch (err) {
       console.error('Failed to update profile:', err)
-      alert('Profilni saqlashda xatolik: ' + (err.message || 'Xato'))
+      alert(t('common.error') + ': ' + (err.message || 'Error'))
     } finally {
       setProfileSaving(false)
     }
@@ -44,9 +46,9 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
   }
 
   const tabs = [
-    { id: 'profile', label: 'Profil', icon: User },
-    { id: 'appearance', label: 'Ko\'rinish', icon: theme === 'dark' ? Moon : Sun },
-    { id: 'logout', label: 'Chiqish', icon: LogOut, color: '#ef4444' },
+    { id: 'profile', label: t('settings.profile'), icon: User },
+    { id: 'appearance', label: t('settings.appearance'), icon: theme === 'dark' ? Moon : Sun },
+    { id: 'logout', label: t('settings.logout'), icon: LogOut, color: '#ef4444' },
   ]
 
   const tabIndexMap = { profile: 0, appearance: 1, logout: 2 }
@@ -94,7 +96,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
           }}
         >
           <span style={{ fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            Sozlamalar
+            {t('settings.title')}
           </span>
           <button
             onClick={onClose}
@@ -169,7 +171,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
             <div style={{ width: '33.3333%', padding: 24, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Elektron pochta (faqat ko'rish uchun)
+                  {t('settings.email')}
                 </label>
                 <input
                   type="text"
@@ -178,59 +180,61 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                   value={user?.email || ''}
                   style={{
                     width: '100%',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid var(--border)',
+                    background: 'var(--bg-input, #1e1e1e)',
+                    border: '1px solid var(--border, #2a2a2a)',
                     borderRadius: 8,
                     padding: '10px 14px',
-                    color: 'var(--text-muted)',
+                    color: 'var(--text-muted, #71717a)',
                     fontSize: 13,
                     cursor: 'not-allowed',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
-                  Ism
-                </label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={e => setFirstName(e.target.value)}
-                  placeholder="Ismingizni kiriting..."
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    padding: '10px 14px',
-                    color: 'var(--text-primary)',
-                    fontSize: 13,
-                    outline: 'none',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>
-                  Familiya
-                </label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={e => setLastName(e.target.value)}
-                  placeholder="Familiyangizni kiriting..."
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 8,
-                    padding: '10px 14px',
-                    color: 'var(--text-primary)',
-                    fontSize: 13,
-                    outline: 'none',
-                  }}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                    Ism
+                  </label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    placeholder="Ismingiz"
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input, #1e1e1e)',
+                      border: '1px solid var(--border, #2a2a2a)',
+                      borderRadius: 8,
+                      padding: '10px 14px',
+                      color: 'var(--text-primary, #efefef)',
+                      fontSize: 13,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                    Familiya
+                  </label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={e => setLastName(e.target.value)}
+                    placeholder="Familiyangiz"
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input, #1e1e1e)',
+                      border: '1px solid var(--border, #2a2a2a)',
+                      borderRadius: 8,
+                      padding: '10px 14px',
+                      color: 'var(--text-primary, #efefef)',
+                      fontSize: 13,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
@@ -255,10 +259,10 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                 >
                   {profileSaved ? (
                     <>
-                      <Check size={15} /> Saqlandi!
+                      <Check size={15} /> {t('common.success')}
                     </>
                   ) : (
-                    profileSaving ? 'Saqlanmoqda...' : 'Saqlash'
+                    profileSaving ? t('common.loading') : t('common.save')
                   )}
                 </button>
               </div>
@@ -266,10 +270,10 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
               {/* Qiziqishlar so'rovnomasi bo'limi */}
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  Qiziqishlar so'rovnomasi
+                  {t('onboarding.welcomeTitle')}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-                  Film va serial tavsiyalarini yangilash uchun so'rovnomani qayta o'tishingiz mumkin.
+                  {t('onboarding.welcomeDesc')}
                 </div>
                 <button
                   type="button"
@@ -296,19 +300,76 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                   }}
                 >
                   <User size={16} color="var(--accent)" />
-                  <span>Qiziqishlar so'rovnomasini qayta o'tish</span>
+                  <span>{t('onboarding.submit')}</span>
                 </button>
               </div>
             </div>
 
-            {/* SLIDE 1: TAB 2 - Ko'rinish */}
-            <div style={{ width: '33.3333%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* SLIDE 1: TAB 2 - Ko'rinish & Til */}
+            <div style={{ width: '33.3333%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Language Selection Section */}
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  Mavzu (Theme)
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Globe size={16} color="var(--accent)" />
+                  <span>{t('settings.language')}</span>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
-                  Ilovaning umumiy ko'rinish rejimini tanlang.
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                  {t('settings.languageDesc')}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  {[
+                    { code: 'uz', label: "O'zbekcha", tag: 'UZ' },
+                    { code: 'ru', label: 'Русский', tag: 'RU' },
+                    { code: 'en', label: 'English', tag: 'EN' }
+                  ].map(langItem => {
+                    const isLangActive = language === langItem.code
+                    return (
+                      <button
+                        key={langItem.code}
+                        type="button"
+                        onClick={() => setLanguage(langItem.code)}
+                        style={{
+                          background: isLangActive ? 'rgba(124,58,237,0.18)' : 'var(--bg-input)',
+                          border: isLangActive ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                          borderRadius: 10,
+                          padding: '10px 8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 5,
+                          color: isLangActive ? 'var(--accent)' : 'var(--text-primary)',
+                          fontWeight: 600,
+                          fontSize: 12,
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 800,
+                          letterSpacing: '0.5px',
+                          background: isLangActive ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
+                          color: isLangActive ? '#fff' : 'var(--text-secondary)',
+                          padding: '2px 8px',
+                          borderRadius: 6
+                        }}>
+                          {langItem.tag}
+                        </span>
+                        <span>{langItem.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Theme Selection Section */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  {t('settings.theme')}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                  {t('settings.themeDesc')}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <button
@@ -317,7 +378,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                       background: theme === 'dark' ? 'rgba(124,58,237,0.18)' : 'var(--bg-input)',
                       border: theme === 'dark' ? '1.5px solid var(--accent)' : '1px solid var(--border)',
                       borderRadius: 10,
-                      padding: '14px 16px',
+                      padding: '12px 16px',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -329,7 +390,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                       transition: 'all 0.15s',
                     }}
                   >
-                    <Moon size={16} /> Dark (To'q rejim)
+                    <Moon size={16} /> {t('settings.darkTheme')}
                   </button>
                   <button
                     onClick={() => handleThemeChange('light')}
@@ -337,7 +398,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                       background: theme === 'light' ? 'rgba(124,58,237,0.18)' : 'var(--bg-input)',
                       border: theme === 'light' ? '1.5px solid var(--accent)' : '1px solid var(--border)',
                       borderRadius: 10,
-                      padding: '14px 16px',
+                      padding: '12px 16px',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -349,7 +410,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                       transition: 'all 0.15s',
                     }}
                   >
-                    <Sun size={16} /> Light (Oq rejim)
+                    <Sun size={16} /> {t('settings.lightTheme')}
                   </button>
                 </div>
               </div>
@@ -358,10 +419,10 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
             {/* SLIDE 2: TAB 3 - Chiqish */}
             <div style={{ width: '33.3333%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                Hisobdan chiqish
+                {t('settings.logout')}
               </div>
               <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Hisobingizdan chiqmoqchimisiz? Qayta kirish uchun elektron pochta va parolingiz kerak bo'ladi.
+                {t('auth.loginSubtitle')}
               </p>
               <div style={{ marginTop: 12 }}>
                 <button
@@ -384,7 +445,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                     boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
                   }}
                 >
-                  <LogOut size={16} /> Hisobdan chiqish
+                  <LogOut size={16} /> {t('settings.logout')}
                 </button>
               </div>
             </div>

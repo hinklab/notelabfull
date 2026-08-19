@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react'
 import MovieCard from '../cards/MovieCard.jsx'
 import { Pencil, X, Plus } from 'lucide-react'
+import { useLanguage } from '../../context/LanguageContext.jsx'
 
 const COL_COLORS = {
   futured: { color: '#a78bfa', bg: 'rgba(124,58,237,0.12)', border: 'rgba(124,58,237,0.3)' },
@@ -47,18 +48,23 @@ function getDropPosition(movies, clientY, containerRef) {
 }
 
 export default function Column({ sectionKey, meta, movies, onContextMenu, onAdd, onMoveCard, onReorderCard, onGroupContextMenu, onRename, onDelete, groupClipboard, onGroupCut, onGroupCopy, onGroupPaste }) {
-  const col = COL_COLORS[sectionKey]
+  const { t } = useLanguage()
+  const col = COL_COLORS[sectionKey] || COL_COLORS.todo
   const [dragMarker, setDragMarker] = useState(null)
   const [headerHovered, setHeaderHovered] = useState(false)
   const [editingName, setEditingName] = useState(false)
-  const [nameVal, setNameVal] = useState(meta.label)
+
+  const defaultLabel = t(`sections.${sectionKey}`, null, meta.label)
+  const [nameVal, setNameVal] = useState(defaultLabel)
   const cardsRef = useRef(null)
   const rafRef = useRef(null)
 
-  useEffect(() => { setNameVal(meta.label) }, [meta.label])
+  useEffect(() => {
+    setNameVal(t(`sections.${sectionKey}`, null, meta.label))
+  }, [meta.label, sectionKey, t])
 
   const handleRename = async () => {
-    if (!nameVal.trim() || nameVal.trim() === meta.label) { setEditingName(false); setNameVal(meta.label); return }
+    if (!nameVal.trim() || nameVal.trim() === defaultLabel) { setEditingName(false); setNameVal(defaultLabel); return }
     onRename?.(nameVal.trim())
     setEditingName(false)
   }
@@ -113,7 +119,7 @@ export default function Column({ sectionKey, meta, movies, onContextMenu, onAdd,
     <div style={{
       width: 280, minWidth: 280, maxWidth: 280,
       display: 'flex', flexDirection: 'column',
-      background: '#111', borderRadius: 10,
+      background: 'var(--bg-surface, #111)', borderRadius: 10,
       border: '1px solid var(--border)', flexShrink: 0,
     }}>
       {/* Header */}
@@ -133,24 +139,24 @@ export default function Column({ sectionKey, meta, movies, onContextMenu, onAdd,
             autoFocus
             value={nameVal}
             onChange={e => setNameVal(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') { setEditingName(false); setNameVal(meta.label) } }}
+            onKeyDown={e => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') { setEditingName(false); setNameVal(defaultLabel) } }}
             onBlur={handleRename}
-            style={{ background: 'transparent', border: 'none', borderBottom: `1px solid ${col.color}`, color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, outline: 'none', fontFamily: 'Space Grotesk', flex: 1 }}
+            style={{ background: 'transparent', border: 'none', borderBottom: `1px solid ${col.color}`, color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, outline: 'none', flex: 1 }}
           />
         ) : (
           <span
             onDoubleClick={() => setEditingName(true)}
             style={{ background: col.bg, color: col.color, border: `1px solid ${col.border}`, borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 600, flexShrink: 0, cursor: 'default' }}
-          >{meta.label}</span>
+          >{defaultLabel}</span>
         )}
         <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{movies.length}</span>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', gap: 2, opacity: headerHovered ? 1 : 0, transition: 'opacity 0.15s', pointerEvents: headerHovered ? 'auto' : 'none' }}>
-          <button onClick={(e) => { e.stopPropagation(); setEditingName(true) }} title="Tahrirlash" style={colBtnStyle}
+          <button onClick={(e) => { e.stopPropagation(); setEditingName(true) }} title={t('card.edit')} style={colBtnStyle}
             onMouseEnter={e => { e.currentTarget.style.color = col.color; e.currentTarget.style.background = col.bg }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
           ><Pencil size={12} /></button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete?.() }} title="O'chirish" style={colBtnStyle}
+          <button onClick={(e) => { e.stopPropagation(); onDelete?.() }} title={t('card.delete')} style={colBtnStyle}
             onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
           ><X size={12} /></button>
@@ -158,7 +164,7 @@ export default function Column({ sectionKey, meta, movies, onContextMenu, onAdd,
         <button
           onClick={onAdd}
           style={{ background: 'transparent', border: `1px solid ${col.border}`, borderRadius: 6, color: col.color, width: 26, height: 26, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-          title="Kino qo'shish"
+          title={t('board.addMovie')}
         ><Plus size={14} /></button>
       </div>
 
@@ -200,7 +206,7 @@ export default function Column({ sectionKey, meta, movies, onContextMenu, onAdd,
           <div style={{
             color: 'var(--text-muted)', fontSize: 12,
             textAlign: 'center', padding: '20px 0', opacity: 0.4,
-          }}>Bo'sh — bu yerga tashlang</div>
+          }}>{t('board.emptyColumn')}</div>
         )}
       </div>
     </div>

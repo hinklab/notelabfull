@@ -246,4 +246,129 @@ router.get('/images', async (req, res) => {
   }
 });
 
+// Cache for localized movie details: `${tmdb_id}_${type}_${lang}` -> item
+const localizedDetailsCache = new Map();
+
+// Helper to normalize language param
+function resolveLocale(raw) {
+  if (!raw) return 'en-US';
+  const l = raw.toLowerCase();
+  if (l === 'ru' || l.startsWith('ru-')) return 'ru-RU';
+  return 'en-US';
+}
+
+// GET /api/content/details?tmdb_id=123&media_type=movie&language=ru-RU
+router.get('/details', async (req, res) => {
+  try {
+    const tmdbId = req.query.tmdb_id;
+    if (!tmdbId) return res.status(400).json({ error: 'tmdb_id is required' });
+
+    const mediaType = req.query.media_type === 'tv' ? 'tv' : 'movie';
+    const lang = resolveLocale(req.query.language || req.headers['x-language']);
+    const cacheKey = `${tmdbId}_${mediaType}_${lang}`;
+
+    if (localizedDetailsCache.has(cacheKey)) {
+      return res.json(localizedDetailsCache.get(cacheKey));
+    }
+
+    const db = readDB();
+    const settings = getUserSettings(req.userId, db);
+    const tmdbKey = settings.tmdb_key;
+    if (!tmdbKey) return res.status(500).json({ error: 'TMDB key not configured' });
+
+    const url = `https://api.themoviedb.org/3/${mediaType}/${encodeURIComponent(tmdbId)}?api_key=${encodeURIComponent(tmdbKey)}&language=${lang}&append_to_response=credits`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      return res.status(response.status).json({ error: 'Failed to fetch from TMDB' });
+    }
+
+    const d = await response.json();
+    const director = d.credits?.crew?.find(c => c.job === 'Director')?.name || null;
+    const genres = (d.genres || []).map(g => g.name).join(', ') || null;
+
+    const result = {
+      tmdb_id: d.id,
+      media_type: mediaType,
+      language: lang,
+      title: d.title || d.name || d.original_title || d.original_name,
+      original_title: d.original_title || d.original_name || null,
+      tagline: d.tagline || null,
+      overview: d.overview || null,
+      genre: genres,
+      director,
+      poster_path: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : null,
+      backdrop_path: d.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}` : null,
+      release_date: d.release_date || d.first_air_date || null,
+      rating: d.vote_average ? Number(d.vote_average.toFixed(1)) : null,
+      vote_count: d.vote_count || 0
+    };
+
+    localizedDetailsCache.set(cacheKey, result);
+    return res.json(result);
+  } catch (err) {
+    console.error('Content details error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/content/translations (batch fetch for multiple movies)
+router.post('/translations', async (req, res) => {
+  try {
+    const items = req.body.items || [];
+    const lang = resolveLocale(req.body.language || req.headers['x-language']);
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.json({});
+    }
+
+    const db = readDB();
+    const settings = getUserSettings(req.userId, db);
+    const tmdbKey = settings.tmdb_key;
+    if (!tmdbKey) return res.status(500).json({ error: 'TMDB key not configured' });
+
+    const translationsMap = {};
+    const missing = [];
+
+    items.forEach(item => {
+      if (!item.tmdb_id) return;
+      const mediaType = item.media_type === 'tv' ? 'tv' : 'movie';
+      const cacheKey = `${item.tmdb_id}_${mediaType}_${lang}`;
+      if (localizedDetailsCache.has(cacheKey)) {
+        translationsMap[item.tmdb_id] = localizedDetailsCache.get(cacheKey);
+      } else {
+        missing.push({ tmdb_id: item.tmdb_id, media_type: mediaType, cacheKey });
+      }
+    });
+
+    if (missing.length > 0) {
+      await Promise.all(missing.slice(0, 30).map(async ({ tmdb_id, media_type, cacheKey }) => {
+        try {
+          const url = `https://api.themoviedb.org/3/${media_type}/${encodeURIComponent(tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}&language=${lang}`;
+          const r = await fetch(url, { signal: AbortSignal.timeout(3500) });
+          if (r.ok) {
+            const d = await r.json();
+            const localized = {
+              tmdb_id: d.id,
+              media_type,
+              language: lang,
+              title: d.title || d.name || d.original_title || d.original_name,
+              tagline: d.tagline || null,
+              overview: d.overview || null,
+              genre: (d.genres || []).map(g => g.name).join(', ') || null
+            };
+            localizedDetailsCache.set(cacheKey, localized);
+            translationsMap[tmdb_id] = localized;
+          }
+        } catch (e) {
+          console.warn(`Failed batch translating tmdb_id ${tmdb_id}:`, e.message);
+        }
+      }));
+    }
+
+    return res.json(translationsMap);
+  } catch (err) {
+    console.error('Content translations error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

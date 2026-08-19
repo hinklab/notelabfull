@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard from '../cards/MovieCard.jsx'
 import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard } from 'lucide-react'
+import { useLanguage } from '../../context/LanguageContext.jsx'
 
 function hexToRgba(hex, alpha) {
   if (!hex || hex.length < 7) return `rgba(124,58,237,${alpha})`
@@ -140,14 +141,15 @@ function formatTotalRuntime(totalMinutes) {
 }
 
 function RatingStars10({ value, onChange }) {
+  const { t } = useLanguage()
   const [hoverVal, setHoverVal] = useState(null)
   const activeVal = hoverVal !== null ? hoverVal : (value || 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#93c5fd' }}>Sizning bahoingiz:</span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>{activeVal ? `${activeVal}/10` : 'Baho berilmagan'}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#93c5fd' }}>{t('card.rating')}:</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>{activeVal ? `${activeVal}/10` : '-'}</span>
       </div>
       <div style={{ display: 'flex', gap: 4, justifyContent: 'space-between' }} onMouseLeave={() => setHoverVal(null)}>
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(starNum => {
@@ -177,8 +179,35 @@ function RatingStars10({ value, onChange }) {
 }
 
 export default function NoteBoard({ note, refreshTrigger, search = '', onSearch, onOpenChronology }) {
-  const [groups, setGroups] = useState([])
-  const [itemsByGroup, setItemsByGroup] = useState({})
+  const { language, t, prefetchMovieTranslations } = useLanguage()
+  const noteId = note?.id ?? null
+  const isMovieNote = note?.is_movie === true || note?.type === 'movie' || true
+  const cacheKey = `notelab_board_cache_${noteId || 'default'}`
+
+  const [groups, setGroups] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`${cacheKey}_groups`)
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    if (isMovieNote) {
+      return [
+        { id: 'g_futured', name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
+        { id: 'g_todo', name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
+        { id: 'g_doing', name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
+        { id: 'g_done', name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
+      ]
+    }
+    return []
+  })
+
+  const [itemsByGroup, setItemsByGroup] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`${cacheKey}_items`)
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return {}
+  })
+
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [addItemGroup, setAddItemGroup] = useState(null)
   const [editItem, setEditItem] = useState(null)
@@ -190,10 +219,21 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
   const [renameGroupId, setRenameGroupId] = useState(null)
   const [draggingGroupId, setDraggingGroupId] = useState(null)
   const [ratePromptItem, setRatePromptItem] = useState(null)
+  const [expandedMovieId, setExpandedMovieId] = useState(null)
   const [toastMessage, setToastMessage] = useState(null)
   const groupDragOver = useRef(null)
   const [confirmState, setConfirmState] = useState(null)
   const boardCardPositionsRef = useRef(new Map())
+
+  const handleMoveMovieSection = useCallback(async (item, targetSectionKey) => {
+    if (!item || !targetSectionKey) return
+    const targetGroup = groups.find(g => g.section_key === targetSectionKey)
+    if (!targetGroup) return
+    const currentGroupId = item.group_id || groups.find(g => g.section_key === (item.section || item._movie?.section))?.id || (groups.find(g => (itemsByGroup[g.id] || []).some(i => String(i.id) === String(item.id)))?.id)
+    if (currentGroupId && targetGroup.id && String(currentGroupId) !== String(targetGroup.id)) {
+      await handleMoveItem(item.id, currentGroupId, targetGroup.id, 0)
+    }
+  }, [groups, itemsByGroup])
 
   const snapshotAllCardPositions = useCallback(() => {
     const cardEls = Array.from(document.querySelectorAll('[data-item-id]'))
@@ -226,33 +266,19 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         // If card moved across columns (deltaX > 50px), animate cleanly inside its new column to avoid CSS container clipping
         const isCrossColumnMove = Math.abs(deltaX) > 50
 
-        if (isCrossColumnMove) {
-          // Cross-column entering card: scale & fade in smoothly inside destination column
-          el.style.transform = 'translate3d(0, -16px, 0) scale(0.94)'
-          el.style.opacity = '0'
+        if (deltaX !== 0 || deltaY !== 0) {
+          if (isCrossColumnMove) {
+            el.style.transform = `translate3d(0, ${deltaY}px, 0) scale(0.96)`
+            el.style.opacity = '0.6'
+          } else {
+            el.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
+          }
           el.style.transition = 'none'
 
-          void el.offsetHeight
-
           requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
-              el.style.transform = 'translate3d(0, 0, 0) scale(1)'
-              el.style.opacity = '1'
-            })
-          })
-        } else if (Math.abs(deltaY) > 1) {
-          // Within-column shift (cards sliding up in source column, or sliding down in destination column)
-          el.style.transform = `translate3d(0, ${deltaY}px, 0)`
-          el.style.transition = 'none'
-
-          void el.offsetHeight
-
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
-              el.style.transform = 'translate3d(0, 0, 0)'
-            })
+            el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
+            el.style.transform = 'translate3d(0, 0, 0) scale(1)'
+            el.style.opacity = '1'
           })
         }
       } else {
@@ -281,38 +307,56 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     setConfirmState({ message, resolve })
   })
 
-  const noteId = note?.id ?? null
-  const isMovieNote = note?.is_movie === true || note?.type === 'movie' || true
-
   const loadGroups = useCallback(async () => {
-    const groups = await window.api.getGroups(noteId)
-    setGroups(groups)
-    const map = {}
-    if (isMovieNote) {
-      const movies = await window.api.getMovies(noteId)
-      for (const g of groups) {
-        map[g.id] = movies
-          .filter(m => m.section === g.section_key)
-          .sort((a, b) => a.position - b.position)
-          .map(m => ({
-            id: m.id, group_id: g.id, title: m.title,
-            subtitle: [m.genre, m.director].filter(Boolean).join(' · '),
-            cover_url: m.poster_path || null,
-            note: m.note || '',
-            user_rating: m.user_rating || null,
-            avg_user_rating: m.avg_user_rating || m.user_rating || null,
-            _movie: m,
-          }))
+    try {
+      const [groups, movies] = await Promise.all([
+        window.api.getGroups(noteId),
+        isMovieNote ? window.api.getMovies(noteId) : Promise.resolve([])
+      ])
+      const validGroups = groups || []
+      setGroups(validGroups)
+      const map = {}
+      if (isMovieNote) {
+        const validMovies = movies || []
+        for (const g of validGroups) {
+          map[g.id] = validMovies
+            .filter(m => m.section === g.section_key)
+            .sort((a, b) => (a.position || 0) - (b.position || 0))
+            .map(m => ({
+              id: m.id, group_id: g.id, title: m.title,
+              subtitle: [m.genre, m.director].filter(Boolean).join(' · '),
+              cover_url: m.poster_path || null,
+              note: m.note || '',
+              user_rating: m.user_rating || null,
+              avg_user_rating: m.avg_user_rating || m.user_rating || null,
+              _movie: m,
+            }))
+        }
+        setItemsByGroup(map)
+        if (language === 'ru' && prefetchMovieTranslations && validMovies.length > 0) {
+          prefetchMovieTranslations(validMovies)
+        }
+      } else {
+        await Promise.all(validGroups.map(async g => {
+          map[g.id] = await window.api.getItems(g.id)
+        }))
+        setItemsByGroup(map)
       }
-    } else {
-      await Promise.all(groups.map(async g => {
-        map[g.id] = await window.api.getItems(g.id)
-      }))
+    } catch (err) {
+      console.warn('Failed loading groups or movies:', err.message)
     }
-    setItemsByGroup(map)
-  }, [noteId, isMovieNote])
+  }, [noteId, isMovieNote, language, prefetchMovieTranslations])
 
   useEffect(() => { loadGroups() }, [loadGroups])
+
+  useEffect(() => {
+    if (language === 'ru' && isMovieNote && prefetchMovieTranslations) {
+      const allLoaded = Object.values(itemsByGroup).flat().map(i => i._movie).filter(Boolean)
+      if (allLoaded.length > 0) {
+        prefetchMovieTranslations(allLoaded)
+      }
+    }
+  }, [language, isMovieNote, prefetchMovieTranslations])
 
   useEffect(() => {
     if (refreshTrigger > 0) loadGroups()
@@ -793,6 +837,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       maxOtherCount={maxOtherCount}
       boardCardPositionsRef={boardCardPositionsRef}
       itemClipboard={itemClipboard}
+      expandedMovieId={expandedMovieId}
+      onToggleExpandMovie={(id) => setExpandedMovieId(prev => String(prev) === String(id) ? null : id)}
+      onMoveMovieSection={handleMoveMovieSection}
       onAdd={() => setAddItemGroup(group.id)}
       renameSignal={renameGroupId === group.id}
       onRenameConsumed={() => setRenameGroupId(null)}
@@ -893,11 +940,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         <CtxMenu
           x={itemContextMenu.x} y={itemContextMenu.y}
           items={[
-            { label: 'Tahrirlash', Icon: Pencil, action: () => { setEditItem(itemContextMenu.item); setItemContextMenu(null) } },
-            { label: 'Kesib olish', Icon: Scissors, action: () => handleItemCut(itemContextMenu.item) },
-            { label: 'Nusxa olish', Icon: Copy, action: () => handleItemCopy(itemContextMenu.item) },
-            itemClipboard && { label: 'Joylashtirish', Icon: Clipboard, action: () => handleItemPaste(itemContextMenu.item.group_id) },
-            { label: "O'chirish", Icon: X, action: () => { handleDeleteItem(itemContextMenu.item); setItemContextMenu(null) }, color: '#ef4444' },
+            { label: t('common.edit'), Icon: Pencil, action: () => { setEditItem(itemContextMenu.item); setItemContextMenu(null) } },
+            { label: t('common.cut', null, 'Kesib olish'), Icon: Scissors, action: () => handleItemCut(itemContextMenu.item) },
+            { label: t('common.copy', null, 'Nusxa olish'), Icon: Copy, action: () => handleItemCopy(itemContextMenu.item) },
+            itemClipboard && { label: t('common.paste', null, 'Joylashtirish'), Icon: Clipboard, action: () => handleItemPaste(itemContextMenu.item.group_id) },
+            { label: t('common.delete'), Icon: X, action: () => { handleDeleteItem(itemContextMenu.item); setItemContextMenu(null) }, color: '#ef4444' },
           ].filter(Boolean)}
           onClose={() => setItemContextMenu(null)}
         />
@@ -915,11 +962,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         <CtxMenu
           x={groupContextMenu.x} y={groupContextMenu.y}
           items={[
-            { label: 'Tahrirlash', Icon: Pencil, action: () => { setRenameGroupId(groupContextMenu.group.id); setGroupContextMenu(null) } },
-            { label: 'Kesib olish', Icon: Scissors, action: () => handleGroupCut(groupContextMenu.group) },
-            { label: 'Nusxa olish', Icon: Copy, action: () => handleGroupCopy(groupContextMenu.group) },
-            groupClipboard && { label: 'Joylashtirish', Icon: Clipboard, action: handleGroupPaste },
-            { label: "O'chirish", Icon: X, action: () => { handleDeleteGroup(groupContextMenu.group); setGroupContextMenu(null) }, color: '#ef4444' },
+            { label: t('common.edit'), Icon: Pencil, action: () => { setRenameGroupId(groupContextMenu.group.id); setGroupContextMenu(null) } },
+            { label: t('common.cut', null, 'Kesib olish'), Icon: Scissors, action: () => handleGroupCut(groupContextMenu.group) },
+            { label: t('common.copy', null, 'Nusxa olish'), Icon: Copy, action: () => handleGroupCopy(groupContextMenu.group) },
+            groupClipboard && { label: t('common.paste', null, 'Joylashtirish'), Icon: Clipboard, action: handleGroupPaste },
+            { label: t('common.delete'), Icon: X, action: () => { handleDeleteGroup(groupContextMenu.group); setGroupContextMenu(null) }, color: '#ef4444' },
           ].filter(Boolean)}
           onClose={() => setGroupContextMenu(null)}
         />
@@ -980,11 +1027,74 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
           <span>{toastMessage}</span>
         </div>
       )}
+
+      {showCreateGroup && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowCreateGroup(false)}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: 360, display: 'flex', flexDirection: 'column', gap: 16 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{t('board.createGroup') || "Yangi guruh yaratish"}</div>
+            <input
+              autoFocus
+              placeholder="Guruh nomi..."
+              defaultValue=""
+              id="new-group-name-input"
+              onKeyDown={e => { if (e.key === 'Enter') handleCreateGroup(e.target.value) }}
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', color: 'var(--text-primary)', fontSize: 14, outline: 'none' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => setShowCreateGroup(false)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}>{t('common.cancel')}</button>
+              <button
+                onClick={() => { const val = document.getElementById('new-group-name-input')?.value; handleCreateGroup(val) }}
+                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--accent, #7c3aed)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}
+              >{t('common.save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmState && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: 380, display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontSize: 15, color: 'var(--text-primary)', lineHeight: 1.5 }}>{confirmState.message}</div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button onClick={() => { confirmState.resolve(false); setConfirmState(null) }} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}>{t('common.cancel')}</button>
+              <button onClick={() => { confirmState.resolve(true); setConfirmState(null) }} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>{t('common.delete')}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemClipboard, onAdd, renameSignal, onRenameConsumed, onRename, onDelete, onGroupContextMenu, onItemContextMenu, onItemClick, onItemDelete, onMoveItem, onReorderItem, onSaveRating, onOpenChronology, isDragging, onGroupDragStart, onGroupDragEnd, onGroupDragOver, onGroupDrop }) {
+function NoteColumn({
+  group,
+  items,
+  maxOtherCount,
+  boardCardPositionsRef,
+  itemClipboard,
+  expandedMovieId,
+  onToggleExpandMovie,
+  onMoveMovieSection,
+  onAdd,
+  renameSignal,
+  onRenameConsumed,
+  onRename,
+  onDelete,
+  onGroupContextMenu,
+  onItemContextMenu,
+  onItemClick,
+  onItemDelete,
+  onMoveItem,
+  onReorderItem,
+  onSaveRating,
+  onOpenChronology,
+  isDragging,
+  onGroupDragStart,
+  onGroupDragEnd,
+  onGroupDragOver,
+  onGroupDrop
+}) {
+  const { t } = useLanguage()
   const color = group.color || '#a78bfa'
   const bg = hexToRgba(color, 0.12)
   const border = hexToRgba(color, 0.3)
@@ -992,36 +1102,123 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
   const [editingName, setEditingName] = useState(false)
   const [nameVal, setNameVal] = useState(group.name)
   const [headerHovered, setHeaderHovered] = useState(false)
-  const [isDoneExpanded, setIsDoneExpanded] = useState(false)
+  const [isManuallyExpanded, setIsManuallyExpanded] = useState(false)
   const cardsRef = useRef(null)
   const rafRef = useRef(null)
   const prevItemsKeyRef = useRef('')
   const prevPositionsRef = useRef(new Map())
 
   const [measuredHeight, setMeasuredHeight] = useState(null)
+  const FOOTER_HEIGHT = 44
 
   const isDoneSection = group.section_key === 'done' || (group.name || '').toLowerCase() === 'done'
   const isCollapseEligible = isDoneSection && items.length > 10 && items.length > (maxOtherCount || 0)
-  const shouldCollapse = isCollapseEligible && !isDoneExpanded
   const visibleCardsTarget = Math.max(10, maxOtherCount || 0)
+  const collapsedHeightNumber = measuredHeight || Math.max(100, visibleCardsTarget * 124 - FOOTER_HEIGHT)
+
+  // Auto-expand the column when a card that would be clipped or covered by the footer is opened
+  const autoExpandedByCard = useMemo(() => {
+    if (!isCollapseEligible || !expandedMovieId) return false
+    const expIdx = items.findIndex(item => (
+      String(item.id) === String(expandedMovieId) ||
+      (item._movie && String(item._movie.id) === String(expandedMovieId))
+    ))
+    if (expIdx === -1) return false
+    const cardExpandedBottom = 10 + (expIdx * 124) + 620
+    return cardExpandedBottom > (collapsedHeightNumber - 20)
+  }, [isCollapseEligible, expandedMovieId, items, collapsedHeightNumber])
+
+  const isDoneExpanded = isManuallyExpanded || autoExpandedByCard
+  const shouldCollapse = isCollapseEligible && !isDoneExpanded
 
   useLayoutEffect(() => {
     if (shouldCollapse && cardsRef.current) {
+      const myCol = cardsRef.current.closest('.note-column')
+      const boardEl = myCol?.closest('.board') || document.querySelector('.board')
+      
+      if (boardEl) {
+        const otherCols = Array.from(boardEl.querySelectorAll('.note-column'))
+          .filter(col => col !== myCol)
+
+        let maxOtherBottom = 0
+        const myColTop = myCol.getBoundingClientRect().top
+
+        otherCols.forEach(col => {
+          const rect = col.getBoundingClientRect()
+          if (rect.bottom > maxOtherBottom) {
+            maxOtherBottom = rect.bottom
+          }
+        })
+
+        if (maxOtherBottom > myColTop) {
+          const desiredTotalColHeight = maxOtherBottom - myColTop
+          const headerEl = myCol.querySelector('.column-header-sticky')
+          const headerH = headerEl ? headerEl.getBoundingClientRect().height : 42
+          const targetCardsH = Math.max(120, Math.round(desiredTotalColHeight - headerH - FOOTER_HEIGHT))
+          setMeasuredHeight(targetCardsH)
+          return
+        }
+      }
+
       const cardEls = Array.from(cardsRef.current.querySelectorAll('[data-item-id]'))
       const targetIndex = Math.min(visibleCardsTarget, cardEls.length) - 1
       if (targetIndex >= 0 && cardEls[targetIndex]) {
         const containerRect = cardsRef.current.getBoundingClientRect()
         const cardRect = cardEls[targetIndex].getBoundingClientRect()
-        const h = Math.round(cardRect.bottom - containerRect.top + 10)
+        const h = Math.max(100, Math.round(cardRect.bottom - containerRect.top - FOOTER_HEIGHT))
         setMeasuredHeight(h)
       }
     } else {
       setMeasuredHeight(null)
     }
-  }, [shouldCollapse, visibleCardsTarget, items])
+  }, [shouldCollapse, visibleCardsTarget, items, maxOtherCount])
 
-  const collapsedHeightNumber = measuredHeight || (visibleCardsTarget * 128 + 20)
-  const collapsedHeight = `${collapsedHeightNumber + 20}px`
+  useEffect(() => {
+    if (!shouldCollapse || !cardsRef.current) return
+
+    const myCol = cardsRef.current.closest('.note-column')
+    const boardEl = myCol?.closest('.board') || document.querySelector('.board')
+    if (!boardEl) return
+
+    const updateHeight = () => {
+      if (!cardsRef.current) return
+      const currentMyCol = cardsRef.current.closest('.note-column')
+      if (!currentMyCol) return
+      const currentBoard = currentMyCol.closest('.board') || document.querySelector('.board')
+      if (!currentBoard) return
+
+      const otherCols = Array.from(currentBoard.querySelectorAll('.note-column'))
+        .filter(col => col !== currentMyCol)
+
+      let maxOtherBottom = 0
+      const myColTop = currentMyCol.getBoundingClientRect().top
+
+      otherCols.forEach(col => {
+        const rect = col.getBoundingClientRect()
+        if (rect.bottom > maxOtherBottom) {
+          maxOtherBottom = rect.bottom
+        }
+      })
+
+      if (maxOtherBottom > myColTop) {
+        const desiredTotalColHeight = maxOtherBottom - myColTop
+        const headerEl = currentMyCol.querySelector('.column-header-sticky')
+        const headerH = headerEl ? headerEl.getBoundingClientRect().height : 42
+        const targetCardsH = Math.max(120, Math.round(desiredTotalColHeight - headerH - FOOTER_HEIGHT))
+        setMeasuredHeight(targetCardsH)
+      }
+    }
+
+    updateHeight()
+    const ro = new ResizeObserver(updateHeight)
+    const otherCols = Array.from(boardEl.querySelectorAll('.note-column'))
+      .filter(col => col !== myCol)
+    otherCols.forEach(col => ro.observe(col))
+
+    return () => ro.disconnect()
+  }, [shouldCollapse, items, maxOtherCount])
+
+  const collapsedHeight = `${collapsedHeightNumber}px`
 
   const totalMinutes = useMemo(() => {
     if (!items || items.length === 0) return 0
@@ -1032,7 +1229,6 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
     return formatTotalRuntime(totalMinutes)
   }, [totalMinutes])
 
-  // FLIP Layout Sliding Animation: when items move or shift, cards below smoothly slide up into place
   useLayoutEffect(() => {
     const container = cardsRef.current
     if (!container) return
@@ -1066,7 +1262,6 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
             })
           }
         } else {
-          // New item entering column: slide & scale in
           el.style.transform = 'translate3d(0, -16px, 0) scale(0.94)'
           el.style.opacity = '0'
           el.style.transition = 'none'
@@ -1084,7 +1279,6 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
 
     prevItemsKeyRef.current = currentItemsKey
 
-    // Snapshot card positions for local fallback and next update
     const newPositions = new Map(prevPositionsRef.current)
     cardElements.forEach(el => {
       newPositions.set(String(el.dataset.itemId), el.getBoundingClientRect())
@@ -1100,6 +1294,15 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
       onRenameConsumed?.()
     }
   }, [renameSignal, onRenameConsumed])
+
+  const handleNameBlur = () => {
+    setEditingName(false)
+    if (nameVal.trim() && nameVal !== group.name) {
+      onRename(group.id, nameVal.trim())
+    } else {
+      setNameVal(group.name)
+    }
+  }
 
   const updateMarker = useCallback((clientY) => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
@@ -1128,7 +1331,6 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
     if (cardsRef.current) cardsRef.current.style.outline = 'none'
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
 
-    // Instantly hide marker visually without triggering React state re-render
     const markerEls = cardsRef.current?.querySelectorAll('.drag-marker-line')
     markerEls?.forEach(m => { m.style.opacity = '0'; m.style.display = 'none' })
 
@@ -1145,22 +1347,15 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
       await onMoveItem(rawItemId, group.id, dropInfo.insertIndex)
     }
 
-    // Delay React state clear by 340ms so state re-render fires AFTER 320ms FLIP animation completes
     setTimeout(() => setDragMarker(null), 340)
   }
 
-  const handleRename = async () => {
-    if (!nameVal.trim()) { setEditingName(false); return }
-    await window.api.updateGroup(group.id, { name: nameVal.trim() })
-    setEditingName(false)
-  }
   const handleTouchDragMove = (item, clientX, clientY) => {
     const dropInfo = getDropPosition(items, clientY, cardsRef)
     updateMarker(clientY)
   }
 
   const handleTouchDragEnd = async (item, clientX, clientY) => {
-    // Instantly hide marker visually
     const markerEls = cardsRef.current?.querySelectorAll('.drag-marker-line')
     markerEls?.forEach(m => { m.style.opacity = '0'; m.style.display = 'none' })
 
@@ -1180,14 +1375,12 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
       await onMoveItem(item.id, targetGroupId, dropInfo.insertIndex)
     }
 
-    // Delay React state clear by 340ms
     setTimeout(() => setDragMarker(null), 340)
   }
 
-  const colBtnStyle = { background: 'transparent', border: 'none', borderRadius: 5, color: 'var(--text-muted)', width: 22, height: 22, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'color 0.12s, background 0.12s' }
-
   return (
     <div
+      className="note-column"
       data-group-id={group.id}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('groupdrag')) {
@@ -1206,7 +1399,6 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
           handleDrop(e)
         }
       }}
-      className="note-column"
       style={{ background: 'var(--bg-surface)', borderRadius: 10, border: `1px solid ${isDragging ? color : 'var(--border)'}`, flexShrink: 0, opacity: isDragging ? 0.5 : 1, transition: 'opacity 0.15s, border-color 0.15s' }}
     >
       <div
@@ -1216,7 +1408,6 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
         onMouseEnter={() => setHeaderHovered(true)}
         onMouseLeave={() => setHeaderHovered(false)}
       >
-        {/* Drag handle — faqat shu div ni drag qiladi */}
         <div
           draggable
           onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('groupDrag', group.id); onGroupDragStart?.() }}
@@ -1232,8 +1423,8 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
             autoFocus
             value={nameVal}
             onChange={e => setNameVal(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setEditingName(false) }}
-            onBlur={handleRename}
+            onKeyDown={e => { if (e.key === 'Enter') handleNameBlur(); if (e.key === 'Escape') { setEditingName(false); setNameVal(group.name) } }}
+            onBlur={handleNameBlur}
             onMouseDown={e => e.stopPropagation()}
             draggable={false}
             style={{ background: 'transparent', border: 'none', borderBottom: `1px solid ${color}`, color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, outline: 'none', fontFamily: 'inherit', flex: 1, userSelect: 'text', cursor: 'text' }}
@@ -1242,7 +1433,7 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
           <span
             onDoubleClick={() => setEditingName(true)}
             style={{ background: bg, color, border: `1px solid ${border}`, borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 600, cursor: 'default', flexShrink: 0 }}
-          >{group.name}</span>
+          >{t(`sections.${group.section_key}`, null, group.name)}</span>
         )}
         {!editingName && (
           <span style={{ color: 'var(--text-muted)', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -1255,12 +1446,11 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
             )}
           </span>
         )}
-        {/* Fixed system columns — no edit/delete buttons needed */}
         <div style={{ flex: 1 }} />
 
         <button
           onClick={onAdd}
-          title="Film qo'shish"
+          title={t('board.addMovie')}
           style={{ background: 'transparent', border: `1px solid ${border}`, borderRadius: 6, color, width: 26, height: 26, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
         ><Plus size={14} /></button>
       </div>
@@ -1292,6 +1482,10 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
               <MovieCard
                 movie={item._movie}
                 sectionKey={group.section_key}
+                isExpanded={expandedMovieId != null && (String(expandedMovieId) === String(item.id) || (item._movie && String(expandedMovieId) === String(item._movie.id)))}
+                onToggleExpand={() => onToggleExpandMovie?.(item.id)}
+                onClose={() => onToggleExpandMovie?.(null)}
+                onMoveSection={(targetSectionKey) => onMoveMovieSection?.(item, targetSectionKey)}
                 onRate={(newRating) => onSaveRating?.(item.id, newRating)}
                 onContextMenu={(e) => onItemContextMenu(e, item)}
                 onDelete={() => onItemDelete?.(item)}
@@ -1321,28 +1515,30 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
           </div>
         ))}
         {items.length === 0 && (
-          <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: '20px 0', opacity: 0.4 }}>Bo'sh — bu yerga tashlang</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: '20px 0', opacity: 0.4 }}>{t('board.emptyColumn')}</div>
         )}
       </div>
 
       {isCollapseEligible && (
         <div style={{
-          padding: '8px 10px 12px 10px',
+          height: FOOTER_HEIGHT,
+          boxSizing: 'border-box',
+          padding: '6px 10px 8px 10px',
           display: 'flex',
-          justify: 'center',
+          justifyContent: 'center',
           alignItems: 'center',
           background: 'var(--bg-surface)',
           borderTop: shouldCollapse ? 'none' : '1px solid var(--border)',
           borderRadius: '0 0 10px 10px',
         }}>
           <button
-            onClick={() => setIsDoneExpanded(prev => !prev)}
+            onClick={() => setIsManuallyExpanded(prev => !prev)}
             style={{
               background: 'rgba(139, 92, 246, 0.12)',
               border: '1px solid rgba(139, 92, 246, 0.3)',
               color: '#a78bfa',
               borderRadius: 8,
-              padding: '6px 14px',
+              padding: '5px 14px',
               fontSize: 12,
               fontWeight: 600,
               cursor: 'pointer',
@@ -1352,6 +1548,7 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
               transition: 'background 0.15s',
               fontFamily: 'inherit',
               width: '100%',
+              height: 30,
               justifyContent: 'center',
             }}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'}
@@ -1359,12 +1556,12 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
           >
             {shouldCollapse ? (
               <>
-                <span>Barchasini ko'rsatish ({items.length})</span>
+                <span>{t('common.all')} ({items.length})</span>
                 <ChevronDown size={14} />
               </>
             ) : (
               <>
-                <span>Yopish</span>
+                <span>{t('common.close')}</span>
                 <ChevronUp size={14} />
               </>
             )}
@@ -1975,24 +2172,25 @@ function EditItemModal({ item, note, onClose, onSave, onDelete }) {
 }
 
 function CreateGroupModal({ onClose, onCreate, creating }) {
+  const { t } = useLanguage()
   const [name, setName] = useState('')
   return (
-    <Modal title="+ Create New Note Group" onClose={onClose}>
+    <Modal title={`+ ${t('board.createColumn', null, 'Create New Note Group')}`} onClose={onClose}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div>
-          <div style={{ fontSize: 11, color: '#555', marginBottom: 6 }}>Group nomi *</div>
+          <div style={{ fontSize: 11, color: '#555', marginBottom: 6 }}>{t('common.title')} *</div>
           <input
             autoFocus value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && onCreate(name)}
-            placeholder="Masalan: Reading, Completed, Wishlist..."
+            placeholder="Reading, Completed, Wishlist..."
             style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '8px 12px', color: 'var(--text-primary)', fontSize: 13, outline: 'none', fontFamily: 'inherit' }}
           />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button onClick={onClose} style={btnS('#222', '#888')}>Bekor</button>
+          <button onClick={onClose} style={btnS('#222', '#888')}>{t('common.cancel')}</button>
           <button onClick={() => onCreate(name)} disabled={!name.trim() || creating} style={btnS('#7c3aed', 'white', !name.trim() || creating)}>
-            {creating ? 'Yaratilmoqda...' : 'Yaratish'}
+            {creating ? '...' : t('common.add')}
           </button>
         </div>
       </div>
@@ -2028,6 +2226,7 @@ function CtxMenu({ x, y, items, onClose }) {
 }
 
 function ConfirmModal({ message, onConfirm, onCancel }) {
+  const { t } = useLanguage()
   return ReactDOM.createPortal(
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={onCancel}
@@ -2041,12 +2240,12 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
             style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-muted)', padding: '8px 20px', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-hover)'}
             onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
-          >Bekor qilish</button>
+          >{t('common.cancel')}</button>
           <button onClick={onConfirm}
             style={{ background: '#ef4444', border: 'none', borderRadius: 8, color: '#fff', padding: '8px 20px', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
             onMouseEnter={e => e.currentTarget.style.background = '#dc2626'}
             onMouseLeave={e => e.currentTarget.style.background = '#ef4444'}
-          >O'chirish</button>
+          >{t('common.delete')}</button>
         </div>
       </div>
     </div>,

@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { BookOpen, Eye, EyeOff } from 'lucide-react'
+import { useLanguage } from '../context/LanguageContext.jsx'
 
 export default function RegisterPage({ onSwitch }) {
   const { register } = useAuth()
+  const { t } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -15,15 +17,15 @@ export default function RegisterPage({ onSwitch }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email.trim() || !password.trim()) {
-      setError('Barcha maydonlarni to\'ldiring')
+      setError(t('auth.fillAllFields', null, 'Barcha maydonlarni to\'ldiring'))
       return
     }
     if (password.length < 6) {
-      setError('Parol kamida 6 ta belgi bo\'lishi kerak')
+      setError(t('auth.passwordMinLength', null, 'Parol kamida 6 ta belgi bo\'lishi kerak'))
       return
     }
     if (password !== confirm) {
-      setError('Parollar mos kelmadi')
+      setError(t('auth.passwordsDoNotMatch', null, 'Parollar mos kelmadi'))
       return
     }
     setError('')
@@ -48,12 +50,12 @@ export default function RegisterPage({ onSwitch }) {
           <span className="font-logo" style={styles.logoText}>notelab</span>
         </div>
 
-        <h2 style={styles.title}>Ro'yxatdan o'tish</h2>
-        <p style={styles.subtitle}>Yangi hisob yaratish</p>
+        <h2 style={styles.title}>{t('auth.registerTitle', null, 'Ro\'yxatdan o\'tish')}</h2>
+        <p style={styles.subtitle}>{t('auth.registerSubtitle', null, 'Yangi hisob yaratish')}</p>
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.field}>
-            <label style={styles.label}>Email</label>
+            <label style={styles.label}>{t('auth.email', null, 'Email')}</label>
             <input
               type="email"
               value={email}
@@ -66,13 +68,13 @@ export default function RegisterPage({ onSwitch }) {
           </div>
 
           <div style={styles.field}>
-            <label style={styles.label}>Parol</label>
+            <label style={styles.label}>{t('auth.password', null, 'Parol')}</label>
             <div style={{ position: 'relative', width: '100%' }}>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Kamida 6 ta belgi"
+                placeholder="••••••••"
                 style={{ ...styles.input, width: '100%', paddingRight: 40 }}
                 disabled={loading}
               />
@@ -80,7 +82,6 @@ export default function RegisterPage({ onSwitch }) {
                 type="button"
                 onClick={() => setShowPassword(prev => !prev)}
                 tabIndex={-1}
-                title={showPassword ? "Parolni berkitish" : "Parolni ko'rsatish"}
                 style={{
                   position: 'absolute',
                   right: 12,
@@ -106,13 +107,13 @@ export default function RegisterPage({ onSwitch }) {
           </div>
 
           <div style={styles.field}>
-            <label style={styles.label}>Parolni tasdiqlang</label>
+            <label style={styles.label}>{t('auth.confirmPassword', null, 'Parolni tasdiqlang')}</label>
             <div style={{ position: 'relative', width: '100%' }}>
               <input
                 type={showConfirm ? "text" : "password"}
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
-                placeholder="Parolni qayta kiriting"
+                placeholder="••••••••"
                 style={{ ...styles.input, width: '100%', paddingRight: 40 }}
                 disabled={loading}
               />
@@ -120,7 +121,6 @@ export default function RegisterPage({ onSwitch }) {
                 type="button"
                 onClick={() => setShowConfirm(prev => !prev)}
                 tabIndex={-1}
-                title={showConfirm ? "Parolni berkitish" : "Parolni ko'rsatish"}
                 style={{
                   position: 'absolute',
                   right: 12,
@@ -148,14 +148,14 @@ export default function RegisterPage({ onSwitch }) {
           {error && <div style={styles.error}>{error}</div>}
 
           <button type="submit" style={{ ...styles.btn, opacity: loading ? 0.6 : 1 }} disabled={loading}>
-            {loading ? 'Ro\'yxatdan o\'tilmoqda...' : 'Ro\'yxatdan o\'tish'}
+            {loading ? '...' : t('auth.registerButton', null, 'Ro\'yxatdan o\'tish')}
           </button>
         </form>
 
         <p style={styles.switchText}>
-          Hisobingiz bormi?{' '}
+          {t('auth.hasAccount', null, 'Hisobingiz bormi?')}{' '}
           <span style={styles.switchLink} onClick={onSwitch}>
-            Kirish
+            {t('auth.loginLink', null, 'Kirish')}
           </span>
         </p>
       </div>

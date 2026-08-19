@@ -1211,9 +1211,7 @@ const FRANCHISE_UNIVERSES = {
             "title": "Moon Knight",
             "stage": 11,
             "lane": 4,
-            "connects_to": [
-                1003596
-            ],
+            "connects_to": [],
             "release_date": "2022-03-30",
             "release_year": "2022",
             "rating": 7.6,
@@ -2769,6 +2767,81 @@ module.exports = async (req, res) => {
       return res.status(200).json({ backdrops: uniqueScenes });
     }
 
+    // GET /api/content/details?tmdb_id=123&media_type=movie&language=ru-RU
+    if (path === 'content/details' && req.method === 'GET') {
+      const tmdb_id = query.tmdb_id;
+      if (!tmdb_id || !TMDB_KEY) return res.status(400).json({ error: 'tmdb_id required' });
+      const media_type = query.media_type === 'tv' ? 'tv' : 'movie';
+      const rawLang = query.language || req.headers['x-language'];
+      const lang = (rawLang && (rawLang.toLowerCase() === 'ru' || rawLang.toLowerCase().startsWith('ru-'))) ? 'ru-RU' : 'en-US';
+
+      try {
+        const url = `https://api.themoviedb.org/3/${media_type}/${encodeURIComponent(tmdb_id)}?api_key=${TMDB_KEY}&language=${lang}&append_to_response=credits`;
+        const response = await fetch(url);
+        if (!response.ok) {
+          return res.status(response.status).json({ error: 'Failed to fetch from TMDB' });
+        }
+        const d = await response.json();
+        const director = d.credits?.crew?.find(c => c.job === 'Director')?.name || null;
+        const genres = (d.genres || []).map(g => g.name).join(', ') || null;
+
+        return res.status(200).json({
+          tmdb_id: d.id,
+          media_type,
+          language: lang,
+          title: d.title || d.name || d.original_title || d.original_name,
+          original_title: d.original_title || d.original_name || null,
+          tagline: d.tagline || null,
+          overview: d.overview || null,
+          genre: genres,
+          director,
+          poster_path: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : null,
+          backdrop_path: d.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}` : null,
+          release_date: d.release_date || d.first_air_date || null,
+          rating: d.vote_average ? Number(d.vote_average.toFixed(1)) : null,
+          vote_count: d.vote_count || 0
+        });
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
+    // POST /api/content/translations
+    if (path === 'content/translations' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const items = body.items || [];
+      const rawLang = body.language || req.headers['x-language'];
+      const lang = (rawLang && (rawLang.toLowerCase() === 'ru' || rawLang.toLowerCase().startsWith('ru-'))) ? 'ru-RU' : 'en-US';
+
+      if (!Array.isArray(items) || items.length === 0 || !TMDB_KEY) {
+        return res.status(200).json({});
+      }
+
+      const translationsMap = {};
+      await Promise.all(items.slice(0, 30).map(async (item) => {
+        if (!item.tmdb_id) return;
+        const mediaType = item.media_type === 'tv' ? 'tv' : 'movie';
+        try {
+          const url = `https://api.themoviedb.org/3/${mediaType}/${encodeURIComponent(item.tmdb_id)}?api_key=${TMDB_KEY}&language=${lang}`;
+          const r = await fetch(url, { signal: AbortSignal.timeout(3500) });
+          if (r.ok) {
+            const d = await r.json();
+            translationsMap[item.tmdb_id] = {
+              tmdb_id: d.id,
+              media_type: mediaType,
+              language: lang,
+              title: d.title || d.name || d.original_title || d.original_name,
+              tagline: d.tagline || null,
+              overview: d.overview || null,
+              genre: (d.genres || []).map(g => g.name).join(', ') || null
+            };
+          }
+        } catch (e) {}
+      }));
+
+      return res.status(200).json(translationsMap);
+    }
+
     // ═══════════════════════════════════════
     // FRANCHISES
     // ═══════════════════════════════════════
@@ -2857,21 +2930,23 @@ module.exports = async (req, res) => {
     if (franchiseMatch && req.method === 'GET') {
       const tmdbMovieId = Number(franchiseMatch[1]);
       const requestedMediaType = query.media_type || 'movie';
+      const rawLang = query.language || req.headers['x-language'];
+      const targetLang = (rawLang && (rawLang.toLowerCase() === 'ru' || rawLang.toLowerCase().startsWith('ru-'))) ? 'ru-RU' : 'en-US';
 
       // 1. Fetch movie details from TMDB
       let movieDetail = null;
       let actualMediaType = requestedMediaType;
       try {
         const primaryUrl = requestedMediaType === 'tv'
-          ? `https://api.themoviedb.org/3/tv/${tmdbMovieId}?api_key=${TMDB_KEY}&language=en-US`
-          : `https://api.themoviedb.org/3/movie/${tmdbMovieId}?api_key=${TMDB_KEY}&language=en-US`;
+          ? `https://api.themoviedb.org/3/tv/${tmdbMovieId}?api_key=${TMDB_KEY}&language=${targetLang}`
+          : `https://api.themoviedb.org/3/movie/${tmdbMovieId}?api_key=${TMDB_KEY}&language=${targetLang}`;
         const r1 = await fetch(primaryUrl);
         if (r1.ok) {
           movieDetail = await r1.json();
         } else if (r1.status === 404) {
           const fallbackUrl = requestedMediaType === 'tv'
-            ? `https://api.themoviedb.org/3/movie/${tmdbMovieId}?api_key=${TMDB_KEY}&language=en-US`
-            : `https://api.themoviedb.org/3/tv/${tmdbMovieId}?api_key=${TMDB_KEY}&language=en-US`;
+            ? `https://api.themoviedb.org/3/movie/${tmdbMovieId}?api_key=${TMDB_KEY}&language=${targetLang}`
+            : `https://api.themoviedb.org/3/tv/${tmdbMovieId}?api_key=${TMDB_KEY}&language=${targetLang}`;
           const r2 = await fetch(fallbackUrl);
           if (r2.ok) {
             movieDetail = await r2.json();
@@ -2974,7 +3049,7 @@ module.exports = async (req, res) => {
               };
             }
 
-            const cacheKey = (itemType === 'tv' && seasonNumber) ? `tv_${baseTmdbId}_s${seasonNumber}` : `${itemType}_${baseTmdbId}`;
+            const cacheKey = (itemType === 'tv' && seasonNumber) ? `tv_${baseTmdbId}_s${seasonNumber}_${targetLang}` : `${itemType}_${baseTmdbId}_${targetLang}`;
             if (tmdbDetailsCache.has(cacheKey)) {
               const cached = tmdbDetailsCache.get(cacheKey);
               return {
@@ -2994,7 +3069,7 @@ module.exports = async (req, res) => {
 
             try {
               if (itemType === 'tv' && seasonNumber) {
-                const itemUrl = `https://api.themoviedb.org/3/tv/${baseTmdbId}/season/${seasonNumber}?api_key=${TMDB_KEY}&language=en-US`;
+                const itemUrl = `https://api.themoviedb.org/3/tv/${baseTmdbId}/season/${seasonNumber}?api_key=${TMDB_KEY}&language=${targetLang}`;
                 const ir = await fetch(itemUrl, { signal: AbortSignal.timeout(2500) });
                 if (ir.ok) {
                   const sd = await ir.json();
@@ -3002,7 +3077,7 @@ module.exports = async (req, res) => {
                   const posterPath = sd.poster_path ? `https://image.tmdb.org/t/p/w500${sd.poster_path}` : (typeof item === 'object' ? item.poster_path : null);
                   const overview = (sd.overview && sd.overview.trim().length > 0) ? sd.overview : (typeof item === 'object' ? item.overview || '' : '');
                   const itemInfo = {
-                    title: (typeof item === 'object' && item.title) ? item.title : `Season ${seasonNumber}`,
+                    title: (sd.name && sd.name.trim()) ? sd.name : ((typeof item === 'object' && item.title) ? item.title : `Season ${seasonNumber}`),
                     release_date: releaseDate,
                     release_year: releaseDate ? releaseDate.split('-')[0] : (typeof item === 'object' ? item.release_year || '-' : '-'),
                     rating: sd.vote_average ? Number(sd.vote_average.toFixed(1)) : (typeof item === 'object' ? item.rating || null : null),
@@ -3027,7 +3102,7 @@ module.exports = async (req, res) => {
                   };
                 }
               } else {
-                const itemUrl = `https://api.themoviedb.org/3/${itemType}/${baseTmdbId}?api_key=${TMDB_KEY}&language=en-US`;
+                const itemUrl = `https://api.themoviedb.org/3/${itemType}/${baseTmdbId}?api_key=${TMDB_KEY}&language=${targetLang}`;
                 const ir = await fetch(itemUrl, { signal: AbortSignal.timeout(2500) });
                 if (ir.ok) {
                   const idata = await ir.json();
@@ -3035,7 +3110,7 @@ module.exports = async (req, res) => {
                   const posterPath = idata.poster_path ? `https://image.tmdb.org/t/p/w500${idata.poster_path}` : (typeof item === 'object' ? item.poster_path : null);
                   const overview = (idata.overview && idata.overview.trim().length > 0) ? idata.overview : (typeof item === 'object' ? item.overview || '' : '');
                   const itemInfo = {
-                    title: (typeof item === 'object' && item.title) ? item.title : (idata.title || idata.name || `Movie ${baseTmdbId}`),
+                    title: idata.title || idata.name || idata.original_title || idata.original_name || (typeof item === 'object' && item.title ? item.title : `Movie ${baseTmdbId}`),
                     release_date: releaseDate,
                     release_year: releaseDate ? releaseDate.split('-')[0] : (typeof item === 'object' ? item.release_year || '-' : '-'),
                     rating: idata.vote_average ? Number(idata.vote_average.toFixed(1)) : (typeof item === 'object' ? item.rating || null : null),
@@ -3096,7 +3171,7 @@ module.exports = async (req, res) => {
         // Case B: TMDB Collection (unmapped universe)
         const collectionId = movieDetail.belongs_to_collection.id;
         try {
-          const colUrl = `https://api.themoviedb.org/3/collection/${collectionId}?api_key=${TMDB_KEY}&language=en-US`;
+          const colUrl = `https://api.themoviedb.org/3/collection/${collectionId}?api_key=${TMDB_KEY}&language=${targetLang}`;
           const cr = await fetch(colUrl);
           if (cr.ok) {
             const colData = await cr.json();

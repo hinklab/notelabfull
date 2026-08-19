@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { Bell, Film, Sparkles, Check, CheckCheck, Trash2, Plus, X, Play, Tv, DollarSign, ExternalLink } from 'lucide-react'
+import { useLanguage } from '../../context/LanguageContext.jsx'
 
 export default function NotificationPanel({
   notifications = [],
@@ -9,6 +10,7 @@ export default function NotificationPanel({
   onAddMovieSuccess,
   onClose
 }) {
+  const { t } = useLanguage()
   const [addingIds, setAddingIds] = useState({})
   const addingRef = useRef(new Set())
 
@@ -80,7 +82,7 @@ export default function NotificationPanel({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Bell size={16} color="var(--accent, #8b5cf6)" />
           <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
-            Xabarnomalar
+            {t('notifications.title')}
           </span>
           {notifications.filter(n => !n.is_read).length > 0 && (
             <span
@@ -102,7 +104,7 @@ export default function NotificationPanel({
           {notifications.some(n => !n.is_read) && (
             <button
               onClick={onMarkAllRead}
-              title="Barchasini o'qilgan deb belgilash"
+              title={t('notifications.markAllRead')}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -147,7 +149,7 @@ export default function NotificationPanel({
               fontSize: 13
             }}
           >
-            Yangi xabarnomalar yo'q
+            {t('notifications.noNotifications')}
           </div>
         ) : (
           notifications.map(notif => (
@@ -224,7 +226,7 @@ export default function NotificationPanel({
                     {!notif.is_read && (
                       <button
                         onClick={() => onMarkRead(notif.id)}
-                        title="O'qilgan deb belgilash"
+                        title={t('notifications.markAllRead')}
                         style={{
                           background: 'transparent',
                           border: 'none',
@@ -238,7 +240,7 @@ export default function NotificationPanel({
                     )}
                     <button
                       onClick={() => onDelete(notif.id)}
-                      title="O'chirish"
+                      title={t('common.delete')}
                       style={{
                         background: 'transparent',
                         border: 'none',
@@ -287,7 +289,7 @@ export default function NotificationPanel({
                       }}
                     >
                       {isAdded ? <Check size={12} /> : <Plus size={12} />}
-                      <span>{isAdded ? 'Qo\'shildi' : isLoading ? 'Qo\'shilmoqda...' : 'Qo\'shish'}</span>
+                      <span>{isAdded ? t('common.added', null, 'Qo\'shildi') : isLoading ? '...' : t('common.add')}</span>
                     </button>
                   )
                 })()}
@@ -318,7 +320,7 @@ export default function NotificationPanel({
                     onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
                   >
                     <Play size={12} />
-                    <span>Treylerni tomosha qilish</span>
+                    <span>{t('notifications.watchTrailer', null, 'Treylerni tomosha qilish')}</span>
                     <ExternalLink size={10} />
                   </a>
                 )}

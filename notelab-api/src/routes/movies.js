@@ -158,7 +158,12 @@ function sanitizeForSupabase(obj) {
   return clean;
 }
 
-const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
+function withTimeout(promise, ms = 2500) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase query timed out')), ms))
+  ]);
+}
 
 // GET /api/movies?note_id=123
 router.get('/', async (req, res) => {
@@ -175,7 +180,7 @@ router.get('/', async (req, res) => {
         if (note_id) {
           query = query.eq('note_id', parseInt(note_id));
         }
-        const { data: cloudMovies, error: cloudErr } = await query;
+        const { data: cloudMovies, error: cloudErr } = await withTimeout(query, 2500);
         if (!cloudErr && Array.isArray(cloudMovies) && cloudMovies.length > 0) {
           movies = cloudMovies;
         }
@@ -193,23 +198,10 @@ router.get('/', async (req, res) => {
 
     movies.sort((a, b) => (a.position || 0) - (b.position || 0));
 
-    // Fetch movie ratings directly from Supabase Cloud PostgreSQL user_settings table!
-    let cloudRatingsMap = {};
-    if (supabase) {
-      try {
-        const { data: cloudSettings } = await supabase.from('user_settings').select('*').eq('id', 'movie_ratings').single();
-        if (cloudSettings && cloudSettings.settings) {
-          cloudRatingsMap = cloudSettings.settings;
-        }
-      } catch (e) {}
-    }
-
     movies = movies.map(m => {
       const localMovie = (db.movies || []).find(lm => String(lm.id) === String(m.id));
       const localRating = localMovie ? localMovie.user_rating : null;
-      const cloudRating = cloudRatingsMap[String(m.id)] !== undefined ? cloudRatingsMap[String(m.id)] : (cloudRatingsMap[m.id] !== undefined ? cloudRatingsMap[m.id] : null);
-      
-      const finalUserRating = cloudRating != null ? Number(cloudRating) : (m.user_rating != null ? Number(m.user_rating) : (localRating != null ? Number(localRating) : null));
+      const finalUserRating = m.user_rating != null ? Number(m.user_rating) : (localRating != null ? Number(localRating) : null);
 
       return {
         ...m,

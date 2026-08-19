@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import ReactDOM from 'react-dom'
 import { Plus, Minus, RotateCcw, Sparkles, CheckCircle, Clock, Film, Star, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Search, ListFilter, AlertCircle, ExternalLink, X, Calendar, PlusCircle, Check, Loader2, Trash2 } from 'lucide-react'
+import { useLanguage } from '../../context/LanguageContext.jsx'
 
 function formatVotes(n) {
   if (!n) return null
@@ -9,13 +10,48 @@ function formatVotes(n) {
   return String(n)
 }
 
-function formatReleaseDate(dateStr) {
+function formatReleaseDate(dateStr, language = 'uz') {
   if (!dateStr) return null
   try {
     const d = new Date(dateStr)
-    return d.toLocaleDateString('uz-UZ', { year: 'numeric', month: 'long', day: 'numeric' })
+    const localeMap = { uz: 'uz-UZ', ru: 'ru-RU', en: 'en-US' }
+    return d.toLocaleDateString(localeMap[language] || 'uz-UZ', { year: 'numeric', month: 'long', day: 'numeric' })
   } catch {
     return dateStr
+  }
+}
+
+function getSectionStyle(sec) {
+  switch (sec) {
+    case 'futured':
+      return {
+        color: '#a78bfa',
+        badgeBg: 'rgba(167, 139, 250, 0.14)',
+        badgeBorder: 'rgba(167, 139, 250, 0.35)',
+        short: 'Futured'
+      }
+    case 'doing':
+      return {
+        color: '#34d399',
+        badgeBg: 'rgba(52, 211, 153, 0.14)',
+        badgeBorder: 'rgba(52, 211, 153, 0.35)',
+        short: 'Going'
+      }
+    case 'done':
+      return {
+        color: '#60a5fa',
+        badgeBg: 'rgba(96, 165, 250, 0.14)',
+        badgeBorder: 'rgba(96, 165, 250, 0.35)',
+        short: 'Done'
+      }
+    case 'todo':
+    default:
+      return {
+        color: '#fbbf24',
+        badgeBg: 'rgba(251, 191, 36, 0.14)',
+        badgeBorder: 'rgba(251, 191, 36, 0.35)',
+        short: 'To Do'
+      }
   }
 }
 
@@ -273,6 +309,7 @@ const SpaceNodeCard = React.memo(function SpaceNodeCard({
   onHover,
   onAdd
 }) {
+  const { t } = useLanguage()
   return (
     <div
       className="space-card-clickable"
@@ -429,7 +466,7 @@ const SpaceNodeCard = React.memo(function SpaceNodeCard({
               fontWeight: 700
             }}>
               <CheckCircle size={10} />
-              <span>{movie.user_movie?.section?.toUpperCase() || 'BAZADA'}</span>
+              <span>{t(`sections.${movie.user_movie?.section || 'todo'}_short`, null, movie.user_movie?.section?.toUpperCase() || t('sections.badge_in_board'))}</span>
             </div>
           ) : (
             <button
@@ -454,7 +491,7 @@ const SpaceNodeCard = React.memo(function SpaceNodeCard({
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(124, 58, 237, 0.12)'; e.currentTarget.style.color = 'var(--accent)' }}
             >
               {isAdding ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />}
-              <span>Qo'shish</span>
+              <span>{t('common.add')}</span>
             </button>
           )}
         </div>
@@ -464,6 +501,7 @@ const SpaceNodeCard = React.memo(function SpaceNodeCard({
 })
 
 export default function ChronologySpace({ targetTmdbId = null, targetMediaType = null }) {
+  const { language, t } = useLanguage()
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 300, y: 120 })
   const [isPanning, setIsPanning] = useState(false)
@@ -486,9 +524,6 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
 
   // Card Detail Modal States
   const [selectedMovie, setSelectedMovie] = useState(null)
-  const [backdrops, setBackdrops] = useState([])
-  const [loadingBackdrops, setLoadingBackdrops] = useState(false)
-  const [selectedScene, setSelectedScene] = useState(null)
   const [toastMessage, setToastMessage] = useState(null)
   const [addingMovieId, setAddingMovieId] = useState(null)
   const [selectedSection, setSelectedSection] = useState('todo')
@@ -507,22 +542,6 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
     panRef.current = pan
   }, [pan])
 
-  // Fetch backdrops when detail modal opens
-  useEffect(() => {
-    if (selectedMovie && selectedMovie.tmdb_id) {
-      setLoadingBackdrops(true)
-      setBackdrops([])
-      window.api.getMovieImages(selectedMovie.tmdb_id, selectedMovie.media_type)
-        .then(res => {
-          if (res && res.backdrops && res.backdrops.length > 0) {
-            setBackdrops(res.backdrops)
-          }
-        })
-        .catch(err => console.warn('Failed fetching scene backdrops:', err))
-        .finally(() => setLoadingBackdrops(false))
-    }
-  }, [selectedMovie])
-
   // 1. Fetch user's viewed franchises list & determine initial target franchise
   const fetchViewedFranchises = async () => {
     try {
@@ -540,13 +559,13 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   }
 
   // 2. Fetch specific franchise data by tmdb_id & media_type
-  const loadFranchiseData = async (tmdbId, mediaType = null) => {
+  const loadFranchiseData = async (tmdbId, mediaType = null, lang = language) => {
     if (!tmdbId) return
     setLoading(true)
     setError(null)
     try {
       if (window.api && window.api.getFranchiseUniverse) {
-        const data = await window.api.getFranchiseUniverse(tmdbId, mediaType)
+        const data = await window.api.getFranchiseUniverse(tmdbId, mediaType, lang)
         setUniverseData(data)
         setActiveTmdbId(tmdbId)
 
@@ -590,19 +609,20 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
     }
   }
 
+  // Reload franchise universe when interface language changes
+  useEffect(() => {
+    if (activeTmdbId) {
+      loadFranchiseData(activeTmdbId, universeData?.movies?.[0]?.media_type || null, language)
+    }
+  }, [language])
+
   // Remove franchise from viewed history
   const handleRemoveFranchise = async (item, e = null) => {
     if (e) e.stopPropagation()
     const itemKey = item.universe_key || item.key || item.tmdb_id
-
-    const isCurrentActive =
-      (item.universe_key && universeData?.universe_key === item.universe_key) ||
-      (item.tmdb_id && String(activeTmdbId) === String(item.tmdb_id)) ||
-      (universeData?.universe_name && universeData.universe_name === item.name)
-
-    // Compute remaining list
-    const currentList = Array.isArray(viewedFranchises) ? viewedFranchises : []
-    const remainingList = currentList.filter(f => {
+    const isCurrentActive = String(item.tmdb_id) === String(activeTmdbId) || (item.universe_key && universeData?.universe_key === item.universe_key)
+    
+    const remainingList = viewedFranchises.filter(f => {
       const k = f.universe_key || f.key || f.tmdb_id
       return k !== itemKey && f.name !== item.name
     })
@@ -638,11 +658,11 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
     (async () => {
       const list = await fetchViewedFranchises()
       if (targetTmdbId) {
-        loadFranchiseData(targetTmdbId, targetMediaType)
+        loadFranchiseData(targetTmdbId, targetMediaType, language)
       } else if (list && list.length > 0 && list[0].tmdb_id) {
-        loadFranchiseData(list[0].tmdb_id, list[0].media_type || null)
+        loadFranchiseData(list[0].tmdb_id, list[0].media_type || null, language)
       } else {
-        loadFranchiseData(1726, 'movie')
+        loadFranchiseData(1726, 'movie', language)
       }
     })()
   }, [targetTmdbId, targetMediaType])
@@ -970,13 +990,13 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
               <Sparkles size={16} color="var(--accent)" />
-              <span>Franchizalar ({viewedFranchises.length})</span>
+              <span>{t('space.franchises')} ({viewedFranchises.length})</span>
             </div>
 
             <button
               type="button"
               onClick={() => setSidebarOpen(false)}
-              title="Paneni yopish"
+              title={t('common.close')}
               style={{
                 border: 'none',
                 background: 'var(--bg-input)',
@@ -1006,7 +1026,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               <Search size={13} color="var(--text-muted)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
-                placeholder="Franchiza qidirish..."
+                placeholder={t('space.searchFranchise')}
                 value={sidebarSearch}
                 onChange={e => setSidebarSearch(e.target.value)}
                 style={{
@@ -1027,7 +1047,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 2 }}>
               {filteredFranchises.length === 0 ? (
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '24px 8px' }}>
-                  {viewedFranchises.length === 0 ? "Ko'rilgan franchizalar yo'q. Kinolardan xronologiyaga kiring!" : "Topilmadi."}
+                  {viewedFranchises.length === 0 ? t('space.noViewedFranchises') : t('space.noFranchisesFound')}
                 </div>
               ) : (
                 filteredFranchises.map((item, idx) => {
@@ -1085,17 +1105,17 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                               {item.is_universe ? (
                                 <>
                                   <Sparkles size={10} color="var(--accent)" />
-                                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}>UNIVERSE</span>
+                                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{t('space.universe')}</span>
                                 </>
                               ) : (
                                 <>
                                   <Film size={10} color="var(--text-secondary)" />
-                                  <span>FRANCHISE</span>
+                                  <span>{t('space.franchise')}</span>
                                 </>
                               )}
                             </span>
                             <span style={{ background: 'var(--bg-input)', padding: '1px 6px', borderRadius: 8, color: 'var(--text-secondary)' }}>
-                              {countToDisplay} kinolar
+                              {countToDisplay} {t('space.moviesCount')}
                             </span>
                           </div>
                         </div>
@@ -1113,7 +1133,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                               setConfirmDeleteKey(itemKey)
                             }
                           }}
-                          title={isConfirmingDelete ? "Tasdiqlash: ro'yxatdan o'chirish" : "Tarixdan o'chirish"}
+                          title={isConfirmingDelete ? t('space.confirmDelete') : t('space.deleteFromHistory')}
                           style={{
                             position: 'absolute',
                             right: 8,
@@ -1135,7 +1155,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                           }}
                         >
                           <Trash2 size={12} />
-                          {isConfirmingDelete && <span>O'chirish</span>}
+                          {isConfirmingDelete && <span>{t('common.delete')}</span>}
                         </button>
                       )}
                     </div>
@@ -1254,7 +1274,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{displayTitle}</div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-              {universeData?.is_universe ? 'Kanonik xronologik syujet bo\'yicha' : 'Chaqirilgan to\'plam'} · {movies.length} ta film ({universeData?.in_board_count || 0} ta ustunda)
+              {universeData?.is_universe ? t('space.canonicalOrder') : t('space.calledCollection')} · {movies.length} {t('space.moviesCount')} ({universeData?.in_board_count || 0} {t('space.inColumns')})
             </div>
           </div>
         </div>
@@ -1294,10 +1314,10 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
             <Sparkles size={28} color="var(--accent)" />
           </div>
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: 'var(--text-primary)' }}>
-            Xronologiyalar tarixi bo'sh
+            {t('space.emptyHistoryTitle')}
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-            Kinolar sahifasidan biror film kartochkasidagi <span style={{ color: 'var(--accent)', fontWeight: 600 }}>"Xronologiya"</span> tugmasini bosing yoki chap paneldan qidiring.
+            {t('space.emptyHistoryDesc')}
           </div>
         </div>
       )}
@@ -1315,7 +1335,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
           justifyContent: 'center',
         }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
-            Yuklanmoqda...
+            {t('space.loadingChronology')}
           </div>
         </div>
       )}
@@ -1336,14 +1356,15 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
           fontSize: 13,
           display: 'flex',
           alignItems: 'center',
-          gap: 8
+          gap: 8,
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)'
         }}>
           <AlertCircle size={16} />
           <span>{error}</span>
         </div>
       )}
 
-      {/* Pannable & Zoomable World Container (GPU Accelerated) */}
+      {/* Infinite/Pan Canvas Grid Viewport */}
       <div style={{
         transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
         transformOrigin: '0 0',
@@ -1422,28 +1443,26 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
         })()}
       </div>
 
-      {/* Floating Canvas Controls (Zoom / Reset) */}
-      <div
-        className="space-controls"
-        style={{
-          position: 'absolute',
-          bottom: 24,
-          right: 24,
-          zIndex: 10,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          background: 'var(--space-panel-bg)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid var(--space-panel-border)',
-          borderRadius: 24,
-          padding: '6px 10px',
-          boxShadow: 'var(--space-shadow)',
-        }}
-      >
+      {/* Floating Canvas Controls (Zoom In, Zoom Out, Reset Center) */}
+      <div style={{
+        position: 'absolute',
+        bottom: 24,
+        right: 24,
+        zIndex: 20,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        background: 'var(--space-panel-bg)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        border: '1px solid var(--space-panel-border)',
+        borderRadius: 30,
+        padding: '6px 12px',
+        boxShadow: 'var(--space-shadow)'
+      }}>
         <button
           onClick={handleZoomOut}
-          title="Kichiklashtirish (-)"
+          title={t('space.zoomOut')}
           style={{ border: 'none', background: 'transparent', color: 'var(--text-primary)', width: 32, height: 32, borderRadius: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         ><Minus size={15} /></button>
         
@@ -1453,7 +1472,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
 
         <button
           onClick={handleZoomIn}
-          title="Kattalashtirish (+)"
+          title={t('space.zoomIn')}
           style={{ border: 'none', background: 'transparent', color: 'var(--text-primary)', width: 32, height: 32, borderRadius: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         ><Plus size={15} /></button>
 
@@ -1461,7 +1480,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
 
         <button
           onClick={handleResetView}
-          title="Ko'rinishni tiklash (100%)"
+          title={t('space.resetView')}
           style={{ border: 'none', background: 'transparent', color: 'var(--text-secondary)', width: 32, height: 32, borderRadius: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         ><RotateCcw size={14} /></button>
       </div>
@@ -1546,50 +1565,49 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                     height: 160,
                     objectFit: 'cover',
                     borderRadius: 14,
-                    boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
-                    border: '1px solid var(--border)',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6)',
+                    border: '2px solid var(--border)',
                     flexShrink: 0
                   }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.2, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{
+                      background: 'var(--space-panel-bg)',
+                      border: '1px solid var(--border)',
+                      padding: '2px 8px',
+                      borderRadius: 10,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: 'var(--accent)'
+                    }}>
+                      #{selectedMovie.chronology_index || 1}
+                    </span>
+                    {selectedMovie.rating ? (
+                      <span style={{ color: '#fbbf24', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <Star size={13} fill="#fbbf24" color="#fbbf24" /> {selectedMovie.rating}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25, textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
                     {selectedMovie.title}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13, color: 'var(--text-secondary)' }}>
-                    <span>{selectedMovie.release_year || selectedMovie.release_date?.split('-')[0] || '-'}</span>
-                    <span>•</span>
-                    <span style={{ textTransform: 'capitalize' }}>{selectedMovie.media_type === 'tv' ? 'Serial' : 'Film'}</span>
-                    {selectedMovie.rating ? (
-                      <>
-                        <span>•</span>
-                        <span style={{ color: '#fbbf24', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                          <Star size={13} fill="#fbbf24" color="#fbbf24" /> {selectedMovie.rating}/10
-                        </span>
-                      </>
-                    ) : null}
-                    {selectedMovie.vote_count ? <span style={{ fontSize: 11 }}>({formatVotes(selectedMovie.vote_count)} ovoz)</span> : null}
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                    {selectedMovie.release_year || selectedMovie.release_date?.split('-')[0] || '-'}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Modal Body Info */}
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {/* Board Action Bar */}
+            <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Board Status Pill / Add Button */}
               {(() => {
-                const sectionKey = (selectedMovie.user_movie?.section || 'todo').toLowerCase();
-                const sectionStyles = {
-                  todo: { short: 'TODO', badgeBg: 'rgba(251, 191, 36, 0.12)', badgeBorder: 'rgba(251, 191, 36, 0.35)', color: '#fbbf24' },
-                  futured: { short: 'FUTURED', badgeBg: 'rgba(167, 139, 250, 0.12)', badgeBorder: 'rgba(167, 139, 250, 0.35)', color: '#a78bfa' },
-                  doing: { short: 'DOING', badgeBg: 'rgba(52, 211, 153, 0.12)', badgeBorder: 'rgba(52, 211, 153, 0.35)', color: '#34d399' },
-                  done: { short: 'DONE', badgeBg: 'rgba(96, 165, 250, 0.12)', badgeBorder: 'rgba(96, 165, 250, 0.35)', color: '#60a5fa' }
-                };
-                const sStyle = sectionStyles[sectionKey] || sectionStyles.todo;
-
+                const sStyle = getSectionStyle(selectedMovie.user_movie?.section)
                 return (
                   <div style={{
                     background: 'var(--space-panel-bg)',
-                    border: '1px solid var(--space-panel-border)',
+                    border: '1px solid var(--border)',
                     borderRadius: 16,
                     padding: '14px 18px',
                     display: 'flex',
@@ -1615,8 +1633,8 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                             <CheckCircle size={18} />
                           </div>
                           <div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Ushbu film ustuningizda mavjud</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Rejangizdagi hozirgi holati:</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.inYourColumn')}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t('space.inBoardStatus')}</div>
                           </div>
                         </div>
                         <div style={{
@@ -1633,14 +1651,14 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                           gap: 6
                         }}>
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: sStyle.color }} />
-                          {sStyle.short}
+                          {t(`sections.${selectedMovie.user_movie?.section || 'todo'}_short`, null, sStyle.short)}
                         </div>
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: 12 }}>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>Ushbu film ustuningizda yo'q</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Rejangizga mos ustunni tanlab qo'shishingiz mumkin</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.notInYourColumn')}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t('space.selectColumnHint')}</div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{ position: 'relative' }}>
@@ -1663,10 +1681,10 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                                 transition: 'border-color 0.2s, box-shadow 0.2s'
                               }}
                             >
-                              <option value="todo" style={{ background: 'var(--bg-card)', color: '#fbbf24' }}>🟡 To Do (Ko'riladi)</option>
-                              <option value="futured" style={{ background: 'var(--bg-card)', color: '#a78bfa' }}>🟣 Futured (Kutilmoqda)</option>
-                              <option value="doing" style={{ background: 'var(--bg-card)', color: '#34d399' }}>🟢 Going (Ko'rilmoqda)</option>
-                              <option value="done" style={{ background: 'var(--bg-card)', color: '#60a5fa' }}>🔵 Done (Ko'rildi)</option>
+                              <option value="todo" style={{ background: 'var(--bg-card)', color: '#fbbf24' }}>🟡 {t('sections.todo')}</option>
+                              <option value="futured" style={{ background: 'var(--bg-card)', color: '#a78bfa' }}>🟣 {t('sections.futured')}</option>
+                              <option value="doing" style={{ background: 'var(--bg-card)', color: '#34d399' }}>🟢 {t('sections.doing')}</option>
+                              <option value="done" style={{ background: 'var(--bg-card)', color: '#60a5fa' }}>🔵 {t('sections.done')}</option>
                             </select>
                             <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
                               <ChevronDown size={14} />
@@ -1696,7 +1714,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(139, 92, 246, 0.35)'; }}
                           >
                             {addingMovieId === selectedMovie.tmdb_id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                            <span>Ustunga qo'shish</span>
+                            <span>{t('space.addToColumn')}</span>
                           </button>
                         </div>
                       </div>
@@ -1709,7 +1727,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12 }}>
                 {selectedMovie.release_date && (
                   <span style={{ background: 'var(--space-chip-bg)', borderRadius: 8, padding: '5px 12px', color: 'var(--space-chip-color)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Calendar size={12} color="var(--accent)" /> {formatReleaseDate(selectedMovie.release_date)}
+                    <Calendar size={12} color="var(--accent)" /> {formatReleaseDate(selectedMovie.release_date, language)}
                   </span>
                 )}
                 {selectedMovie.genre && selectedMovie.genre !== '-' && (
@@ -1719,7 +1737,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                 )}
                 {selectedMovie.director && selectedMovie.director !== '-' && (
                   <span style={{ background: 'var(--space-chip-bg)', borderRadius: 8, padding: '5px 12px', color: 'var(--space-chip-color)' }}>
-                    Rejissyor: {selectedMovie.director}
+                    {t('card.director')}: {selectedMovie.director}
                   </span>
                 )}
                 {selectedMovie.seasons && selectedMovie.seasons !== '-' && (
@@ -1733,115 +1751,14 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               {selectedMovie.overview && (
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                    Film Syujeti
+                    {t('space.storyPlot')}
                   </div>
                   <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-primary)' }}>
                     {selectedMovie.overview}
                   </div>
                 </div>
               )}
-
-              {/* Film Kadrlar (Scene Backdrops Gallery) */}
-              {(loadingBackdrops || backdrops.length > 0) && (
-                <div style={{ marginTop: 6, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Film size={14} color="var(--accent)" /> Film Kadrlari (Sahnalar)</span>
-                      {backdrops.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>({backdrops.length} ta kadr)</span>}
-                    </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Kattalashtirish uchun bosing</span>
-                  </div>
-
-                  {loadingBackdrops ? (
-                    <div style={{ color: 'var(--text-secondary)', fontSize: 12, padding: '12px 0' }}>Kadrlari yuklanmoqda...</div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'thin' }}>
-                      {backdrops.map((imgUrl, idx) => (
-                        <div
-                          key={idx}
-                          onClick={() => setSelectedScene(imgUrl)}
-                          style={{
-                            position: 'relative',
-                            width: 160,
-                            height: 94,
-                            borderRadius: 10,
-                            overflow: 'hidden',
-                            cursor: 'pointer',
-                            flexShrink: 0,
-                            border: '1px solid var(--border)',
-                            background: 'var(--bg-input)',
-                            transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = 'var(--space-shadow)' }}
-                          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none' }}
-                        >
-                          <img
-                            src={imgUrl}
-                            alt={`Sahna ${idx + 1}`}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Lightbox for Zoomed Scene Image */}
-      {selectedScene && ReactDOM.createPortal(
-        <div
-          onClick={() => setSelectedScene(null)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999999,
-            background: 'rgba(0, 0, 0, 0.94)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 24
-          }}
-        >
-          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
-            <button
-              onClick={() => setSelectedScene(null)}
-              style={{
-                position: 'absolute',
-                top: -16,
-                right: -16,
-                border: 'none',
-                background: '#18181b',
-                color: '#fff',
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-                zIndex: 2
-              }}
-            ><X size={16} /></button>
-            <img
-              src={selectedScene}
-              alt="Film sahna rasmi"
-              style={{
-                maxWidth: '90vw',
-                maxHeight: '85vh',
-                objectFit: 'contain',
-                borderRadius: 16,
-                boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
-                display: 'block'
-              }}
-            />
           </div>
         </div>,
         document.body
