@@ -27,7 +27,7 @@ function getUserHeader() {
 async function fetchJSON(url, options = {}) {
   const userHeader = getUserHeader()
   const controller = new AbortController()
-  const timeoutMs = options.timeout || 8000
+  const timeoutMs = options.timeout || 20000
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
@@ -83,6 +83,7 @@ export const api = {
   // Movies
   getMovies: (note_id) => fetchJSON(`${API_BASE}/movies?note_id=${note_id || ''}`),
   addMovie: (data) => fetchJSON(`${API_BASE}/movies`, { method: 'POST', body: JSON.stringify(data) }),
+  createMovie: (data) => fetchJSON(`${API_BASE}/movies`, { method: 'POST', body: JSON.stringify(data) }),
   updateMovie: (id, data) => fetchJSON(`${API_BASE}/movies/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteMovie: (id) => fetchJSON(`${API_BASE}/movies/${id}`, { method: 'DELETE' }),
   moveMovie: (id, section, position) => fetchJSON(`${API_BASE}/movies/move`, { method: 'POST', body: JSON.stringify({ id, section, position }) }),
@@ -92,7 +93,7 @@ export const api = {
   // Content Search, Media Images & Franchises
   searchContent: (type, query) => fetchJSON(`${API_BASE}/content/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query)}`),
   getMovieImages: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/content/images?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}`),
-  getFranchiseUniverse: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/franchises/${encodeURIComponent(tmdb_id)}${media_type ? `?media_type=${encodeURIComponent(media_type)}` : ''}`),
+  getFranchiseUniverse: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/franchises/${encodeURIComponent(tmdb_id)}${media_type ? `?media_type=${encodeURIComponent(media_type)}` : ''}`, { timeout: 15000 }),
   getViewedFranchises: () => fetchJSON(`${API_BASE}/franchises/viewed`),
   recordFranchiseView: (data) => fetchJSON(`${API_BASE}/franchises/record-view`, { method: 'POST', body: JSON.stringify(data) }),
   removeViewedFranchise: (key) => fetchJSON(`${API_BASE}/franchises/viewed`, { method: 'DELETE', body: JSON.stringify({ key }) }),

@@ -11,9 +11,13 @@ const {
 // GET /api/notifications
 router.get('/', async (req, res) => {
   try {
-    await generateSmartNotifications(req.userId).catch(err => console.warn('Smart notifications generation error:', err.message));
     const list = await getNotifications(req.userId);
     res.json(list);
+
+    // Trigger smart notifications asynchronously in background so response returns instantly
+    setImmediate(() => {
+      generateSmartNotifications(req.userId).catch(err => console.warn('Smart notifications generation error:', err.message));
+    });
   } catch (err) {
     console.error('GET /api/notifications error:', err.message);
     res.status(500).json({ error: err.message });

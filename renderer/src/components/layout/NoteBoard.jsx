@@ -55,14 +55,32 @@ function parseItemMinutes(item) {
   const str = item?.seasons || item?.runtime || item?._movie?.seasons || item?._movie?.runtime
   if (!str || str === '-' || str === '—') return 0
 
+  // 1. Explicit total minutes in parentheses: e.g. "(2995 min)"
+  const totalMinParenMatch = String(str).match(/\((\d+)\s*min\)/i)
+  if (totalMinParenMatch) {
+    return parseInt(totalMinParenMatch[1], 10) || 0
+  }
+
+  // 2. Movie simple format: "142 min"
   const singleMatch = String(str).match(/^(\d+)\s*min$/i)
   if (singleMatch) {
     return parseInt(singleMatch[1], 10) || 0
   }
 
+  // 3. Days, Hours, Mins textual format: "2 kun 1 soat 55 daqiqa" or "2k 1s 55m"
+  const daysMatch = String(str).match(/(\d+)\s*(?:kun|k)/i)
+  const hoursMatch = String(str).match(/(\d+)\s*(?:soat|s)/i)
+  const minsMatch = String(str).match(/(\d+)\s*(?:daqiqa|daq|min|m)/i)
+  if (daysMatch || hoursMatch) {
+    const d = daysMatch ? parseInt(daysMatch[1], 10) : 0
+    const h = hoursMatch ? parseInt(hoursMatch[1], 10) : 0
+    const m = minsMatch ? parseInt(minsMatch[1], 10) : 0
+    return d * 24 * 60 + h * 60 + m
+  }
+
+  // 4. Fallback legacy estimate: "5 seasons · 62 ep · ~45 min"
   const epMatch = String(str).match(/(\d+)\s*ep/i)
   const epRuntimeMatch = String(str).match(/~(\d+)\s*min/i) || String(str).match(/(\d+)\s*min/i)
-
   if (epMatch) {
     const totalEpisodes = parseInt(epMatch[1], 10) || 0
     const epMinutes = epRuntimeMatch ? parseInt(epRuntimeMatch[1], 10) : 45
@@ -768,7 +786,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
   }, [groups, filteredItemsByGroup])
 
   const renderColumn = (group) => (
-    <NoteColumn
+    <MemoNoteColumn
       key={group.id}
       group={group}
       items={filteredItemsByGroup[group.id] || []}
@@ -1356,6 +1374,8 @@ function NoteColumn({ group, items, maxOtherCount, boardCardPositionsRef, itemCl
     </div>
   )
 }
+
+const MemoNoteColumn = React.memo(NoteColumn)
 
 function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTouchDragStart, onTouchDragMove, onTouchDragEnd }) {
   const [isTouchDragging, setIsTouchDragging] = useState(false)

@@ -19,6 +19,11 @@ function formatReleaseDate(dateStr) {
   }
 }
 
+function formatCardRuntime(str) {
+  if (!str || str === '-' || str === '—') return null
+  return str.replace(/\s*\(\d+\s*min\)$/i, '')
+}
+
 function RatingStars10({ value, onChange }) {
   const [hoverVal, setHoverVal] = useState(null)
   const activeVal = hoverVal !== null ? hoverVal : (value || 0)
@@ -54,7 +59,7 @@ function RatingStars10({ value, onChange }) {
   )
 }
 
-export default function MovieCard({
+function MovieCard({
   movie,
   sectionKey,
   onRate,
@@ -438,7 +443,7 @@ export default function MovieCard({
         {movie.seasons && movie.seasons !== '—' && movie.seasons !== '-' && (
           <div style={{ color: 'var(--text-muted)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
             <Clock size={11} color="var(--text-muted)" />
-            <span>{movie.seasons}</span>
+            <span>{formatCardRuntime(movie.seasons)}</span>
           </div>
         )}
       </div>
@@ -447,11 +452,12 @@ export default function MovieCard({
 
   const overlayVisible = expanded
 
-  // Modal oyna balandligining 2/3 qismini egallaydi, markazda
+  // Modal oyna kontentga mos avtomatik balandlikda
   const modalStyle = {
     position: 'relative',
-    width: 'min(860px, 94vw)',
-    height: 'min(520px, 85vh)',
+    width: 'min(900px, 94vw)',
+    maxHeight: 'min(620px, 90vh)',
+    height: 'auto',
     background: 'var(--bg-surface)',
     border: '1px solid var(--border)',
     borderRadius: 24,
@@ -459,7 +465,8 @@ export default function MovieCard({
     overflow: 'hidden',
     boxShadow: '0 30px 80px rgba(0,0,0,0.7)',
     display: 'grid',
-    gridTemplateColumns: '260px 1fr',
+    gridTemplateColumns: 'minmax(240px, 280px) 1fr',
+    alignItems: 'stretch',
     gap: 24,
     opacity: animateOpen ? 1 : 0,
     transform: animateOpen ? 'scale(1) translateY(0)' : 'scale(0.93) translateY(24px)',
@@ -472,6 +479,10 @@ export default function MovieCard({
     overflow: 'hidden',
     background: 'var(--bg-card)',
     height: '100%',
+    minHeight: 320,
+    width: '100%',
+    boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+    border: '1px solid rgba(255,255,255,0.1)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -484,6 +495,7 @@ export default function MovieCard({
     flexDirection: 'column',
     gap: 14,
     color: 'var(--text-primary)',
+    maxHeight: 'calc(min(620px, 90vh) - 48px)',
     overflowY: 'auto',
     paddingRight: 4,
     opacity: animateOpen ? 1 : 0,
@@ -514,11 +526,11 @@ export default function MovieCard({
               {movie.poster_path ? (
                 <img
                   src={movie.poster_path}
-                  alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                  alt={movie.title || ''}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 />
               ) : (
-                <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--text-muted)', fontSize: 13, background: 'var(--bg-card)' }}>
                   No poster
                 </div>
               )}
@@ -777,3 +789,5 @@ export default function MovieCard({
     </>
   )
 }
+
+export default React.memo(MovieCard)

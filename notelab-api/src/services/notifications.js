@@ -1,14 +1,16 @@
 const supabase = require('./supabase');
-const { readDB, writeDB, getUserSettings } = require('./database');
+const { readDB, writeDB, getUserSettings, saveUserSettings } = require('./database');
 
 async function getAllUserMovies(userId) {
   const db = readDB();
-  const localMovies = db.movies || [];
+  const localMovies = (db.movies || []).filter(m => !userId || m.user_id === userId);
 
   let cloudMovies = [];
   if (supabase) {
     try {
-      const { data, error } = await supabase.from('movies').select('id, tmdb_id, imdb_id, title, user_id');
+      let query = supabase.from('movies').select('id, tmdb_id, imdb_id, title, user_id, media_type, section');
+      if (userId) query = query.eq('user_id', userId);
+      const { data, error } = await query;
       if (!error && data) {
         cloudMovies = data;
       }
@@ -591,7 +593,7 @@ async function generateTrailerAlerts(userId) {
         ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(mId)}/videos?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`
         : `https://api.themoviedb.org/3/movie/${encodeURIComponent(mId)}/videos?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
 
-      const res = await fetch(videoUrl);
+      const res = await fetch(videoUrl, { signal: AbortSignal.timeout(3000) });
       if (!res.ok) continue;
       const data = await res.json();
       const videos = data.results || [];
@@ -651,7 +653,7 @@ async function generateBoxOfficeAlerts(userId) {
 
     try {
       const detailUrl = `https://api.themoviedb.org/3/movie/${encodeURIComponent(mId)}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
-      const res = await fetch(detailUrl);
+      const res = await fetch(detailUrl, { signal: AbortSignal.timeout(3000) });
       if (!res.ok) continue;
       const detail = await res.json();
 
@@ -693,7 +695,7 @@ async function generateEpisodeAlerts(userId) {
   if (!tmdbKey) return [];
 
   const userMovies = await getAllUserMovies(userId);
-  const tvSeries = userMovies.filter(m => (m.media_type === 'tv' || m.seasons) && m.tmdb_id);
+  const tvSeries = userMovies.filter(m => m.media_type === 'tv' && m.tmdb_id);
   if (tvSeries.length === 0) return [];
 
   const now = Date.now();
@@ -704,7 +706,7 @@ async function generateEpisodeAlerts(userId) {
     const sId = String(series.tmdb_id);
     try {
       const tvUrl = `https://api.themoviedb.org/3/tv/${encodeURIComponent(sId)}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
-      const res = await fetch(tvUrl);
+      const res = await fetch(tvUrl, { signal: AbortSignal.timeout(3000) });
       if (!res.ok) continue;
       const detail = await res.json();
 

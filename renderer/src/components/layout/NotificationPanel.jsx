@@ -267,7 +267,7 @@ export default function NotificationPanel({
 
                   return (
                     <button
-                      onClick={() => handleAddFromNotif(notif)}
+                      onClick={() => handleAddMovie(notif)}
                       disabled={isDisabled}
                       style={{
                         marginTop: 8,

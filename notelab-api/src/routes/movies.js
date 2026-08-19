@@ -31,6 +31,91 @@ function getSupabase() {
   }
 }
 
+function formatDurationUz(totalMinutes, isEstimated = false) {
+  if (!totalMinutes || totalMinutes <= 0) return '-';
+  const prefix = isEstimated ? '~' : '';
+
+  const minutesInDay = 24 * 60;
+  const minutesInHour = 60;
+
+  if (totalMinutes >= minutesInDay) {
+    const days = Math.floor(totalMinutes / minutesInDay);
+    const rem = totalMinutes % minutesInDay;
+    const hours = Math.floor(rem / minutesInHour);
+    const mins = rem % minutesInHour;
+
+    const parts = [`${days} kun`];
+    if (hours > 0) parts.push(`${hours} soat`);
+    if (mins > 0) parts.push(`${mins} daqiqa`);
+    return `${prefix}${parts.join(' ')}`;
+  }
+
+  if (totalMinutes >= minutesInHour) {
+    const hours = Math.floor(totalMinutes / minutesInHour);
+    const mins = totalMinutes % minutesInHour;
+
+    const parts = [`${hours} soat`];
+    if (mins > 0) parts.push(`${mins} daqiqa`);
+    return `${prefix}${parts.join(' ')}`;
+  }
+
+  return `${prefix}${totalMinutes} daqiqa`;
+}
+
+async function resolveTvRuntime(tmdbId, tmdbKey, tvDetail) {
+  const seasonsList = (tvDetail.seasons || []).filter(s => s.season_number > 0);
+  const numberOfSeasons = tvDetail.number_of_seasons || seasonsList.length || 1;
+  const numberOfEpisodes = tvDetail.number_of_episodes || seasonsList.reduce((sum, s) => sum + (s.episode_count || 0), 0) || 1;
+
+  let totalMinutes = 0;
+  let exactCount = 0;
+  let hasMissing = false;
+
+  if (seasonsList.length > 0 && tmdbId && tmdbKey) {
+    try {
+      const seasonPromises = seasonsList.map(s =>
+        fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(tmdbId)}/season/${s.season_number}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) })
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null)
+      );
+      const seasonsData = await Promise.all(seasonPromises);
+      seasonsData.forEach(sData => {
+        if (sData && Array.isArray(sData.episodes)) {
+          sData.episodes.forEach(ep => {
+            if (ep.runtime && ep.runtime > 0) {
+              totalMinutes += ep.runtime;
+              exactCount++;
+            } else {
+              hasMissing = true;
+            }
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('Season fetch error:', e.message);
+    }
+  }
+
+  const avgEpRt = (tvDetail.episode_run_time && tvDetail.episode_run_time.length > 0) ? tvDetail.episode_run_time[0] : null;
+  const isEstimated = exactCount === 0 || hasMissing || exactCount < numberOfEpisodes;
+
+  if (exactCount === 0) {
+    const fallbackPerEp = avgEpRt || 45;
+    totalMinutes = numberOfEpisodes * fallbackPerEp;
+  } else if (hasMissing && exactCount < numberOfEpisodes) {
+    const missingCount = numberOfEpisodes - exactCount;
+    const avgCalculated = Math.round(totalMinutes / exactCount) || avgEpRt || 45;
+    totalMinutes += missingCount * avgCalculated;
+  }
+
+  const humanStr = formatDurationUz(totalMinutes, isEstimated);
+  const parts = [];
+  parts.push(`${numberOfSeasons} season${numberOfSeasons > 1 ? 's' : ''}`);
+  parts.push(`${numberOfEpisodes} ep`);
+  parts.push(`${humanStr} (${totalMinutes} min)`);
+  return parts.join(' · ');
+}
+
 function sanitizeForSupabase(obj) {
   const allowed = [
     'id', 'user_id', 'note_id', 'title', 'section', 'position',
@@ -247,14 +332,9 @@ router.post('/', async (req, res) => {
           }
           if (detail.overview) overview = detail.overview;
 
-          // Extract runtime info into seasons field
+          // Extract accurate runtime info into seasons field
           if (media_type === 'tv' || detail.number_of_seasons) {
-            const parts = [];
-            if (detail.number_of_seasons) parts.push(`${detail.number_of_seasons} season${detail.number_of_seasons > 1 ? 's' : ''}`);
-            if (detail.number_of_episodes) parts.push(`${detail.number_of_episodes} ep`);
-            const epRt = (detail.episode_run_time && detail.episode_run_time.length > 0) ? detail.episode_run_time[0] : 45;
-            parts.push(`~${epRt} min`);
-            if (parts.length > 0) seasons = parts.join(' · ');
+            seasons = await resolveTvRuntime(data.tmdb_id, tmdbKey, detail);
           } else if (detail.runtime) {
             seasons = `${detail.runtime} min`;
           }
@@ -548,34 +628,59 @@ router.post('/refresh-all', async (req, res) => {
         const batch = movies.slice(i, i + BATCH_SIZE);
         await Promise.allSettled(batch.map(async (m) => {
           let changed = false;
-          const isTv = m.media_type === 'tv' || (m.seasons && m.seasons !== '-');
+          let isTv = m.media_type === 'tv';
+          let isMovie = m.media_type === 'movie';
 
           // 1. Fetch TMDB details (SAFE: only updates release_date and runtime/seasons; NEVER touches poster_path, title, or tmdb_id)
           if (m.tmdb_id && tmdbKey) {
             try {
-              const primaryUrl = isTv
-                ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`
-                : `https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`;
+              let movieDetail = null;
+              let tvDetail = null;
 
-              const tmdbRes = await fetch(primaryUrl, { signal: AbortSignal.timeout(2500) });
-              if (tmdbRes.ok) {
-                const tmdbData = await tmdbRes.json();
-                if (!m.release_date) {
-                  m.release_date = tmdbData.release_date || tmdbData.first_air_date || null;
+              if (isTv) {
+                const res = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+                if (res.ok) tvDetail = await res.json();
+              } else if (isMovie) {
+                const res = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+                if (res.ok) movieDetail = await res.json();
+              } else {
+                // Unknown media_type: probe movie first then TV
+                const res = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+                if (res.ok) {
+                  movieDetail = await res.json();
+                  m.media_type = 'movie';
+                  isMovie = true;
                   changed = true;
-                }
-                if (!m.seasons || m.seasons === '-' || m.seasons === '—') {
-                  if (isTv || tmdbData.number_of_seasons) {
-                    const parts = [];
-                    if (tmdbData.number_of_seasons) parts.push(`${tmdbData.number_of_seasons} season${tmdbData.number_of_seasons > 1 ? 's' : ''}`);
-                    if (tmdbData.number_of_episodes) parts.push(`${tmdbData.number_of_episodes} ep`);
-                    const epRt = tmdbData.episode_run_time && tmdbData.episode_run_time.length > 0 ? tmdbData.episode_run_time[0] : null;
-                    if (epRt) parts.push(`~${epRt} min`);
-                    if (parts.length > 0) { m.seasons = parts.join(' · '); changed = true; }
-                  } else if (tmdbData.runtime) {
-                    m.seasons = `${tmdbData.runtime} min`;
+                } else {
+                  const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+                  if (tvRes.ok) {
+                    tvDetail = await tvRes.json();
+                    m.media_type = 'tv';
+                    isTv = true;
                     changed = true;
                   }
+                }
+              }
+
+              if (movieDetail) {
+                if (movieDetail.release_date && !m.release_date) {
+                  m.release_date = movieDetail.release_date;
+                  changed = true;
+                }
+                const newRuntime = movieDetail.runtime ? `${movieDetail.runtime} min` : '-';
+                if (m.seasons !== newRuntime && newRuntime !== '-') {
+                  m.seasons = newRuntime;
+                  changed = true;
+                }
+              } else if (tvDetail) {
+                if (tvDetail.first_air_date && !m.release_date) {
+                  m.release_date = tvDetail.first_air_date;
+                  changed = true;
+                }
+                const newSeasons = await resolveTvRuntime(m.tmdb_id, tmdbKey, tvDetail);
+                if (newSeasons && m.seasons !== newSeasons) {
+                  m.seasons = newSeasons;
+                  changed = true;
                 }
               }
             } catch (e) {}

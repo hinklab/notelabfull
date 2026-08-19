@@ -39,28 +39,32 @@ module.exports = function authMiddleware(req, res, next) {
             if (!existingUser.password_hash) {
               updatePayload.password_hash = 'synced_session';
             }
-            await supabase.from('users').update(updatePayload).eq('id', req.userId).catch(() => {});
+            await supabase.from('users').update(updatePayload).eq('id', req.userId);
           } else {
             // Create user in Auth admin if not exists
             if (supabase.auth?.admin?.createUser) {
-              await supabase.auth.admin.createUser({
-                id: req.userId,
-                email: emailClean,
-                email_confirm: true,
-                user_metadata: { first_name: firstName || null, last_name: lastName || null }
-              }).catch(() => {});
+              try {
+                await supabase.auth.admin.createUser({
+                  id: req.userId,
+                  email: emailClean,
+                  email_confirm: true,
+                  user_metadata: { first_name: firstName || null, last_name: lastName || null }
+                });
+              } catch {}
             }
             // Insert into public.users
-            await supabase.from('users').insert([{
-              id: req.userId,
-              email: emailClean,
-              password_hash: 'synced_session',
-              first_name: firstName || null,
-              last_name: lastName || null
-            }]).catch(() => {});
+            try {
+              await supabase.from('users').insert([{
+                id: req.userId,
+                email: emailClean,
+                password_hash: 'synced_session',
+                first_name: firstName || null,
+                last_name: lastName || null
+              }]);
+            } catch {}
           }
         } catch (err) {
-          console.warn('Middleware auto-sync user warning:', err.message);
+          console.warn('[authMiddleware] user sync error:', err.message);
         }
       })();
     }

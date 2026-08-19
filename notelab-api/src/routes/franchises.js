@@ -4,6 +4,9 @@ const path = require('path');
 const fs = require('fs');
 const { readDB, getUserSettings, saveUserSettings } = require('../services/database');
 
+// Global in-memory cache for TMDB movie/TV details to ensure instant sub-50ms responses
+const tmdbDetailsCache = new Map();
+
 const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
 
 function getSupabase() {
@@ -267,23 +270,28 @@ router.get('/:tmdbMovieId', async (req, res) => {
       const chronoOrderItems = universeConfig.chronological_order;
       moviesResult = await Promise.all(
         chronoOrderItems.map(async (item, index) => {
-          const tmdbId = typeof item === 'object' ? item.id : item;
+          const rawId = typeof item === 'object' ? item.id : item;
+          const isStringId = typeof rawId === 'string' && rawId.includes('_s');
+          const baseTmdbId = (typeof item === 'object' && item.tmdb_id) ? item.tmdb_id : (isStringId ? parseInt(rawId.split('_s')[0], 10) : Number(rawId));
+          const seasonNumber = (typeof item === 'object' && item.season_number) ? item.season_number : (isStringId ? parseInt(rawId.split('_s')[1], 10) : null);
           const itemType = typeof item === 'object' ? (item.type || 'movie') : 'movie';
           const stage = (typeof item === 'object' && item.stage !== undefined) ? item.stage : null;
           const lane = (typeof item === 'object' && item.lane !== undefined) ? item.lane : null;
           const connects_to = (typeof item === 'object' && Array.isArray(item.connects_to)) ? item.connects_to : [];
-          const userM = userMovieMap.get(String(tmdbId));
+          const userM = userMovieMap.get(String(baseTmdbId));
 
           if (userM) {
             return {
-              tmdb_id: tmdbId,
+              id: rawId,
+              tmdb_id: baseTmdbId,
+              season_number: seasonNumber,
               media_type: userM.media_type || itemType,
-              title: userM.title || (typeof item === 'object' ? item.title : `Movie ${tmdbId}`),
-              release_date: userM.release_date || null,
-              release_year: userM.release_year || '-',
-              rating: userM.rating || null,
-              poster_path: userM.poster_path || null,
-              overview: userM.overview || '',
+              title: (typeof item === 'object' && item.title) ? item.title : (userM.title || `Movie ${baseTmdbId}`),
+              release_date: userM.release_date || (typeof item === 'object' ? item.release_date : null),
+              release_year: userM.release_year || (typeof item === 'object' ? item.release_year : '-'),
+              rating: userM.rating || (typeof item === 'object' ? item.rating : null),
+              poster_path: userM.poster_path || (typeof item === 'object' ? item.poster_path : null),
+              overview: userM.overview || (typeof item === 'object' ? item.overview : ''),
               chronology_index: index + 1,
               stage,
               lane,
@@ -297,39 +305,128 @@ router.get('/:tmdbMovieId', async (req, res) => {
             };
           }
 
+          // If item already has pre-baked TMDB metadata, return instantly in 0ms!
+          if (typeof item === 'object' && item.poster_path && item.title) {
+            return {
+              id: rawId,
+              tmdb_id: baseTmdbId,
+              season_number: seasonNumber,
+              media_type: itemType,
+              title: item.title,
+              release_date: item.release_date || null,
+              release_year: item.release_year || (item.release_date ? item.release_date.split('-')[0] : '-'),
+              rating: item.rating || null,
+              vote_count: item.vote_count || 0,
+              poster_path: item.poster_path,
+              overview: item.overview || '',
+              chronology_index: index + 1,
+              stage,
+              lane,
+              connects_to,
+              in_board: false,
+              user_movie: null
+            };
+          }
+
+          const cacheKey = (itemType === 'tv' && seasonNumber) ? `tv_${baseTmdbId}_s${seasonNumber}` : `${itemType}_${baseTmdbId}`;
+          if (tmdbDetailsCache.has(cacheKey)) {
+            const cached = tmdbDetailsCache.get(cacheKey);
+            return {
+              id: rawId,
+              tmdb_id: baseTmdbId,
+              season_number: seasonNumber,
+              media_type: itemType,
+              ...cached,
+              chronology_index: index + 1,
+              stage,
+              lane,
+              connects_to,
+              in_board: false,
+              user_movie: null
+            };
+          }
+
           try {
-            const endpoint = itemType === 'tv' ? 'tv' : 'movie';
-            const url = `https://api.themoviedb.org/3/${endpoint}/${tmdbId}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
-            const r = await fetch(url);
-            if (r.ok) {
-              const resData = await r.json();
-              const releaseDate = resData.release_date || resData.first_air_date || (typeof item === 'object' ? item.release_date : null);
-              const posterPath = resData.poster_path ? `https://image.tmdb.org/t/p/w500${resData.poster_path}` : (typeof item === 'object' ? item.poster_path : null);
-              const overview = (resData.overview && resData.overview.trim().length > 0) ? resData.overview : (typeof item === 'object' ? item.overview || '' : '');
-              return {
-                tmdb_id: tmdbId,
-                media_type: itemType,
-                title: resData.title || resData.name || (typeof item === 'object' ? item.title : `Movie ${tmdbId}`),
-                release_date: releaseDate,
-                release_year: releaseDate ? releaseDate.split('-')[0] : (typeof item === 'object' ? item.release_year || '-' : '-'),
-                rating: resData.vote_average ? Number(resData.vote_average.toFixed(1)) : (typeof item === 'object' ? item.rating || null : null),
-                vote_count: resData.vote_count || 0,
-                poster_path: posterPath,
-                overview,
-                chronology_index: index + 1,
-                stage,
-                lane,
-                connects_to,
-                in_board: false,
-                user_movie: null
-              };
+            if (itemType === 'tv' && seasonNumber) {
+              const url = `https://api.themoviedb.org/3/tv/${baseTmdbId}/season/${seasonNumber}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+              const r = await fetch(url, { signal: AbortSignal.timeout(2500) });
+              if (r.ok) {
+                const sd = await r.json();
+                const releaseDate = sd.air_date || (typeof item === 'object' ? item.release_date : null);
+                const posterPath = sd.poster_path ? `https://image.tmdb.org/t/p/w500${sd.poster_path}` : (typeof item === 'object' ? item.poster_path : null);
+                const overview = (sd.overview && sd.overview.trim().length > 0) ? sd.overview : (typeof item === 'object' ? item.overview || '' : '');
+                
+                const itemInfo = {
+                  title: (typeof item === 'object' && item.title) ? item.title : `Season ${seasonNumber}`,
+                  release_date: releaseDate,
+                  release_year: releaseDate ? releaseDate.split('-')[0] : (typeof item === 'object' ? item.release_year || '-' : '-'),
+                  rating: sd.vote_average ? Number(sd.vote_average.toFixed(1)) : (typeof item === 'object' ? item.rating || null : null),
+                  vote_count: sd.vote_count || 0,
+                  poster_path: posterPath,
+                  overview
+                };
+
+                tmdbDetailsCache.set(cacheKey, itemInfo);
+
+                return {
+                  id: rawId,
+                  tmdb_id: baseTmdbId,
+                  season_number: seasonNumber,
+                  media_type: itemType,
+                  ...itemInfo,
+                  chronology_index: index + 1,
+                  stage,
+                  lane,
+                  connects_to,
+                  in_board: false,
+                  user_movie: null
+                };
+              }
+            } else {
+              const endpoint = itemType === 'tv' ? 'tv' : 'movie';
+              const url = `https://api.themoviedb.org/3/${endpoint}/${baseTmdbId}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`;
+              const r = await fetch(url, { signal: AbortSignal.timeout(2500) });
+              if (r.ok) {
+                const resData = await r.json();
+                const releaseDate = resData.release_date || resData.first_air_date || (typeof item === 'object' ? item.release_date : null);
+                const posterPath = resData.poster_path ? `https://image.tmdb.org/t/p/w500${resData.poster_path}` : (typeof item === 'object' ? item.poster_path : null);
+                const overview = (resData.overview && resData.overview.trim().length > 0) ? resData.overview : (typeof item === 'object' ? item.overview || '' : '');
+                
+                const itemInfo = {
+                  title: (typeof item === 'object' && item.title) ? item.title : (resData.title || resData.name || `Movie ${baseTmdbId}`),
+                  release_date: releaseDate,
+                  release_year: releaseDate ? releaseDate.split('-')[0] : (typeof item === 'object' ? item.release_year || '-' : '-'),
+                  rating: resData.vote_average ? Number(resData.vote_average.toFixed(1)) : (typeof item === 'object' ? item.rating || null : null),
+                  vote_count: resData.vote_count || 0,
+                  poster_path: posterPath,
+                  overview
+                };
+
+                tmdbDetailsCache.set(cacheKey, itemInfo);
+
+                return {
+                  id: rawId,
+                  tmdb_id: baseTmdbId,
+                  season_number: seasonNumber,
+                  media_type: itemType,
+                  ...itemInfo,
+                  chronology_index: index + 1,
+                  stage,
+                  lane,
+                  connects_to,
+                  in_board: false,
+                  user_movie: null
+                };
+              }
             }
           } catch (e) {}
 
           return {
-            tmdb_id: tmdbId,
+            id: rawId,
+            tmdb_id: baseTmdbId,
+            season_number: seasonNumber,
             media_type: itemType,
-            title: (typeof item === 'object' && item.title) ? item.title : `Movie ${tmdbId}`,
+            title: (typeof item === 'object' && item.title) ? item.title : `Movie ${baseTmdbId}`,
             release_date: (typeof item === 'object' && item.release_date) ? item.release_date : null,
             release_year: (typeof item === 'object' && item.release_year) ? item.release_year : '-',
             rating: (typeof item === 'object' && item.rating) ? item.rating : null,
