@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import ReactDOM from 'react-dom'
 import { Plus, Minus, RotateCcw, Sparkles, CheckCircle, Clock, Film, Star, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Search, ListFilter, AlertCircle, ExternalLink, X, Calendar, PlusCircle, Check, Loader2, Trash2 } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
+import { api } from '../../config/api.js'
 
 function formatVotes(n) {
   if (!n) return null
@@ -618,7 +619,10 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
 
   // Remove franchise from viewed history
   const handleRemoveFranchise = async (item, e = null) => {
-    if (e) e.stopPropagation()
+    if (e) {
+      e.preventDefault?.()
+      e.stopPropagation?.()
+    }
     const itemKey = item.universe_key || item.key || item.tmdb_id
     const isCurrentActive = String(item.tmdb_id) === String(activeTmdbId) || (item.universe_key && universeData?.universe_key === item.universe_key)
     
@@ -643,7 +647,9 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
     }
 
     try {
-      if (window.api && window.api.removeViewedFranchise) {
+      if (api && api.removeViewedFranchise) {
+        await api.removeViewedFranchise(itemKey)
+      } else if (window.api && window.api.removeViewedFranchise) {
         await window.api.removeViewedFranchise(itemKey)
       }
       setToastMessage(`"${item.name}" tarixdan olib tashlandi.`)
@@ -1126,14 +1132,15 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                         <button
                           type="button"
                           onClick={(e) => {
+                            e.preventDefault()
                             e.stopPropagation()
                             if (isConfirmingDelete) {
-                              handleDeleteFranchiseFromHistory(itemKey)
+                              handleRemoveFranchise(item, e)
                             } else {
                               setConfirmDeleteKey(itemKey)
                             }
                           }}
-                          title={isConfirmingDelete ? t('space.confirmDelete') : t('space.deleteFromHistory')}
+                          title={isConfirmingDelete ? t('space.confirmDelete', null, "O'chirishni tasdiqlang") : t('space.deleteFromHistory', null, "Tarixdan o'chirish")}
                           style={{
                             position: 'absolute',
                             right: 8,
