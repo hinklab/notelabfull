@@ -193,8 +193,8 @@ export const translations = {
     cinema: {
       cinemas: "Kinoteatrlar",
       nearbyCinemas: "Yaqin kinoteatrlar",
-      ticketNotice: "Seanslar jadvali va chiptalar narxini to'g'ridan-to'g'ri ko'ring",
-      buyTickets: "Afisha.uz seanslar",
+      ticketNotice: "Afisha.uz orqali seanslar va chiptalar",
+      buyTickets: "Chipta olish",
       showtimes: "Seanslar jadvali",
       website: "Sayt",
       map: "Xarita",
@@ -397,8 +397,8 @@ export const translations = {
     cinema: {
       cinemas: "Кинотеатры",
       nearbyCinemas: "Ближайшие кинотеатры",
-      ticketNotice: "Расписание сеансов и билеты на фильм",
-      buyTickets: "Сеансы на Afisha.uz",
+      ticketNotice: "Сеансы и билеты через Afisha.uz",
+      buyTickets: "Купить билет",
       showtimes: "Расписание сеансов",
       website: "Сайт",
       map: "Карта",
@@ -601,8 +601,8 @@ export const translations = {
     cinema: {
       cinemas: "Cinemas",
       nearbyCinemas: "Nearby Cinemas",
-      ticketNotice: "Check movie showtimes and tickets",
-      buyTickets: "Afisha.uz Showtimes",
+      ticketNotice: "Showtimes & tickets via Afisha.uz",
+      buyTickets: "Get Tickets",
       showtimes: "Showtimes Schedule",
       website: "Website",
       map: "Map",

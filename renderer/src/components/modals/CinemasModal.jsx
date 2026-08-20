@@ -132,96 +132,52 @@ export default function CinemasModal({ movie, onClose }) {
 
         {/* Action Ticket Banner */}
         <div style={{
-          padding: '12px 18px',
-          background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(239, 68, 68, 0.08))',
-          borderBottom: '1px solid rgba(249, 115, 22, 0.2)',
+          padding: '14px 18px',
+          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(249, 115, 22, 0.06))',
+          borderBottom: '1px solid rgba(239, 68, 68, 0.18)',
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 10
+          gap: 12
         }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#fb923c' }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#f87171' }}>
               {movie.title || 'Film'}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-              {t('cinema.ticketNotice', null, 'Seanslar jadvali va chiptalar narxini to\'g\'ridan-to\'g\'ri ko\'ring')}
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+              {geo.countryCode === 'UZ' ? 'Afisha.uz orqali seanslar va chiptalar' : t('cinema.ticketNotice', null, 'Seanslar va chiptalar jadvali')}
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {geo.countryCode === 'UZ' ? (
-              <>
-                <a
-                  href={afishaUrl || `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(movie.title || '')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    background: 'linear-gradient(135deg, #ea580c, #c2410c)',
-                    color: '#fff',
-                    padding: '7px 14px',
-                    borderRadius: 8,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    textDecoration: 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    boxShadow: '0 2px 10px rgba(234, 88, 12, 0.35)'
-                  }}
-                >
-                  <Ticket size={13} />
-                  <span>Afisha.uz seanslar</span>
-                  <ExternalLink size={11} />
-                </a>
-
-                <a
-                  href={googleShowtimesUrl || `https://www.google.com/search?q=${encodeURIComponent((movie.title || '') + ' ' + (geo.city || 'Tashkent') + ' kinoteatr seanslar')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    background: 'var(--bg-card, #27272a)',
-                    border: '1px solid var(--border, #3f3f46)',
-                    color: 'var(--text-primary, #fff)',
-                    padding: '7px 12px',
-                    borderRadius: 8,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 5
-                  }}
-                >
-                  <Search size={12} />
-                  <span>Google seanslar</span>
-                </a>
-              </>
-            ) : (
-              <a
-                href={ticketUrl || `https://www.google.com/search?q=${encodeURIComponent((movie.title || '') + ' ' + (geo.city || '') + ' cinema showtimes tickets')}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                  color: '#fff',
-                  padding: '7px 14px',
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: '0 2px 10px rgba(239, 68, 68, 0.35)'
-                }}
-              >
-                <Ticket size={13} />
-                <span>{t('cinema.buyTickets', null, 'Showtimes & Tickets')}</span>
-                <ExternalLink size={11} />
-              </a>
-            )}
+          <div>
+            <a
+              href={geo.countryCode === 'UZ'
+                ? (afishaUrl || `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(movie.title || '')}`)
+                : (ticketUrl || `https://www.google.com/search?q=${encodeURIComponent((movie.title || '') + ' ' + (geo.city || '') + ' cinema showtimes tickets')}`)}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                color: '#fff',
+                padding: '8px 16px',
+                borderRadius: 10,
+                fontSize: 12.5,
+                fontWeight: 700,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 2px 10px rgba(239, 68, 68, 0.35)',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(239, 68, 68, 0.55)' }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(239, 68, 68, 0.35)' }}
+            >
+              <Ticket size={14} />
+              <span>{t('cinema.buyTickets', null, 'Chipta olish')}</span>
+              <ExternalLink size={11} style={{ opacity: 0.85 }} />
+            </a>
           </div>
         </div>
 
