@@ -321,7 +321,14 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         for (const g of validGroups) {
           map[g.id] = validMovies
             .filter(m => m.section === g.section_key)
-            .sort((a, b) => (a.position || 0) - (b.position || 0))
+            .sort((a, b) => {
+              const posA = typeof a.position === 'number' ? a.position : 0
+              const posB = typeof b.position === 'number' ? b.position : 0
+              if (posA !== posB) return posA - posB
+              const timeA = new Date(a.created_at || a.updated_at || 0).getTime()
+              const timeB = new Date(b.created_at || b.updated_at || 0).getTime()
+              return timeB - timeA
+            })
             .map(m => ({
               id: m.id, group_id: g.id, title: m.title,
               subtitle: [m.genre, m.director].filter(Boolean).join(' · '),

@@ -2570,6 +2570,14 @@ module.exports = async (req, res) => {
           movies = filtered;
         }
       }
+      movies.sort((a, b) => {
+        const posA = typeof a.position === 'number' ? a.position : 0;
+        const posB = typeof b.position === 'number' ? b.position : 0;
+        if (posA !== posB) return posA - posB;
+        const timeA = new Date(a.created_at || a.updated_at || 0).getTime();
+        const timeB = new Date(b.created_at || b.updated_at || 0).getTime();
+        return timeB - timeA;
+      });
       return res.status(200).json(movies);
     }
 
@@ -2584,6 +2592,24 @@ module.exports = async (req, res) => {
 
       const noteId = body.note_id || null;
       const section = body.section || 'todo';
+
+      // Always put new movies at the VERY TOP of the column (lowest position value)
+      let position = 0;
+      try {
+        let sbQuery = supabase.from('movies').select('position').eq('user_id', userId).eq('section', section);
+        if (noteId) sbQuery = sbQuery.eq('note_id', parseInt(noteId));
+        const { data: existingInSection } = await sbQuery;
+        if (Array.isArray(existingInSection) && existingInSection.length > 0) {
+          const validPositions = existingInSection
+            .map(m => (typeof m.position === 'number' && !isNaN(m.position) ? m.position : 0));
+          const minPos = Math.min(...validPositions);
+          position = minPos <= 0 ? minPos - 1 : -1;
+        } else {
+          position = 0;
+        }
+      } catch (e) {
+        position = -1;
+      }
 
       // Enrich from TMDB
       let genre = body.genre || '-', director = body.director || '-', overview = body.overview || '';
@@ -2621,13 +2647,14 @@ module.exports = async (req, res) => {
         } catch (e) { console.warn('TMDB enrich error:', e.message); }
       }
 
+      const nowIso = new Date().toISOString();
       const { data: inserted, error } = await supabase.from('movies')
         .insert([{
-          user_id: userId, note_id: noteId, title: body.title, section, position: 0,
+          user_id: userId, note_id: noteId, title: body.title, section, position,
           tmdb_id: body.tmdb_id || null, imdb_id: body.imdb_id || null, media_type,
           poster_path, rating, vote_count, genre, director, overview,
           release_date, release_year, seasons, note: body.note || '',
-          updated_at: new Date().toISOString()
+          created_at: nowIso, updated_at: nowIso
         }])
         .select().single();
       if (error) throw error;
