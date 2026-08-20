@@ -2919,7 +2919,7 @@ module.exports = async (req, res) => {
           name: 'ITV.uz',
           logo: 'https://itv.uz/favicon.ico',
           type: 'stream',
-          url: `https://itv.uz/search?q=${encodeURIComponent(title || '')}`
+          url: `https://itv.uz/search?text=${encodeURIComponent(title || '')}`
         };
         hasOfficial = true;
       } else if (allProviders.length > 0) {
@@ -2957,11 +2957,16 @@ module.exports = async (req, res) => {
     // NEARBY CINEMAS (<50KM) & TICKETS
     // ═══════════════════════════════════════
     if (path === 'content/nearby-cinemas' && req.method === 'GET') {
-      const { lat, lon, radius = 50, country = 'UZ', city = '', title = '' } = query;
+      const { lat, lon, radius = 50, country = 'UZ', city = '', title = '', media_type = 'movie' } = query;
       const latitude = Number(lat);
       const longitude = Number(lon);
       const radiusKm = Math.min(100, Math.max(5, Number(radius) || 50));
       const countryCode = String(country || 'UZ').toUpperCase().trim();
+
+      // TV series are not shown in cinemas
+      if (media_type === 'tv') {
+        return res.status(200).json({ cinemas: [], count: 0, radius_km: radiusKm, ticket_url: '' });
+      }
 
       if (!lat || !lon || isNaN(latitude) || isNaN(longitude)) {
         return res.status(200).json({

@@ -445,7 +445,7 @@ router.get('/watch-providers', async (req, res) => {
         name: 'ITV.uz',
         logo: 'https://itv.uz/favicon.ico',
         type: 'stream',
-        url: `https://itv.uz/search?q=${encodeURIComponent(title || '')}`
+        url: `https://itv.uz/search?text=${encodeURIComponent(title || '')}`
       };
       hasOfficial = true;
     } else if (allProviders.length > 0) {
@@ -487,11 +487,16 @@ router.get('/watch-providers', async (req, res) => {
 // GET /api/content/nearby-cinemas?lat=41.31&lon=69.24&radius=50&country=UZ&city=Tashkent&title=Dune
 router.get('/nearby-cinemas', async (req, res) => {
   try {
-    const { lat, lon, radius = 50, country = 'UZ', city = '', title = '' } = req.query;
+    const { lat, lon, radius = 50, country = 'UZ', city = '', title = '', media_type = 'movie' } = req.query;
     const latitude = Number(lat);
     const longitude = Number(lon);
     const radiusKm = Math.min(100, Math.max(5, Number(radius) || 50));
     const countryCode = String(country || 'UZ').toUpperCase().trim();
+
+    // TV series are not in cinemas
+    if (media_type === 'tv') {
+      return res.json({ cinemas: [], count: 0, radius_km: radiusKm, ticket_url: '' });
+    }
 
     if (!lat || !lon || isNaN(latitude) || isNaN(longitude)) {
       return res.json({

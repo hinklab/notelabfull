@@ -282,6 +282,7 @@ function MovieCard({
   const [cinemasCount, setCinemasCount] = useState(0)
   const [showCinemasModal, setShowCinemasModal] = useState(false)
   const isFuture = (movie.section === 'futured' || sectionKey === 'futured') && !movie.rating
+  const isTvSeries = movie?.media_type === 'tv' || Boolean(movie?.seasons && movie.seasons !== '-' && movie.seasons !== '—' && /season|ep/i.test(movie.seasons))
 
   useEffect(() => {
     setUserRating(movie?.user_rating || null)
@@ -298,13 +299,17 @@ function MovieCard({
     let active = true
     const geo = getStoredUserLocation()
     const title = movie?.title || movie?.name || ''
+    const isTv = movie?.media_type === 'tv' || Boolean(movie?.seasons && movie.seasons !== '-' && movie.seasons !== '—' && /season|ep/i.test(movie.seasons))
 
     async function loadProvidersAndCinemas() {
       try {
-        const [wpData, cinData] = await Promise.all([
-          window.api.getWatchProviders(movie.tmdb_id, movie.media_type, geo.countryCode, title).catch(() => null),
-          window.api.getNearbyCinemas(geo.lat, geo.lon, title, geo.city, geo.countryCode).catch(() => null)
-        ])
+        const promises = [
+          window.api.getWatchProviders(movie.tmdb_id, isTv ? 'tv' : 'movie', geo.countryCode, title).catch(() => null)
+        ]
+        if (!isTv) {
+          promises.push(window.api.getNearbyCinemas(geo.lat, geo.lon, title, geo.city, geo.countryCode).catch(() => null))
+        }
+        const [wpData, cinData] = await Promise.all(promises)
         if (active) {
           if (wpData?.primary_provider) setWatchProvider(wpData.primary_provider)
           if (cinData?.count !== undefined) setCinemasCount(cinData.count)
@@ -315,7 +320,7 @@ function MovieCard({
     }
     loadProvidersAndCinemas()
     return () => { active = false }
-  }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, movie?.title])
+  }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, movie?.title, movie?.seasons])
 
   const handleRate = async (newRating) => {
     setUserRating(newRating)
@@ -793,7 +798,7 @@ function MovieCard({
               {/* Watch Online Button */}
               <a
                 href={watchProvider?.url || (getStoredUserLocation().countryCode === 'UZ'
-                  ? `https://itv.uz/search?q=${encodeURIComponent(displayTitle || movie.title || '')}`
+                  ? `https://itv.uz/search?text=${encodeURIComponent(displayTitle || movie.title || '')}`
                   : `https://www.netflix.com/search?q=${encodeURIComponent(displayTitle || movie.title || '')}`)}
                 target="_blank"
                 rel="noreferrer"
@@ -827,39 +832,41 @@ function MovieCard({
                 <ExternalLink size={11} style={{ opacity: 0.85 }} />
               </a>
 
-              {/* Nearby Cinemas Button */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setShowCinemasModal(true)
-                }}
-                style={{
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  color: '#f87171',
-                  padding: '7px 12px',
-                  borderRadius: 10,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 5,
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)' }}
-              >
-                <Ticket size={13} />
-                <span>
-                  {cinemasCount > 0
-                    ? `${t('cinema.cinemas', null, 'Kinoteatrlar')} (${cinemasCount})`
-                    : t('cinema.cinemas', null, 'Kinoteatrlar')}
-                </span>
-              </button>
+              {/* Nearby Cinemas Button (Hidden for TV Series) */}
+              {!isTvSeries && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setShowCinemasModal(true)
+                  }}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.12)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: '#f87171',
+                    padding: '7px 12px',
+                    borderRadius: 10,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)' }}
+                >
+                  <Ticket size={13} />
+                  <span>
+                    {cinemasCount > 0
+                      ? `${t('cinema.cinemas', null, 'Kinoteatrlar')} (${cinemasCount})`
+                      : t('cinema.cinemas', null, 'Kinoteatrlar')}
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* Interactive User Rating in-place */}
