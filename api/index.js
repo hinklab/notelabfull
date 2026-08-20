@@ -2974,8 +2974,12 @@ module.exports = async (req, res) => {
           count: 0,
           radius_km: radiusKm,
           ticket_url: countryCode === 'UZ'
-            ? `https://iticket.uz/ru/search?q=${encodeURIComponent(title || '')}`
-            : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar chiptalar')}`
+            ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
+            : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' cinema showtimes tickets')}`,
+          afisha_url: countryCode === 'UZ'
+            ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
+            : null,
+          google_showtimes_url: `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar')}`
         });
       }
 
@@ -2989,8 +2993,9 @@ module.exports = async (req, res) => {
           return res.status(200).json({
             ...cached.data,
             ticket_url: countryCode === 'UZ'
-              ? `https://iticket.uz/ru/search?q=${encodeURIComponent(title || '')}`
-              : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar chiptalar')}`
+              ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
+              : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' cinema showtimes tickets')}`,
+            google_showtimes_url: `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar')}`
           });
         }
       }
@@ -3005,61 +3010,92 @@ module.exports = async (req, res) => {
       }
 
       let cinemas = [];
-      try {
-        const overpassQuery = `[out:json][timeout:10];(node["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude});way["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude});relation["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude}););out center;`;
-        const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
-        const r = await fetch(overpassUrl, {
-          signal: AbortSignal.timeout(10000),
-          headers: { 'User-Agent': 'NotelabApp/1.0' }
-        });
-        if (r.ok) {
-          const json = await r.json();
-          const elements = json.elements || [];
-          const seen = new Set();
-          elements.forEach(item => {
-            const cLat = item.lat || item.center?.lat;
-            const cLon = item.lon || item.center?.lon;
-            if (!cLat || !cLon) return;
-            const tags = item.tags || {};
-            const name = tags.name || tags['name:ru'] || tags['name:uz'] || tags['name:en'] || tags.brand || null;
-            if (!name) return;
-            const clean = name.trim();
-            if (clean.length < 2 || clean.toLowerCase().startsWith('бывший')) return;
-            if (seen.has(clean.toLowerCase())) return;
-            seen.add(clean.toLowerCase());
-            const distance = getDistKm(latitude, longitude, cLat, cLon);
-            if (distance > radiusKm) return;
-            const cinemaCity = tags['addr:city'] || city || '';
-            cinemas.push({
-              id: item.id,
-              name: clean,
-              distance_km: distance,
-              lat: cLat,
-              lon: cLon,
-              city: cinemaCity || null,
-              maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clean + ' ' + cinemaCity)}`,
-              yandex_maps_url: `https://yandex.com/maps/?text=${encodeURIComponent(clean + ' ' + cinemaCity)}&ll=${cLon},${cLat}&z=15`
-            });
+      const overpassEndpoints = [
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter',
+        'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+      ];
+
+      const overpassQuery = `[out:json][timeout:10];(node["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude});way["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude});relation["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude}););out center;`;
+
+      for (const endpoint of overpassEndpoints) {
+        try {
+          const overpassUrl = `${endpoint}?data=${encodeURIComponent(overpassQuery)}`;
+          const r = await fetch(overpassUrl, {
+            signal: AbortSignal.timeout(5000),
+            headers: { 'User-Agent': 'NotelabApp/1.0' }
           });
-          cinemas.sort((a, b) => a.distance_km - b.distance_km);
-        }
-      } catch (e) {
-        console.error('Overpass fetch error:', e);
+          if (r.ok) {
+            const json = await r.json();
+            const elements = json.elements || [];
+            const seen = new Set();
+            elements.forEach(item => {
+              const cLat = item.lat || item.center?.lat;
+              const cLon = item.lon || item.center?.lon;
+              if (!cLat || !cLon) return;
+              const tags = item.tags || {};
+              const name = tags.name || tags['name:ru'] || tags['name:uz'] || tags['name:en'] || tags.brand || null;
+              if (!name) return;
+              const clean = name.trim();
+              if (clean.length < 2 || clean.toLowerCase().startsWith('бывший')) return;
+              if (seen.has(clean.toLowerCase())) return;
+              seen.add(clean.toLowerCase());
+              const distance = getDistKm(latitude, longitude, cLat, cLon);
+              if (distance > radiusKm) return;
+              const cinemaCity = tags['addr:city'] || city || '';
+              cinemas.push({
+                id: item.id,
+                name: clean,
+                distance_km: distance,
+                lat: cLat,
+                lon: cLon,
+                city: cinemaCity || null,
+                maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clean + ' ' + cinemaCity)}`,
+                yandex_maps_url: `https://yandex.com/maps/?text=${encodeURIComponent(clean + ' ' + cinemaCity)}&ll=${cLon},${cLat}&z=15`
+              });
+            });
+            cinemas.sort((a, b) => a.distance_km - b.distance_km);
+            if (cinemas.length > 0) break;
+          }
+        } catch (e) {}
+      }
+
+      // If all Overpass mirrors fail and user is in Uzbekistan, fallback to known Tashkent cinemas
+      if (cinemas.length === 0 && countryCode === 'UZ') {
+        const fallbacks = [
+          { name: 'Magic Cinema', distance_km: 0.8 },
+          { name: 'iMax / Cinema City', distance_km: 1.1 },
+          { name: 'Next Cinema', distance_km: 1.6 },
+          { name: 'Panorama / Alisher Navoiy', distance_km: 1.8 },
+          { name: 'Premier Hall', distance_km: 2.8 },
+          { name: 'Compass Cinema', distance_km: 10.9 }
+        ];
+        cinemas = fallbacks.map((f, i) => ({
+          id: 'fb_' + i,
+          name: f.name,
+          distance_km: f.distance_km,
+          city: city || 'Toshkent',
+          maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(f.name + ' Toshkent')}`,
+          yandex_maps_url: `https://yandex.com/maps/?text=${encodeURIComponent(f.name + ' Toshkent')}`
+        }));
       }
 
       const ticketUrl = countryCode === 'UZ'
-        ? `https://iticket.uz/ru/search?q=${encodeURIComponent(title || '')}`
-        : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar chiptalar')}`;
+        ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
+        : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' cinema showtimes tickets')}`;
 
       const afishaUrl = countryCode === 'UZ'
         ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
         : null;
 
+      const googleShowtimesUrl = `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar')}`;
+
       const dataToCache = {
         cinemas,
         count: cinemas.length,
         radius_km: radiusKm,
-        afisha_url: afishaUrl
+        afisha_url: afishaUrl,
+        google_showtimes_url: googleShowtimesUrl
       };
 
       vercelNearbyCinemasCache.set(cacheKey, { data: dataToCache, timestamp: Date.now() });

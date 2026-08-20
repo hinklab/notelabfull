@@ -10,6 +10,7 @@ export default function CinemasModal({ movie, onClose }) {
   const [loading, setLoading] = useState(true)
   const [ticketUrl, setTicketUrl] = useState('')
   const [afishaUrl, setAfishaUrl] = useState(null)
+  const [googleShowtimesUrl, setGoogleShowtimesUrl] = useState('')
   const geo = getStoredUserLocation()
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export default function CinemasModal({ movie, onClose }) {
           setCinemas(data.cinemas || [])
           setTicketUrl(data.ticket_url || '')
           setAfishaUrl(data.afisha_url || null)
+          setGoogleShowtimesUrl(data.google_showtimes_url || '')
         }
       } catch (err) {
         console.warn('Failed loading nearby cinemas:', err)
@@ -40,46 +42,47 @@ export default function CinemasModal({ movie, onClose }) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.75)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        zIndex: 99999,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 16
+        zIndex: 99999,
+        padding: 20
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 20,
-          width: 'min(520px, 94vw)',
+          background: 'var(--bg-surface, #18181b)',
+          border: '1px solid var(--border, #27272a)',
+          borderRadius: 16,
+          width: 'min(580px, 94vw)',
           maxHeight: '85vh',
-          boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+          overflow: 'hidden',
+          boxShadow: '0 25px 70px rgba(0,0,0,0.6)',
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden'
+          color: 'var(--text-primary, #efefef)'
         }}
       >
         {/* Header */}
-        <div style={{
-          padding: '16px 20px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'var(--bg-card)'
-        }}>
+        <div
+          style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border, #27272a)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'rgba(255, 255, 255, 0.02)'
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
+              width: 32,
+              height: 32,
+              borderRadius: 8,
               background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -88,25 +91,39 @@ export default function CinemasModal({ movie, onClose }) {
               <Ticket size={18} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
-                {t('cinema.nearbyCinemas', null, 'Yaqin kinoteatrlar')} (50km)
+              <div style={{ fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>{t('cinema.nearbyCinemas', null, 'Yaqin Kinoteatrlar')}</span>
+                <span style={{
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  color: '#f87171',
+                  borderRadius: 10,
+                  padding: '2px 8px',
+                  fontSize: 11,
+                  fontWeight: 700
+                }}>
+                  50 km
+                </span>
               </div>
-              <div style={{ fontSize: 11.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <MapPin size={11} />
-                <span>{geo.city ? `${geo.city}, ${geo.countryName || geo.countryCode}` : (geo.countryName || 'O\'zbekiston')}</span>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                <MapPin size={12} />
+                <span>{geo.city ? `${geo.city}, ${geo.countryName || geo.countryCode}` : (geo.countryName || "O'zbekiston")}</span>
               </div>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             style={{
-              background: 'transparent',
+              background: 'none',
               border: 'none',
               color: 'var(--text-muted)',
               cursor: 'pointer',
               padding: 6,
-              borderRadius: 8
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             <X size={18} />
@@ -116,8 +133,8 @@ export default function CinemasModal({ movie, onClose }) {
         {/* Action Ticket Banner */}
         <div style={{
           padding: '12px 18px',
-          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.08))',
-          borderBottom: '1px solid rgba(239, 68, 68, 0.2)',
+          background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(239, 68, 68, 0.08))',
+          borderBottom: '1px solid rgba(249, 115, 22, 0.2)',
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
@@ -125,58 +142,84 @@ export default function CinemasModal({ movie, onClose }) {
           gap: 10
         }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#f87171' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fb923c' }}>
               {movie.title || 'Film'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-              {t('cinema.ticketNotice', null, 'Chiptalar va seanslar jadvalini to\'g\'ridan-to\'g\'ri tekshiring')}
+              {t('cinema.ticketNotice', null, 'Seanslar jadvali va chiptalar narxini to\'g\'ridan-to\'g\'ri ko\'ring')}
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            {afishaUrl && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {geo.countryCode === 'UZ' ? (
+              <>
+                <a
+                  href={afishaUrl || `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(movie.title || '')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: 'linear-gradient(135deg, #ea580c, #c2410c)',
+                    color: '#fff',
+                    padding: '7px 14px',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: '0 2px 10px rgba(234, 88, 12, 0.35)'
+                  }}
+                >
+                  <Ticket size={13} />
+                  <span>Afisha.uz seanslar</span>
+                  <ExternalLink size={11} />
+                </a>
+
+                <a
+                  href={googleShowtimesUrl || `https://www.google.com/search?q=${encodeURIComponent((movie.title || '') + ' ' + (geo.city || 'Tashkent') + ' kinoteatr seanslar')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: 'var(--bg-card, #27272a)',
+                    border: '1px solid var(--border, #3f3f46)',
+                    color: 'var(--text-primary, #fff)',
+                    padding: '7px 12px',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5
+                  }}
+                >
+                  <Search size={12} />
+                  <span>Google seanslar</span>
+                </a>
+              </>
+            ) : (
               <a
-                href={afishaUrl}
+                href={ticketUrl || `https://www.google.com/search?q=${encodeURIComponent((movie.title || '') + ' ' + (geo.city || '') + ' cinema showtimes tickets')}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{
-                  background: '#f97316',
+                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
                   color: '#fff',
-                  padding: '6px 12px',
+                  padding: '7px 14px',
                   borderRadius: 8,
-                  fontSize: 11.5,
-                  fontWeight: 600,
+                  fontSize: 12,
+                  fontWeight: 700,
                   textDecoration: 'none',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 4
+                  gap: 6,
+                  boxShadow: '0 2px 10px rgba(239, 68, 68, 0.35)'
                 }}
               >
-                <span>Afisha.uz</span>
+                <Ticket size={13} />
+                <span>{t('cinema.buyTickets', null, 'Showtimes & Tickets')}</span>
                 <ExternalLink size={11} />
-              </a>
-            )}
-            {ticketUrl && (
-              <a
-                href={ticketUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  background: '#ef4444',
-                  color: '#fff',
-                  padding: '6px 14px',
-                  borderRadius: 8,
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
-                }}
-              >
-                <Ticket size={12} />
-                <span>{t('cinema.buyTickets', null, 'Chipta olish')}</span>
               </a>
             )}
           </div>
