@@ -2510,14 +2510,18 @@ module.exports = async (req, res) => {
     // NOTES
     // ═══════════════════════════════════════
     if (path === 'notes' && req.method === 'GET') {
-      const { data } = await supabase.from('notes').select('*').eq('user_id', userId);
-      const notes = (data || []).map(n => ({ ...n, name: n.title || 'Untitled', is_movie: Boolean(n.is_movie) }));
-      let movieNote = notes.find(n => n.is_movie || n.type === 'movie');
-      if (!movieNote) {
+      const { data } = await supabase.from('notes').select('*').eq('user_id', userId).order('position');
+      let notes = (data || []).map(n => ({ ...n, name: n.title || 'Untitled', is_movie: Boolean(n.is_movie) }));
+      let movieNotes = notes.filter(n => n.is_movie || n.type === 'movie' || (n.title || '').toLowerCase() === 'movies');
+      
+      if (movieNotes.length > 1) {
+        const primary = movieNotes.find(n => n.id === 6) || movieNotes[movieNotes.length - 1];
+        notes = notes.filter(n => !movieNotes.includes(n) || n.id === primary.id);
+      } else if (movieNotes.length === 0) {
         const { data: created } = await supabase.from('notes')
           .insert([{ user_id: userId, title: 'Movies', icon: '🎬', type: 'movie', is_movie: true, position: 0 }])
           .select().single();
-        if (created) notes.push({ ...created, name: created.title });
+        if (created) notes.unshift({ ...created, name: created.title, is_movie: true });
       }
       return res.status(200).json(notes);
     }
@@ -2530,17 +2534,22 @@ module.exports = async (req, res) => {
       if (query.note_id) q = q.eq('note_id', query.note_id);
       const { data } = await q;
       let groups = data || [];
-      if (groups.length === 0 && query.note_id) {
-        const defaults = [
-          { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
-          { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
-          { name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
-          { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
-        ];
-        const { data: created } = await supabase.from('note_groups')
-          .insert(defaults.map(d => ({ ...d, user_id: userId, note_id: Number(query.note_id) })))
-          .select();
-        groups = created || [];
+      if (groups.length === 0) {
+        const { data: allUserGroups } = await supabase.from('note_groups').select('*').eq('user_id', userId).order('position');
+        if (allUserGroups && allUserGroups.length > 0) {
+          groups = allUserGroups;
+        } else if (query.note_id) {
+          const defaults = [
+            { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
+            { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
+            { name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
+            { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
+          ];
+          const { data: created } = await supabase.from('note_groups')
+            .insert(defaults.map(d => ({ ...d, user_id: userId, note_id: Number(query.note_id) })))
+            .select();
+          groups = created || [];
+        }
       }
       return res.status(200).json(groups);
     }
@@ -2550,9 +2559,15 @@ module.exports = async (req, res) => {
     // ═══════════════════════════════════════
     if (path === 'movies' && req.method === 'GET') {
       let q = supabase.from('movies').select('*').eq('user_id', userId).order('position');
-      if (query.note_id) q = q.eq('note_id', query.note_id);
       const { data } = await q;
-      return res.status(200).json(data || []);
+      let movies = data || [];
+      if (query.note_id && movies.length > 0) {
+        const filtered = movies.filter(m => String(m.note_id) === String(query.note_id));
+        if (filtered.length > 0) {
+          movies = filtered;
+        }
+      }
+      return res.status(200).json(movies);
     }
 
     if (path === 'movies' && req.method === 'POST') {

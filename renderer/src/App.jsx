@@ -119,7 +119,7 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
 
       if (data) {
         const notesList = Array.isArray(data) ? data : []
-        let movieNote = notesList.find(n => n.is_movie || n.type === 'movie' || (n.name || n.title || '').toLowerCase() === 'movies')
+        let movieNote = notesList.find(n => n.id === 6) || notesList.find(n => n.is_movie || n.type === 'movie' || (n.name || n.title || '').toLowerCase() === 'movies')
 
         if (!movieNote) {
           try {
