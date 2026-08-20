@@ -8,6 +8,8 @@ import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 
 import OnboardingSurvey from './components/modals/OnboardingSurvey.jsx'
+import GeolocationPromptModal from './components/modals/GeolocationPromptModal.jsx'
+import { isGeoPromptDismissed, getStoredUserLocation, detectLocationByIP } from './services/geo.js'
 import ChronologySpace from './components/space/ChronologySpace.jsx'
 import { Check, AlertCircle } from 'lucide-react'
 
@@ -93,12 +95,25 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
   const [spaceTargetTmdbId, setSpaceTargetTmdbId] = useState(null)
   const [spaceTargetMediaType, setSpaceTargetMediaType] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showGeoPrompt, setShowGeoPrompt] = useState(false)
   const [activeNote, setActiveNote] = useState(null)
   const activeNoteRef = useRef(null)
   const [boardKey, setBoardKey] = useState(0)
   const [refreshing, setRefreshing] = useState(false)
   const [refreshToast, setRefreshToast] = useState(null)
   const [loadingNote, setLoadingNote] = useState(true)
+
+  useEffect(() => {
+    if (!isGeoPromptDismissed()) {
+      const timer = setTimeout(() => setShowGeoPrompt(true), 800)
+      return () => clearTimeout(timer)
+    } else {
+      const loc = getStoredUserLocation()
+      if (loc.isDefault) {
+        detectLocationByIP()
+      }
+    }
+  }, [])
 
   const handleOpenChronology = (tmdbId, mediaType) => {
     if (tmdbId) {
@@ -204,6 +219,7 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
       )}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onOpenSurvey={onOpenSurvey} />}
+      {showGeoPrompt && <GeolocationPromptModal onClose={() => setShowGeoPrompt(false)} />}
     </div>
   )
 }

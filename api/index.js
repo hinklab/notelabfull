@@ -2496,6 +2496,9 @@ function parseBody(req) {
   });
 }
 
+const vercelNearbyCinemasCache = new Map();
+const vercelWatchProvidersCache = new Map();
+
 module.exports = async (req, res) => {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -2855,6 +2858,211 @@ module.exports = async (req, res) => {
       }));
 
       return res.status(200).json(translationsMap);
+    }
+
+    // ═══════════════════════════════════════
+    // WATCH PROVIDERS (ITV.UZ / NETFLIX / JUSTWATCH)
+    // ═══════════════════════════════════════
+    if (path === 'content/watch-providers' && req.method === 'GET') {
+      const { tmdb_id, media_type = 'movie', country = 'UZ', title = '' } = query;
+      const countryCode = String(country || 'UZ').toUpperCase().trim();
+      const type = media_type === 'tv' ? 'tv' : 'movie';
+      const cacheKey = `${tmdb_id}_${type}_${countryCode}`;
+
+      if (vercelWatchProvidersCache.has(cacheKey)) {
+        const cached = vercelWatchProvidersCache.get(cacheKey);
+        if (Date.now() - cached.timestamp < 1000 * 60 * 60 * 12) {
+          return res.status(200).json(cached.data);
+        }
+      }
+
+      let countryData = null;
+      let allProviders = [];
+
+      if (tmdb_id && TMDB_KEY) {
+        try {
+          const url = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/watch/providers?api_key=${TMDB_KEY}`;
+          const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
+          if (r.ok) {
+            const json = await r.json();
+            if (json.results && json.results[countryCode]) {
+              countryData = json.results[countryCode];
+              const streams = (countryData.flatrate || []).map(p => ({
+                id: p.provider_id,
+                name: p.provider_name,
+                logo: p.logo_path ? `https://image.tmdb.org/t/p/original${p.logo_path}` : null,
+                type: 'stream'
+              }));
+              const rents = (countryData.rent || []).map(p => ({
+                id: p.provider_id,
+                name: p.provider_name,
+                logo: p.logo_path ? `https://image.tmdb.org/t/p/original${p.logo_path}` : null,
+                type: 'rent'
+              }));
+              const buys = (countryData.buy || []).map(p => ({
+                id: p.provider_id,
+                name: p.provider_name,
+                logo: p.logo_path ? `https://image.tmdb.org/t/p/original${p.logo_path}` : null,
+                type: 'buy'
+              }));
+              allProviders = [...streams, ...rents, ...buys];
+            }
+          }
+        } catch (e) {}
+      }
+
+      let primaryProvider = null;
+      let hasOfficial = false;
+
+      if (countryCode === 'UZ') {
+        primaryProvider = {
+          name: 'ITV.uz',
+          logo: 'https://itv.uz/favicon.ico',
+          type: 'stream',
+          url: `https://itv.uz/search?q=${encodeURIComponent(title || '')}`
+        };
+        hasOfficial = true;
+      } else if (allProviders.length > 0) {
+        const top = allProviders[0];
+        primaryProvider = {
+          name: top.name,
+          logo: top.logo,
+          type: top.type,
+          url: countryData?.link || `https://www.google.com/search?q=${encodeURIComponent(title + ' watch on ' + top.name)}`
+        };
+        hasOfficial = true;
+      } else {
+        primaryProvider = {
+          name: 'Netflix',
+          logo: 'https://assets.nflxext.com/us/ffe/siteui/common/icons/nficon2016.ico',
+          type: 'stream',
+          url: `https://www.netflix.com/search?q=${encodeURIComponent(title || '')}`
+        };
+        hasOfficial = false;
+      }
+
+      const result = {
+        country: countryCode,
+        has_official: hasOfficial,
+        primary_provider: primaryProvider,
+        all_providers: allProviders,
+        tmdb_link: countryData?.link || null
+      };
+
+      vercelWatchProvidersCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return res.status(200).json(result);
+    }
+
+    // ═══════════════════════════════════════
+    // NEARBY CINEMAS (<50KM) & TICKETS
+    // ═══════════════════════════════════════
+    if (path === 'content/nearby-cinemas' && req.method === 'GET') {
+      const { lat, lon, radius = 50, country = 'UZ', city = '', title = '' } = query;
+      const latitude = Number(lat);
+      const longitude = Number(lon);
+      const radiusKm = Math.min(100, Math.max(5, Number(radius) || 50));
+      const countryCode = String(country || 'UZ').toUpperCase().trim();
+
+      if (!lat || !lon || isNaN(latitude) || isNaN(longitude)) {
+        return res.status(200).json({
+          cinemas: [],
+          count: 0,
+          radius_km: radiusKm,
+          ticket_url: countryCode === 'UZ'
+            ? `https://iticket.uz/ru/search?q=${encodeURIComponent(title || '')}`
+            : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar chiptalar')}`
+        });
+      }
+
+      const roundedLat = latitude.toFixed(2);
+      const roundedLon = longitude.toFixed(2);
+      const cacheKey = `${roundedLat}_${roundedLon}_${radiusKm}`;
+
+      if (vercelNearbyCinemasCache.has(cacheKey)) {
+        const cached = vercelNearbyCinemasCache.get(cacheKey);
+        if (Date.now() - cached.timestamp < 1000 * 60 * 30) {
+          return res.status(200).json({
+            ...cached.data,
+            ticket_url: countryCode === 'UZ'
+              ? `https://iticket.uz/ru/search?q=${encodeURIComponent(title || '')}`
+              : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar chiptalar')}`
+          });
+        }
+      }
+
+      function getDistKm(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Number((R * c).toFixed(1));
+      }
+
+      let cinemas = [];
+      try {
+        const overpassQuery = `[out:json][timeout:10];(node["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude});way["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude});relation["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude}););out center;`;
+        const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
+        const r = await fetch(overpassUrl, {
+          signal: AbortSignal.timeout(10000),
+          headers: { 'User-Agent': 'NotelabApp/1.0' }
+        });
+        if (r.ok) {
+          const json = await r.json();
+          const elements = json.elements || [];
+          const seen = new Set();
+          elements.forEach(item => {
+            const cLat = item.lat || item.center?.lat;
+            const cLon = item.lon || item.center?.lon;
+            if (!cLat || !cLon) return;
+            const tags = item.tags || {};
+            const name = tags.name || tags['name:ru'] || tags['name:uz'] || tags['name:en'] || tags.brand || null;
+            if (!name) return;
+            const clean = name.trim();
+            if (clean.length < 2 || clean.toLowerCase().startsWith('бывший')) return;
+            if (seen.has(clean.toLowerCase())) return;
+            seen.add(clean.toLowerCase());
+            const distance = getDistKm(latitude, longitude, cLat, cLon);
+            if (distance > radiusKm) return;
+            const cinemaCity = tags['addr:city'] || city || '';
+            cinemas.push({
+              id: item.id,
+              name: clean,
+              distance_km: distance,
+              lat: cLat,
+              lon: cLon,
+              city: cinemaCity || null,
+              maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clean + ' ' + cinemaCity)}`,
+              yandex_maps_url: `https://yandex.com/maps/?text=${encodeURIComponent(clean + ' ' + cinemaCity)}&ll=${cLon},${cLat}&z=15`
+            });
+          });
+          cinemas.sort((a, b) => a.distance_km - b.distance_km);
+        }
+      } catch (e) {
+        console.error('Overpass fetch error:', e);
+      }
+
+      const ticketUrl = countryCode === 'UZ'
+        ? `https://iticket.uz/ru/search?q=${encodeURIComponent(title || '')}`
+        : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar chiptalar')}`;
+
+      const afishaUrl = countryCode === 'UZ'
+        ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
+        : null;
+
+      const dataToCache = {
+        cinemas,
+        count: cinemas.length,
+        radius_km: radiusKm,
+        afisha_url: afishaUrl
+      };
+
+      vercelNearbyCinemasCache.set(cacheKey, { data: dataToCache, timestamp: Date.now() });
+
+      return res.status(200).json({
+        ...dataToCache,
+        ticket_url: ticketUrl
+      });
     }
 
     // ═══════════════════════════════════════

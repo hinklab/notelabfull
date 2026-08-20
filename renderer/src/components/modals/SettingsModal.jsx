@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
-import { User, Sun, Moon, LogOut, X, Check, Globe } from 'lucide-react'
+import { User, Sun, Moon, LogOut, X, Check, Globe, MapPin, RefreshCw } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useLanguage } from '../../context/LanguageContext.jsx'
+import { getStoredUserLocation, storeUserLocation, requestBrowserGeolocation } from '../../services/geo.js'
 
 export default function SettingsModal({ onClose, onOpenSurvey }) {
   const { user, updateUser, logout } = useAuth()
@@ -15,8 +16,29 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
 
-  // Tab 2: Theme state
+  // Tab 2: Theme & Location state
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
+  const [geoData, setGeoData] = useState(() => getStoredUserLocation())
+  const [geoLoading, setGeoLoading] = useState(false)
+
+  const handleRefreshGeo = async () => {
+    setGeoLoading(true)
+    try {
+      const updated = await requestBrowserGeolocation()
+      setGeoData(updated)
+    } finally {
+      setGeoLoading(false)
+    }
+  }
+
+  const handleSelectCountry = (countryCode, countryName) => {
+    const updated = storeUserLocation({
+      ...geoData,
+      countryCode,
+      countryName
+    })
+    setGeoData(updated)
+  }
 
   const handleSaveProfile = async () => {
     if (profileSaving) return
@@ -412,6 +434,71 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                   >
                     <Sun size={16} /> {t('settings.lightTheme')}
                   </button>
+                </div>
+              </div>
+
+              {/* Location & Country Section */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <MapPin size={16} color="#ef4444" />
+                    <span>{t('geo.location', null, 'Joylashuv')}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRefreshGeo}
+                    disabled={geoLoading}
+                    title={t('geo.detectLocation', null, 'Joylashuvni yangilash')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--accent)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: geoLoading ? 'wait' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <RefreshCw size={12} className={geoLoading ? 'animate-spin' : ''} />
+                    <span>{geoLoading ? t('common.loading') : t('geo.detectLocation', null, 'Yangilash')}</span>
+                  </button>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+                  {geoData.city ? `${geoData.city}, ${geoData.countryName || geoData.countryCode}` : (geoData.countryName || 'O\'zbekiston')}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+                  {[
+                    { code: 'UZ', name: "O'zbekiston" },
+                    { code: 'RU', name: 'Россия' },
+                    { code: 'KZ', name: 'Қазақстан' },
+                    { code: 'US', name: 'USA' }
+                  ].map(c => {
+                    const isSelected = geoData.countryCode === c.code
+                    return (
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => handleSelectCountry(c.code, c.name)}
+                        style={{
+                          background: isSelected ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-input)',
+                          border: isSelected ? '1.5px solid #ef4444' : '1px solid var(--border)',
+                          borderRadius: 8,
+                          padding: '8px 4px',
+                          color: isSelected ? '#f87171' : 'var(--text-primary)',
+                          fontSize: 11.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {c.code}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </div>

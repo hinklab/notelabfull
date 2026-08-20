@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Star, Calendar, X, Trash2, Clock, Sparkles, Film, Check } from 'lucide-react'
+import { Star, Calendar, X, Trash2, Clock, Sparkles, Film, Check, Play, Ticket, ExternalLink, MapPin } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
+import { getStoredUserLocation } from '../../services/geo.js'
+import CinemasModal from '../modals/CinemasModal.jsx'
 
 function formatVotes(n) {
   if (!n) return null
@@ -276,6 +278,9 @@ function MovieCard({
   const [isTouchDragging, setIsTouchDragging] = useState(false)
   const [touchDelta, setTouchDelta] = useState({ x: 0, y: 0 })
   const [userRating, setUserRating] = useState(movie?.user_rating || null)
+  const [watchProvider, setWatchProvider] = useState(null)
+  const [cinemasCount, setCinemasCount] = useState(0)
+  const [showCinemasModal, setShowCinemasModal] = useState(false)
   const isFuture = (movie.section === 'futured' || sectionKey === 'futured') && !movie.rating
 
   useEffect(() => {
@@ -287,6 +292,30 @@ function MovieCard({
       fetchSingleMovieTranslation(movie.tmdb_id, movie.media_type)
     }
   }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, language])
+
+  useEffect(() => {
+    if (!isCardExpanded) return
+    let active = true
+    const geo = getStoredUserLocation()
+    const title = movie?.title || movie?.name || ''
+
+    async function loadProvidersAndCinemas() {
+      try {
+        const [wpData, cinData] = await Promise.all([
+          window.api.getWatchProviders(movie.tmdb_id, movie.media_type, geo.countryCode, title).catch(() => null),
+          window.api.getNearbyCinemas(geo.lat, geo.lon, title, geo.city, geo.countryCode).catch(() => null)
+        ])
+        if (active) {
+          if (wpData?.primary_provider) setWatchProvider(wpData.primary_provider)
+          if (cinData?.count !== undefined) setCinemasCount(cinData.count)
+        }
+      } catch (err) {
+        console.warn('Failed loading providers or cinemas:', err)
+      }
+    }
+    loadProvidersAndCinemas()
+    return () => { active = false }
+  }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, movie?.title])
 
   const handleRate = async (newRating) => {
     setUserRating(newRating)
@@ -759,6 +788,80 @@ function MovieCard({
               )}
             </div>
 
+            {/* Watch Online & Nearby Cinemas Action Bar */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2, marginBottom: 2 }}>
+              {/* Watch Online Button */}
+              <a
+                href={watchProvider?.url || (getStoredUserLocation().countryCode === 'UZ'
+                  ? `https://itv.uz/search?q=${encodeURIComponent(displayTitle || movie.title || '')}`
+                  : `https://www.netflix.com/search?q=${encodeURIComponent(displayTitle || movie.title || '')}`)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  flex: 1,
+                  minWidth: 140,
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: '#fff',
+                  padding: '7px 12px',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  boxShadow: '0 2px 10px rgba(16, 185, 129, 0.35)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.5)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(16, 185, 129, 0.35)' }}
+              >
+                <Play size={12} fill="#fff" />
+                <span>
+                  {getStoredUserLocation().countryCode === 'UZ'
+                    ? "ITV da ko'rish"
+                    : (watchProvider?.name ? `${watchProvider.name} da ko'rish` : "Netflix da ko'rish")}
+                </span>
+                <ExternalLink size={11} style={{ opacity: 0.85 }} />
+              </a>
+
+              {/* Nearby Cinemas Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setShowCinemasModal(true)
+                }}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#f87171',
+                  padding: '7px 12px',
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)' }}
+              >
+                <Ticket size={13} />
+                <span>
+                  {cinemasCount > 0
+                    ? `${t('cinema.cinemas', null, 'Kinoteatrlar')} (${cinemasCount})`
+                    : t('cinema.cinemas', null, 'Kinoteatrlar')}
+                </span>
+              </button>
+            </div>
+
             {/* Interactive User Rating in-place */}
             {(currentSection === 'done' || userRating) && (
               <RatingStars10Inline
@@ -851,6 +954,13 @@ function MovieCard({
             )}
           </div>
         </div>
+      )}
+
+      {showCinemasModal && (
+        <CinemasModal
+          movie={movie}
+          onClose={() => setShowCinemasModal(false)}
+        />
       )}
     </div>
   )

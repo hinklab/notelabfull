@@ -179,6 +179,26 @@ export const translations = {
       title: "Agelab Laboratoriyasi",
       subtitle: "Film va seriallar tavsiya etuvchi sun'iy intellekt tizimi",
       comingSoon: "Tez orada ishga tushadi"
+    },
+    geo: {
+      promptTitle: "Joylashuvni aniqlash",
+      promptDesc: "Sizning mamlakatingizdagi rasmiy manbalar (ITV, Netflix) va 50km gacha bo'lgan kinoteatrlarni aniqlash uchun joylashuvingizdan foydalanishga ruxsat bering.",
+      grantBtn: "Ruxsat berish",
+      skipBtn: "Keyinroq / IP orqali",
+      location: "Joylashuv",
+      country: "Mamlakat",
+      city: "Shahar",
+      detectLocation: "Joylashuvni yangilash"
+    },
+    cinema: {
+      cinemas: "Kinoteatrlar",
+      nearbyCinemas: "Yaqin kinoteatrlar",
+      ticketNotice: "Chiptalar va seanslar jadvalini to'g'ridan-to'g'ri tekshiring",
+      buyTickets: "Chipta olish",
+      website: "Sayt",
+      map: "Xarita",
+      noCinemasFound: "50km radiusda kinoteatrlar topilmadi",
+      onlineHint: "Filmni yuqoridagi onlayn manbalar orqali tomosha qilishingiz mumkin."
     }
   },
 
@@ -362,6 +382,26 @@ export const translations = {
       title: "Лаборатория Agelab",
       subtitle: "ИИ-система персональных рекомендаций фильмов и сериалов",
       comingSoon: "Скоро запустится"
+    },
+    geo: {
+      promptTitle: "Определение местоположения",
+      promptDesc: "Разрешите доступ к местоположению для поиска официальных источников просмотра (ITV, Netflix, Кинопоиск) и кинотеатров в радиусе 50 км.",
+      grantBtn: "Разрешить",
+      skipBtn: "Позже / По IP",
+      location: "Местоположение",
+      country: "Страна",
+      city: "Город",
+      detectLocation: "Обновить местоположение"
+    },
+    cinema: {
+      cinemas: "Кинотеатры",
+      nearbyCinemas: "Ближайшие кинотеатры",
+      ticketNotice: "Проверьте расписание сеансов и билеты на официальном сайте",
+      buyTickets: "Купить билеты",
+      website: "Сайт",
+      map: "Карта",
+      noCinemasFound: "В радиусе 50 км кинотеатров не найдено",
+      onlineHint: "Вы можете посмотреть фильм на официальных онлайн-платформах выше."
     }
   },
 
@@ -545,6 +585,26 @@ export const translations = {
       title: "Agelab AI",
       subtitle: "AI-powered movie and series recommendation system",
       comingSoon: "Coming soon"
+    },
+    geo: {
+      promptTitle: "Detect Location",
+      promptDesc: "Allow location access to discover official streaming platforms (ITV, Netflix) and nearby cinemas within 50km.",
+      grantBtn: "Allow Location",
+      skipBtn: "Later / Use IP",
+      location: "Location",
+      country: "Country",
+      city: "City",
+      detectLocation: "Refresh Location"
+    },
+    cinema: {
+      cinemas: "Cinemas",
+      nearbyCinemas: "Nearby Cinemas",
+      ticketNotice: "Check showtimes and book tickets directly",
+      buyTickets: "Get Tickets",
+      website: "Website",
+      map: "Map",
+      noCinemasFound: "No cinemas found within 50km",
+      onlineHint: "You can stream the movie using the official online sources above."
     }
   }
 };

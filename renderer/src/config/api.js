@@ -94,11 +94,28 @@ export const api = {
   reorderMovies: (section, ids) => fetchJSON(`${API_BASE}/movies/reorder`, { method: 'POST', body: JSON.stringify({ section, ids }) }),
   refreshAllMovies: (params) => fetchJSON(`${API_BASE}/movies/refresh-all${params?.auto ? '?auto=true' : ''}`, { method: 'POST' }),
 
-  // Content Search, Media Images & Franchises
+  // Content Search, Media Images, Watch Providers & Franchises
   searchContent: (type, query, lang) => fetchJSON(`${API_BASE}/content/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query)}&language=${lang === 'ru' ? 'ru-RU' : 'en-US'}`),
   getMovieDetails: (tmdb_id, media_type, lang) => fetchJSON(`${API_BASE}/content/details?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}&language=${lang === 'ru' ? 'ru-RU' : 'en-US'}`),
   getMovieTranslations: (items, lang) => fetchJSON(`${API_BASE}/content/translations`, { method: 'POST', body: JSON.stringify({ items, language: lang === 'ru' ? 'ru-RU' : 'en-US' }) }),
   getMovieImages: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/content/images?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}`),
+  getWatchProviders: (tmdb_id, media_type, country, title) => {
+    const params = new URLSearchParams();
+    if (tmdb_id) params.set('tmdb_id', tmdb_id);
+    if (media_type) params.set('media_type', media_type);
+    if (country) params.set('country', country);
+    if (title) params.set('title', title);
+    return fetchJSON(`${API_BASE}/content/watch-providers?${params.toString()}`, { timeout: 6000 });
+  },
+  getNearbyCinemas: (lat, lon, title, city, country) => {
+    const params = new URLSearchParams();
+    if (lat) params.set('lat', lat);
+    if (lon) params.set('lon', lon);
+    if (title) params.set('title', title);
+    if (city) params.set('city', city);
+    if (country) params.set('country', country);
+    return fetchJSON(`${API_BASE}/content/nearby-cinemas?${params.toString()}`, { timeout: 8000 });
+  },
   getFranchiseUniverse: (tmdb_id, media_type, lang) => {
     const params = new URLSearchParams()
     if (media_type) params.set('media_type', media_type)
