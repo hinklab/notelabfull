@@ -314,6 +314,7 @@ function MovieCard({
   const trailerContainerRef = useRef(null)
   const isFuture = (movie.section === 'futured' || sectionKey === 'futured') && !movie.rating
   const isTvSeries = movie?.media_type === 'tv' || Boolean(movie?.seasons && movie.seasons !== '-' && movie.seasons !== '—' && /season|ep/i.test(movie.seasons))
+  const effectiveUserRating = userRating || movie?.user_rating || movie?.avg_user_rating
 
   const handleToggleMute = (e) => {
     e.preventDefault()
@@ -760,10 +761,10 @@ function MovieCard({
                     <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
                   ) : null}
                 </div>
-                {((movie.section === 'done' || sectionKey === 'done') && (movie.avg_user_rating || movie.user_rating || userRating)) ? (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '0px 5px', borderRadius: 4 }}>
+                {effectiveUserRating ? (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.35)', padding: '0px 6px', borderRadius: 4 }}>
                     <Star size={10} color="#60a5fa" fill="#60a5fa" />
-                    <span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{Number(movie.avg_user_rating || movie.user_rating || userRating).toFixed(1).replace(/\.0$/, '')}</span>
+                    <span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{Number(effectiveUserRating).toFixed(1).replace(/\.0$/, '')}</span>
                   </div>
                 ) : null}
               </div>
@@ -1072,6 +1073,74 @@ function MovieCard({
                   <Star size={10} fill={movie.rating ? "#fbbf24" : "none"} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} /> {movie.rating ? movie.rating : '0/10'}
                 </span>
               )}
+              {effectiveUserRating ? (
+                <span
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const newRate = prompt('Bahoyingizni kiriting (1-10):', effectiveUserRating)
+                    if (newRate !== null) {
+                      const num = parseFloat(newRate)
+                      if (!isNaN(num) && num >= 1 && num <= 10) {
+                        handleRate(num)
+                      }
+                    }
+                  }}
+                  title={`Sizning bahoyingiz: ${effectiveUserRating}/10 (O'zgartirish uchun bosing)`}
+                  style={{
+                    background: '#0c213d',
+                    color: '#60a5fa',
+                    border: '1px solid rgba(96, 165, 250, 0.45)',
+                    borderRadius: 6,
+                    padding: '3px 8px',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = '#60a5fa'
+                    e.currentTarget.style.transform = 'scale(1.05)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(96, 165, 250, 0.45)'
+                    e.currentTarget.style.transform = 'scale(1)'
+                  }}
+                >
+                  <Star size={10} fill="#60a5fa" color="#60a5fa" /> {Number(effectiveUserRating).toFixed(1).replace(/\.0$/, '')}
+                </span>
+              ) : currentSection === 'done' ? (
+                <span
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const newRate = prompt('Bahoyingizni kiriting (1-10):')
+                    if (newRate !== null) {
+                      const num = parseFloat(newRate)
+                      if (!isNaN(num) && num >= 1 && num <= 10) {
+                        handleRate(num)
+                      }
+                    }
+                  }}
+                  title="Baholash (1-10)"
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.08)',
+                    color: '#93c5fd',
+                    border: '1px dashed rgba(59, 130, 246, 0.35)',
+                    borderRadius: 6,
+                    padding: '3px 8px',
+                    fontWeight: 500,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Star size={10} color="#93c5fd" /> Baholash
+                </span>
+              ) : null}
             </div>
 
             {/* Watch Online & Nearby Cinemas Action Bar */}
@@ -1149,15 +1218,6 @@ function MovieCard({
                 </button>
               )}
             </div>
-
-            {/* Interactive User Rating in-place */}
-            {(currentSection === 'done' || userRating) && (
-              <RatingStars10Inline
-                value={userRating}
-                onChange={handleRate}
-                t={t}
-              />
-            )}
 
             {/* Overview / Story Summary (Clamped to 3 lines with bottom fade gradient, click to toggle) */}
             {displayOverview ? (
