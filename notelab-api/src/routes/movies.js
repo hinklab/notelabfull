@@ -196,12 +196,19 @@ router.get('/', async (req, res) => {
       }
     }
 
-    movies.sort((a, b) => (a.position || 0) - (b.position || 0));
+    let cloudRatingsMap = {};
+    if (supabase) {
+      try {
+        const { data: ratingRow } = await supabase.from('user_settings').select('settings').eq('id', 'movie_ratings').maybeSingle();
+        if (ratingRow && ratingRow.settings) cloudRatingsMap = ratingRow.settings;
+      } catch (e) {}
+    }
 
     movies = movies.map(m => {
       const localMovie = (db.movies || []).find(lm => String(lm.id) === String(m.id));
       const localRating = localMovie ? localMovie.user_rating : null;
-      const finalUserRating = m.user_rating != null ? Number(m.user_rating) : (localRating != null ? Number(localRating) : null);
+      const cloudRating = cloudRatingsMap[String(m.id)];
+      const finalUserRating = cloudRating != null ? Number(cloudRating) : (m.user_rating != null ? Number(m.user_rating) : (localRating != null ? Number(localRating) : null));
 
       return {
         ...m,

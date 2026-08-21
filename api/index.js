@@ -2563,7 +2563,12 @@ module.exports = async (req, res) => {
     // ═══════════════════════════════════════
     if (path === 'movies' && req.method === 'GET') {
       let q = supabase.from('movies').select('*').eq('user_id', userId).order('position');
-      const { data } = await q;
+      const [{ data }, { data: ratingRow }] = await Promise.all([
+        q,
+        supabase.from('user_settings').select('settings').eq('id', 'movie_ratings').maybeSingle()
+      ]);
+      const ratingsMap = (ratingRow && ratingRow.settings) ? ratingRow.settings : {};
+
       let movies = data || [];
       if (query.note_id && movies.length > 0) {
         const filtered = movies.filter(m => String(m.note_id) === String(query.note_id));
@@ -2571,6 +2576,15 @@ module.exports = async (req, res) => {
           movies = filtered;
         }
       }
+      movies = movies.map(m => {
+        const uRating = ratingsMap[String(m.id)] != null ? Number(ratingsMap[String(m.id)]) : (m.user_rating != null ? Number(m.user_rating) : null);
+        return {
+          ...m,
+          user_rating: uRating,
+          avg_rating: uRating,
+          avg_user_rating: uRating,
+        };
+      });
       movies.sort((a, b) => {
         const posA = typeof a.position === 'number' ? a.position : 0;
         const posB = typeof b.position === 'number' ? b.position : 0;
@@ -2694,18 +2708,33 @@ module.exports = async (req, res) => {
       const body = await parseBody(req);
       const allowed = ['title', 'section', 'position', 'poster_path', 'rating', 'vote_count',
         'genre', 'director', 'overview', 'release_date', 'release_year', 'seasons',
-        'note', 'user_rating', 'media_type'];
+        'note', 'media_type'];
       const update = { updated_at: new Date().toISOString() };
       for (const k of allowed) { if (body[k] !== undefined) update[k] = body[k]; }
-      await supabase.from('movies').update(update).eq('id', id);
+
+      if (Object.keys(update).length > 1) {
+        try {
+          await supabase.from('movies').update(update).eq('id', id);
+        } catch (upErr) {
+          console.warn('Movie update error:', upErr.message);
+        }
+      }
 
       if (body.user_rating !== undefined) {
-        const { data: row } = await supabase.from('user_settings').select('*').eq('id', 'movie_ratings').single();
-        const ratings = row?.settings || {};
-        if (body.user_rating === null) delete ratings[id]; else ratings[id] = Number(body.user_rating);
-        await supabase.from('user_settings').upsert({ id: 'movie_ratings', user_id: userId, settings: ratings, updated_at: new Date().toISOString() });
+        try {
+          const { data: row } = await supabase.from('user_settings').select('*').eq('id', 'movie_ratings').maybeSingle();
+          const ratings = (row && row.settings) ? { ...row.settings } : {};
+          if (body.user_rating === null) {
+            delete ratings[String(id)];
+          } else {
+            ratings[String(id)] = Number(body.user_rating);
+          }
+          await supabase.from('user_settings').upsert({ id: 'movie_ratings', user_id: userId, settings: ratings, updated_at: new Date().toISOString() });
+        } catch (rateErr) {
+          console.warn('Movie rating save error:', rateErr.message);
+        }
       }
-      return res.status(200).json({ success: true, ...update });
+      return res.status(200).json({ success: true, ...update, user_rating: body.user_rating !== undefined ? body.user_rating : undefined });
     }
 
     // DELETE /api/movies/:id
