@@ -1,11 +1,11 @@
-function getApiBase() {
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl && envUrl.trim() && !envUrl.includes('onrender')) {
-    const clean = envUrl.trim().replace(/\/+$/, '');
-    return (clean.startsWith('http://') || clean.startsWith('https://')) ? clean : '/api';
-  }
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '5173') {
-    return 'http://localhost:3000/api';
+export function getApiBase() {
+  if (typeof window !== 'undefined') {
+    // If running in development on localhost:5173 or 127.0.0.1:5173, point to local Express server
+    if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '5173') {
+      return 'http://localhost:3000/api';
+    }
+    // In all web browser deployments (Vercel, custom domain, etc.), always use same-origin relative '/api'
+    return '/api';
   }
   return '/api';
 }

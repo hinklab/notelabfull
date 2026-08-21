@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
 import { Check, ArrowRight, ArrowLeft, Film } from 'lucide-react'
+import { getApiBase } from '../../config/api'
 
 const STEP1_GENRES = [
   'Jangari',
@@ -75,7 +76,7 @@ export default function OnboardingSurvey({ userId, onComplete }) {
     }
 
     try {
-      const API_BASE = (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('onrender')) ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') : '/api'
+      const API_BASE = getApiBase()
       await fetch(`${API_BASE}/user-preferences`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
