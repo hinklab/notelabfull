@@ -459,7 +459,7 @@ function MovieCard({
         background: isVisuallyExpanded ? 'var(--bg-surface)' : (isTouchDragging ? 'var(--bg-card-hover)' : 'var(--bg-card)'),
         border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px solid var(--accent, #7c3aed)' : '1px solid var(--border)'),
         borderRadius: 14,
-        boxShadow: isVisuallyExpanded ? '0 16px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(167, 139, 250, 0.2)' : 'none',
+        boxShadow: 'none',
         cursor: isCardExpanded ? 'default' : 'pointer',
         overflow: 'hidden',
         maxHeight: renderExpanded ? (isVisuallyExpanded ? 1100 : 116) : 'none',
