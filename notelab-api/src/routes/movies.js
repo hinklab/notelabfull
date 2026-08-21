@@ -352,8 +352,18 @@ router.post('/', async (req, res) => {
       }
     }
 
+    let computedId = nextId(db.movies);
+    if (supabase) {
+      try {
+        const { data: maxRow } = await supabase.from('movies').select('id').order('id', { ascending: false }).limit(1);
+        if (maxRow && maxRow.length > 0 && typeof maxRow[0].id === 'number') {
+          computedId = Math.max(computedId, maxRow[0].id + 1);
+        }
+      } catch (e) {}
+    }
+
     const movie = {
-      id: nextId(db.movies),
+      id: computedId,
       user_id: userId,
       tmdb_id: data.tmdb_id || null,
       imdb_id: data.imdb_id || null,

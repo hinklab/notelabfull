@@ -2649,16 +2649,40 @@ module.exports = async (req, res) => {
       }
 
       const nowIso = new Date().toISOString();
-      const { data: inserted, error } = await supabase.from('movies')
-        .insert([{
-          user_id: userId, note_id: noteId, title: body.title, section, position,
-          tmdb_id: body.tmdb_id || null, imdb_id: body.imdb_id || null, media_type,
-          poster_path, rating, vote_count, genre, director, overview,
-          release_date, release_year, seasons, note: body.note || '',
-          created_at: nowIso, updated_at: nowIso
-        }])
-        .select().single();
-      if (error) throw error;
+      let inserted = null;
+      let lastError = null;
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const { data: maxRow } = await supabase.from('movies').select('id').order('id', { ascending: false }).limit(1);
+          const nextMovieId = (maxRow && maxRow[0] && typeof maxRow[0].id === 'number') ? (maxRow[0].id + 1 + attempt) : null;
+
+          const moviePayload = {
+            user_id: userId, note_id: noteId, title: body.title, section, position,
+            tmdb_id: body.tmdb_id || null, imdb_id: body.imdb_id || null, media_type,
+            poster_path, rating, vote_count, genre, director, overview,
+            release_date, release_year, seasons, note: body.note || '',
+            created_at: nowIso, updated_at: nowIso
+          };
+          if (nextMovieId != null) {
+            moviePayload.id = nextMovieId;
+          }
+
+          const { data, error } = await supabase.from('movies')
+            .insert([moviePayload])
+            .select().single();
+
+          if (!error && data) {
+            inserted = data;
+            break;
+          }
+          lastError = error;
+        } catch (attErr) {
+          lastError = attErr;
+        }
+      }
+
+      if (!inserted) throw lastError || new Error('Failed to insert movie');
       return res.status(200).json(inserted);
     }
 
