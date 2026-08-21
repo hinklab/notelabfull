@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react'
 import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
-import MovieCard from '../cards/MovieCard.jsx'
+import MovieCard, { prefetchTrailer } from '../cards/MovieCard.jsx'
 import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 
@@ -178,6 +178,40 @@ function RatingStars10({ value, onChange }) {
   )
 }
 
+export function sortMoviesForSection(moviesList, sectionKey) {
+  const isFutured = sectionKey === 'futured' || String(sectionKey) === '1' || String(sectionKey) === 'g_futured'
+  return [...moviesList].sort((a, b) => {
+    const movieA = a._movie || a
+    const movieB = b._movie || b
+    if (isFutured) {
+      // Futured ONLY: nearest release date first -> furthest release date last (eng yaqin chiqish > eng oxirgi chiqish)
+      const parseDate = (d) => {
+        if (!d || d === '-' || d === 'null' || d === 'undefined') return Infinity
+        const ts = new Date(d).getTime()
+        return isNaN(ts) ? Infinity : ts
+      }
+      const dateA = parseDate(movieA.release_date)
+      const dateB = parseDate(movieB.release_date)
+      if (dateA !== dateB) return dateA - dateB
+
+      // Fallback if release dates are identical or missing: newest added first
+      const timeA = new Date(movieA.created_at || movieA.updated_at || 0).getTime()
+      const timeB = new Date(movieB.created_at || movieB.updated_at || 0).getTime()
+      return timeB - timeA
+    } else {
+      // Other 3 columns (To Do, Doing, Done):
+      // Most recently added movies MUST be at the top!
+      const posA = typeof movieA.position === 'number' ? movieA.position : 0
+      const posB = typeof movieB.position === 'number' ? movieB.position : 0
+      if (posA !== posB) return posA - posB
+
+      const timeA = new Date(movieA.created_at || movieA.updated_at || 0).getTime()
+      const timeB = new Date(movieB.created_at || movieB.updated_at || 0).getTime()
+      return timeB - timeA
+    }
+  })
+}
+
 export default function NoteBoard({ note, refreshTrigger, search = '', onSearch, onOpenChronology }) {
   const { language, t, prefetchMovieTranslations } = useLanguage()
   const noteId = note?.id ?? null
@@ -309,7 +343,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
 
   const loadGroups = useCallback(async () => {
     try {
-      const [groups, movies] = await Promise.all([
+      let [groups, movies] = await Promise.all([
         window.api.getGroups(noteId),
         isMovieNote ? window.api.getMovies(noteId) : Promise.resolve([])
       ])
@@ -319,16 +353,8 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       if (isMovieNote) {
         const validMovies = movies || []
         for (const g of validGroups) {
-          map[g.id] = validMovies
-            .filter(m => m.section === g.section_key)
-            .sort((a, b) => {
-              const posA = typeof a.position === 'number' ? a.position : 0
-              const posB = typeof b.position === 'number' ? b.position : 0
-              if (posA !== posB) return posA - posB
-              const timeA = new Date(a.created_at || a.updated_at || 0).getTime()
-              const timeB = new Date(b.created_at || b.updated_at || 0).getTime()
-              return timeB - timeA
-            })
+          const secMovies = validMovies.filter(m => m.section === g.section_key)
+          map[g.id] = sortMoviesForSection(secMovies, g.section_key)
             .map(m => ({
               id: m.id, group_id: g.id, title: m.title,
               subtitle: [m.genre, m.director].filter(Boolean).join(' · '),
@@ -342,6 +368,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         setItemsByGroup(map)
         if (language === 'ru' && prefetchMovieTranslations && validMovies.length > 0) {
           prefetchMovieTranslations(validMovies)
+        }
+        if (validMovies.length > 0) {
+          setTimeout(() => {
+            validMovies.slice(0, 15).forEach(m => prefetchTrailer(m))
+          }, 800)
         }
       } else {
         await Promise.all(validGroups.map(async g => {
@@ -456,10 +487,15 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       position: 0,
     }
 
-    setItemsByGroup(prev => ({
-      ...prev,
-      [groupId]: [tempItem, ...(prev[groupId] || [])]
-    }))
+    setItemsByGroup(prev => {
+      const existing = prev[groupId] || []
+      const combined = [tempItem, ...existing]
+      const sorted = isMovieNote ? sortMoviesForSection(combined, sectionKey) : combined
+      return {
+        ...prev,
+        [groupId]: sorted
+      }
+    })
     setAddItemGroup(null)
 
     // 2. Perform API call in background and replace temp item
@@ -631,10 +667,14 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         const safeIndex = insertIndex != null ? Math.min(insertIndex, targetItems.length) : targetItems.length
         targetItems.splice(Math.max(0, safeIndex), 0, updatedItem)
 
+        const finalTargetItems = (isMovieNote && toSection === 'futured')
+          ? sortMoviesForSection(targetItems, 'futured')
+          : targetItems
+
         return {
           ...prev,
           [fromGroupId]: sourceItems,
-          [toGroupId]: targetItems,
+          [toGroupId]: finalTargetItems,
         }
       })
 

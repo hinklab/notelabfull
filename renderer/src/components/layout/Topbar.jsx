@@ -14,7 +14,15 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
       if (window.api && window.api.getNotifications) {
         const data = await window.api.getNotifications()
         if (Array.isArray(data)) {
-          setNotifications(data)
+          const seen = new Set()
+          const unique = data.filter(n => {
+            if (!n) return false
+            const key = `${n.type}_${n.movie_data?.tmdb_id || (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim()}`
+            if (seen.has(key)) return false
+            seen.add(key)
+            return true
+          })
+          setNotifications(unique)
         }
       }
     } catch (err) {
@@ -149,7 +157,9 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0 20px',
-        position: 'relative',
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
         flexShrink: 0,
         WebkitAppRegion: 'drag',
       }}>

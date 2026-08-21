@@ -18,7 +18,7 @@ const api = spawn('node', ['src/index.js'], {
 })
 
 // Start Vite (browser-only, no Electron)
-const vite = spawn('npx', ['vite', 'renderer', '--port', '5173'], {
+const vite = spawn('npx', ['vite', '--config', 'vite.config.js', '--port', '5173'], {
   shell: true,
   stdio: 'inherit',
   cwd: path.join(__dirname, '..'),

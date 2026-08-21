@@ -7,6 +7,7 @@ const OMDB_KEY = process.env.OMDB_KEY || '563e076e';
 
 // In-memory cache for TMDB responses
 const tmdbDetailsCache = new Map();
+const tmdbTrailerCache = new Map();
 
 const FRANCHISE_UNIVERSES = {
   "mcu": {
@@ -2812,6 +2813,80 @@ module.exports = async (req, res) => {
       return res.status(200).json({ backdrops: uniqueScenes });
     }
 
+    // ═══════════════════════════════════════
+    // CONTENT TRAILER (YOUTUBE)
+    // ═══════════════════════════════════════
+    if (path === 'content/trailer' && req.method === 'GET') {
+      let { tmdb_id, title, media_type } = query;
+      const cacheKey = `${tmdb_id || title}_${media_type || 'movie'}`.toLowerCase();
+      if (tmdbTrailerCache.has(cacheKey)) {
+        return res.status(200).json(tmdbTrailerCache.get(cacheKey));
+      }
+
+      if (!tmdb_id && title && TMDB_KEY) {
+        try {
+          const sUrl = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_KEY}&query=${encodeURIComponent(title)}&page=1`;
+          const sr = await fetch(sUrl);
+          if (sr.ok) {
+            const sdata = await sr.json();
+            const match = (sdata.results || []).find(r => r.media_type === 'movie' || r.media_type === 'tv');
+            if (match) {
+              tmdb_id = match.id;
+              if (!media_type) media_type = match.media_type;
+            }
+          }
+        } catch (e) {}
+      }
+      if (!tmdb_id || !TMDB_KEY) return res.status(200).json({ trailer: null });
+      try {
+        const type = media_type === 'tv' ? 'tv' : 'movie';
+        let url = `https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdb_id)}/videos?api_key=${TMDB_KEY}&language=en-US`;
+        let r = await fetch(url);
+        let data = r.ok ? await r.json() : {};
+        let list = data.results || [];
+
+        // For TV series: if no videos on show level, fetch season 1 trailer
+        if (list.length === 0 && type === 'tv') {
+          try {
+            const sUrl = `https://api.themoviedb.org/3/tv/${encodeURIComponent(tmdb_id)}/season/1/videos?api_key=${TMDB_KEY}&language=en-US`;
+            const sr = await fetch(sUrl);
+            if (sr.ok) {
+              const sd = await sr.json();
+              list = sd.results || [];
+            }
+          } catch (e) {}
+        }
+
+        const sorted = list
+          .filter(v => v.site === 'YouTube' && v.key)
+          .sort((a, b) => {
+            const getScore = (v) => {
+              let score = 0;
+              if (v.type === 'Trailer') score += 100;
+              else if (v.type === 'Teaser') score += 50;
+              else if (v.type === 'Clip') score += 20;
+              if (v.official) score += 30;
+              return score;
+            };
+            return getScore(b) - getScore(a);
+          });
+
+        const result = sorted.length > 0 ? {
+          trailer: {
+            key: sorted[0].key,
+            name: sorted[0].name,
+            type: sorted[0].type,
+            site: sorted[0].site,
+            embed_url: `https://www.youtube-nocookie.com/embed/${sorted[0].key}`
+          }
+        } : { trailer: null };
+
+        tmdbTrailerCache.set(cacheKey, result);
+        return res.status(200).json(result);
+      } catch (e) {}
+      return res.status(200).json({ trailer: null });
+    }
+
     // GET /api/content/details?tmdb_id=123&media_type=movie&language=ru-RU
     if (path === 'content/details' && req.method === 'GET') {
       const tmdb_id = query.tmdb_id;
@@ -3564,7 +3639,17 @@ module.exports = async (req, res) => {
     // ═══════════════════════════════════════
     if (path === 'notifications' && req.method === 'GET') {
       const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
-      return res.status(200).json(data || []);
+      const list = data || [];
+      const seen = new Set();
+      const unique = [];
+      for (const n of list) {
+        const key = `${n.type}_${n.movie_data?.tmdb_id || (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          unique.push(n);
+        }
+      }
+      return res.status(200).json(unique);
     }
     const notifReadMatch = path.match(/^notifications\/([^/]+)\/read$/);
     if (notifReadMatch && req.method === 'PATCH') {

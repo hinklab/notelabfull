@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Star, Calendar, X, Trash2, Clock, Sparkles, Film, Check, Play, Ticket, ExternalLink, MapPin } from 'lucide-react'
+import { Star, Calendar, X, Trash2, Clock, Sparkles, Film, Check, Play, Ticket, ExternalLink, MapPin, Volume2, VolumeX, Maximize2 } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getStoredUserLocation } from '../../services/geo.js'
+import { api } from '../../config/api.js'
 import CinemasModal from '../modals/CinemasModal.jsx'
 
 function formatVotes(n) {
@@ -25,6 +26,29 @@ function formatReleaseDate(dateStr, language = 'uz') {
 function formatCardRuntime(str) {
   if (!str || str === '-' || str === '—') return null
   return str.replace(/\s*\(\d+\s*min\)$/i, '')
+}
+
+const trailerClientCache = new Map()
+
+export function prefetchTrailer(movie, title) {
+  if (!movie) return
+  const tmdb_id = movie.tmdb_id
+  const movieTitle = title || movie.title || movie.name
+  if (!tmdb_id && !movieTitle) return
+  const isTv = movie.media_type === 'tv' || Boolean(movie.seasons && movie.seasons !== '-' && movie.seasons !== '—' && /season|ep/i.test(movie.seasons))
+  const cacheKey = `${tmdb_id || movieTitle}_${isTv ? 'tv' : 'movie'}`.toLowerCase()
+  if (trailerClientCache.has(cacheKey)) return
+
+  const fn = (api && api.getMovieTrailer) ? api.getMovieTrailer : (window.api && window.api.getMovieTrailer ? window.api.getMovieTrailer : null)
+  if (fn) {
+    fn(tmdb_id, isTv ? 'tv' : 'movie', movieTitle)
+      .then(res => {
+        if (res?.trailer) {
+          trailerClientCache.set(cacheKey, res.trailer)
+        }
+      })
+      .catch(() => {})
+  }
 }
 
 function RatingStars10Inline({ value, onChange, t }) {
@@ -281,8 +305,68 @@ function MovieCard({
   const [watchProvider, setWatchProvider] = useState(null)
   const [cinemasCount, setCinemasCount] = useState(0)
   const [showCinemasModal, setShowCinemasModal] = useState(false)
+  const [trailer, setTrailer] = useState(null)
+  const [trailerLoading, setTrailerLoading] = useState(false)
+  const [isVideoReady, setIsVideoReady] = useState(false)
+  const [isMuted, setIsMuted] = useState(true)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const trailerIframeRef = useRef(null)
+  const trailerContainerRef = useRef(null)
   const isFuture = (movie.section === 'futured' || sectionKey === 'futured') && !movie.rating
   const isTvSeries = movie?.media_type === 'tv' || Boolean(movie?.seasons && movie.seasons !== '-' && movie.seasons !== '—' && /season|ep/i.test(movie.seasons))
+
+  const handleToggleMute = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const nextMute = !isMuted
+    setIsMuted(nextMute)
+    if (trailerIframeRef.current?.contentWindow) {
+      try {
+        const cmd = nextMute ? 'mute' : 'unMute'
+        trailerIframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: cmd, args: [] }),
+          '*'
+        )
+        if (!nextMute) {
+          trailerIframeRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
+            '*'
+          )
+        }
+      } catch (err) {
+        console.warn('Trailer audio toggle error:', err)
+      }
+    }
+  }
+
+  const handleToggleFullscreen = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const el = trailerContainerRef.current || trailerIframeRef.current
+    if (!el) return
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {})
+      setIsFullscreen(false)
+    } else {
+      const requestFs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen
+      if (requestFs) {
+        requestFs.call(el).then(() => {
+          setIsFullscreen(true)
+        }).catch(() => {
+          trailerIframeRef.current?.requestFullscreen?.().catch(() => {})
+        })
+      }
+    }
+  }
+
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
 
   useEffect(() => {
     setUserRating(movie?.user_rating || null)
@@ -293,6 +377,73 @@ function MovieCard({
       fetchSingleMovieTranslation(movie.tmdb_id, movie.media_type)
     }
   }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, language])
+
+  useEffect(() => {
+    if (movie?.tmdb_id || movie?.title) {
+      prefetchTrailer(movie, displayTitle)
+    }
+  }, [movie?.tmdb_id, movie?.title, displayTitle])
+
+  useEffect(() => {
+    if (!isCardExpanded) return
+    if (!movie?.tmdb_id && !movie?.title) return
+    const isTv = movie?.media_type === 'tv' || Boolean(movie?.seasons && movie.seasons !== '-' && movie.seasons !== '—' && /season|ep/i.test(movie.seasons))
+    const cacheKey = `${movie.tmdb_id || movie.title || displayTitle}_${isTv ? 'tv' : 'movie'}`.toLowerCase()
+
+    if (trailerClientCache.has(cacheKey)) {
+      setTrailer(trailerClientCache.get(cacheKey))
+      return
+    }
+
+    let active = true
+    setTrailerLoading(true)
+
+    const fetchTrailer = (api && api.getMovieTrailer) ? api.getMovieTrailer : (window.api && window.api.getMovieTrailer ? window.api.getMovieTrailer : null)
+    if (fetchTrailer) {
+      fetchTrailer(movie.tmdb_id, isTv ? 'tv' : 'movie', movie.title || displayTitle)
+        .then(res => {
+          if (res?.trailer) {
+            trailerClientCache.set(cacheKey, res.trailer)
+            if (active) setTrailer(res.trailer)
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (active) setTrailerLoading(false)
+        })
+    }
+    return () => { active = false }
+  }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, movie?.title, movie?.seasons, displayTitle])
+
+  useEffect(() => {
+    if (!isCardExpanded || !trailer?.key) {
+      setIsVideoReady(false)
+      return
+    }
+
+    let active = true
+    setIsVideoReady(false)
+    const timer = setTimeout(() => {
+      if (active) setIsVideoReady(true)
+    }, 350)
+
+    const handleMessage = (e) => {
+      try {
+        if (!e.data) return
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
+        if (data.event === 'onStateChange' && (data.info === 1 || data.info === 3)) {
+          if (active) setIsVideoReady(true)
+        }
+      } catch (_) {}
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => {
+      active = false
+      clearTimeout(timer)
+      window.removeEventListener('message', handleMessage)
+    }
+  }, [isCardExpanded, trailer?.key])
 
   useEffect(() => {
     if (!isCardExpanded) return
@@ -478,6 +629,7 @@ function MovieCard({
       onMouseEnter={e => {
         if (isTouchDragging || isTouchSessionRef.current || isCardExpanded) return
         setHovered(true)
+        prefetchTrailer(movie, displayTitle)
         e.currentTarget.style.borderColor = 'var(--border-hover)'
         e.currentTarget.style.background = 'var(--bg-card-hover)'
         e.currentTarget.style.transform = 'translateY(-1px)'
@@ -645,42 +797,172 @@ function MovieCard({
           transform: isVisuallyExpanded ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.98)',
           transition: 'opacity 0.28s cubic-bezier(0.05, 0.9, 0.1, 1), transform 0.36s cubic-bezier(0.05, 0.9, 0.1, 1)',
         }}>
-          {/* Top Poster Banner */}
+          {/* Top Horizontal Cinema Trailer / Poster Banner */}
           <div
+            ref={trailerContainerRef}
             style={{
               position: 'relative',
               width: '100%',
-              height: isVisuallyExpanded ? 345 : 116,
+              aspectRatio: '16 / 10',
+              maxHeight: 250,
               overflow: 'hidden',
               background: '#09090b',
-              transition: 'height 0.36s cubic-bezier(0.05, 0.9, 0.1, 1)',
+              borderTopLeftRadius: 13,
+              borderTopRightRadius: 13,
+              borderBottom: '1px solid var(--border)',
             }}
           >
-            {movie.poster_path ? (
-              <img
-                src={movie.poster_path}
-                alt={displayTitle || ''}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'center 15%',
-                  display: 'block'
-                }}
-              />
+            {trailer?.key ? (
+              <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+                <iframe
+                  ref={trailerIframeRef}
+                  src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${trailer.key}&disablekb=1&widget_referrer=${window.location.origin}`}
+                  title={`${displayTitle} trailer`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  allowFullScreen
+                  style={{
+                    position: 'absolute',
+                    top: '-20%',
+                    left: '-15%',
+                    width: '130%',
+                    height: '140%',
+                    border: 'none',
+                    pointerEvents: 'none',
+                    display: 'block'
+                  }}
+                />
+
+                {/* Smooth Cover Poster Backdrop while YouTube initial splash/controls fade away */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    opacity: isVideoReady ? 0 : 1,
+                    transition: 'opacity 0.5s ease',
+                    pointerEvents: 'none',
+                    background: '#09090b',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {movie.poster_path ? (
+                    <img
+                      src={movie.poster_path}
+                      alt=""
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center 20%',
+                        display: 'block'
+                      }}
+                    />
+                  ) : null}
+                </div>
+
+                {/* Cinematic Dark Vignette Overlay (Vibrant video in both Light & Dark themes) */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.65) 100%)',
+                    pointerEvents: 'none'
+                  }}
+                />
+
+                {/* EXACTLY 2 Floating Trailer Controls: Mute/Unmute and Fullscreen */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 12,
+                    right: 12,
+                    zIndex: 25,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    pointerEvents: 'auto'
+                  }}
+                >
+                  {/* 1. Ovozsizni o'chirish / yoqish (Mute / Unmute) */}
+                  <button
+                    type="button"
+                    onClick={handleToggleMute}
+                    title={isMuted ? "Ovozni yoqish (Unmute)" : "Ovozsiz qilish (Mute)"}
+                    style={{
+                      background: isMuted ? 'rgba(0, 0, 0, 0.65)' : 'rgba(59, 130, 246, 0.85)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      border: isMuted ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(147, 197, 253, 0.6)',
+                      borderRadius: '50%',
+                      color: '#fff',
+                      width: 32,
+                      height: 32,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                      transition: 'all 0.18s ease'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+                  </button>
+
+                  {/* 2. Kattalashtirish (Fullscreen) */}
+                  <button
+                    type="button"
+                    onClick={handleToggleFullscreen}
+                    title="Kattalashtirish (Fullscreen)"
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.65)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      borderRadius: '50%',
+                      color: '#fff',
+                      width: 32,
+                      height: 32,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                      transition: 'all 0.18s ease'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <Maximize2 size={15} />
+                  </button>
+                </div>
+              </div>
+            ) : movie.poster_path ? (
+              <>
+                <img
+                  src={movie.poster_path}
+                  alt={displayTitle || ''}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'center 20%',
+                    display: 'block'
+                  }}
+                />
+                {/* Gradient shadow overlay at bottom */}
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.7) 100%)',
+                  pointerEvents: 'none'
+                }} />
+              </>
             ) : (
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                 <Film size={36} />
               </div>
             )}
-
-            {/* Gradient shadow overlay at bottom */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(to top, var(--bg-surface) 0%, rgba(0,0,0,0.12) 40%, rgba(0,0,0,0.55) 100%)',
-              pointerEvents: 'none'
-            }} />
 
             {/* ONLY ONE Single Top-Right Close Button */}
             <button
@@ -689,17 +971,17 @@ function MovieCard({
               title={t('common.close')}
               style={{
                 position: 'absolute',
-                top: 10,
-                right: 10,
-                zIndex: 20,
-                background: 'rgba(0, 0, 0, 0.7)',
+                top: 8,
+                right: 8,
+                zIndex: 30,
+                background: 'rgba(0, 0, 0, 0.75)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
                 border: '1px solid rgba(255, 255, 255, 0.25)',
                 borderRadius: '50%',
                 color: '#fff',
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -713,68 +995,67 @@ function MovieCard({
                 e.currentTarget.style.transform = 'scale(1.08)'
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)'
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.75)'
                 e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
                 e.currentTarget.style.transform = 'scale(1)'
               }}
             >
-              <X size={16} />
+              <X size={15} />
             </button>
-
-            {/* Top Left Chronology Button if tmdb_id is present */}
-            {movie.tmdb_id && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  if (onOpenChronology) onOpenChronology(movie.tmdb_id, movie.media_type)
-                }}
-                title={t('card.chronology')}
-                style={{
-                  position: 'absolute',
-                  top: 10,
-                  left: 10,
-                  zIndex: 20,
-                  background: 'rgba(124, 58, 237, 0.85)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(167, 139, 250, 0.5)',
-                  color: '#fff',
-                  borderRadius: 20,
-                  padding: '5px 12px',
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(124, 58, 237, 1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(124, 58, 237, 0.85)'}
-              >
-                <Sparkles size={12} />
-                <span>{t('card.chronology')}</span>
-              </button>
-            )}
-
-            {/* Overlay Title at bottom of banner */}
-            <div style={{ position: 'absolute', bottom: 10, left: 14, right: 14, zIndex: 5, pointerEvents: 'none' }}>
-              <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.25, color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>
-                {displayTitle}
-              </div>
-              {movie.tagline ? (
-                <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, fontStyle: 'italic', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-                  {movie.tagline}
-                </div>
-              ) : null}
-            </div>
           </div>
 
           {/* Expanded Card Body Details */}
-          <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ padding: '6px 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Title, Tagline & Chronology Button Row */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 17.5, fontWeight: 700, lineHeight: 1.25, color: 'var(--text-primary)' }}>
+                  {displayTitle}
+                </div>
+                {movie.tagline ? (
+                  <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 3, fontStyle: 'italic' }}>
+                    {movie.tagline}
+                  </div>
+                ) : null}
+              </div>
+              {movie.tmdb_id && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (onOpenChronology) onOpenChronology(movie.tmdb_id, movie.media_type)
+                  }}
+                  title={t('card.chronology')}
+                  style={{
+                    background: 'rgba(124, 58, 237, 0.18)',
+                    border: '1px solid rgba(167, 139, 250, 0.4)',
+                    color: '#a78bfa',
+                    borderRadius: 20,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(124, 58, 237, 0.35)'
+                    e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.7)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(124, 58, 237, 0.18)'
+                    e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.4)'
+                  }}
+                >
+                  <Sparkles size={11} />
+                  <span>{t('card.chronology')}</span>
+                </button>
+              )}
+            </div>
             {/* Meta Tags Row */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11.5, color: 'var(--text-muted)' }}>
               {movie.release_year && movie.release_year !== '—' && (

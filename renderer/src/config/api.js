@@ -1,8 +1,13 @@
 function getApiBase() {
   const envUrl = import.meta.env.VITE_API_URL;
-  if (!envUrl || !envUrl.trim() || envUrl.includes('onrender')) return '/api';
-  const clean = envUrl.trim().replace(/\/+$/, '');
-  return (clean.startsWith('http://') || clean.startsWith('https://')) ? clean : '/api';
+  if (envUrl && envUrl.trim() && !envUrl.includes('onrender')) {
+    const clean = envUrl.trim().replace(/\/+$/, '');
+    return (clean.startsWith('http://') || clean.startsWith('https://')) ? clean : '/api';
+  }
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '5173') {
+    return 'http://localhost:3000/api';
+  }
+  return '/api';
 }
 const API_BASE = getApiBase();
 
@@ -99,6 +104,13 @@ export const api = {
   getMovieDetails: (tmdb_id, media_type, lang) => fetchJSON(`${API_BASE}/content/details?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}&language=${lang === 'ru' ? 'ru-RU' : 'en-US'}`),
   getMovieTranslations: (items, lang) => fetchJSON(`${API_BASE}/content/translations`, { method: 'POST', body: JSON.stringify({ items, language: lang === 'ru' ? 'ru-RU' : 'en-US' }) }),
   getMovieImages: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/content/images?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}`),
+  getMovieTrailer: (tmdb_id, media_type, title) => {
+    const params = new URLSearchParams();
+    if (tmdb_id) params.set('tmdb_id', tmdb_id);
+    if (media_type) params.set('media_type', media_type);
+    if (title) params.set('title', title);
+    return fetchJSON(`${API_BASE}/content/trailer?${params.toString()}`, { timeout: 6000 }).catch(() => ({ trailer: null }));
+  },
   getWatchProviders: (tmdb_id, media_type, country, title) => {
     const params = new URLSearchParams();
     if (tmdb_id) params.set('tmdb_id', tmdb_id);

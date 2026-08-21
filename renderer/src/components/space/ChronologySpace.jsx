@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import ReactDOM from 'react-dom'
-import { Plus, Minus, RotateCcw, Sparkles, CheckCircle, Clock, Film, Star, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Search, ListFilter, AlertCircle, ExternalLink, X, Calendar, PlusCircle, Check, Loader2, Trash2 } from 'lucide-react'
+import { Plus, Minus, RotateCcw, Sparkles, CheckCircle, Clock, Film, Star, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Search, ListFilter, AlertCircle, ExternalLink, X, Calendar, PlusCircle, Check, Loader2, Trash2, Volume2, VolumeX, Maximize2 } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { api } from '../../config/api.js'
+import { prefetchTrailer } from '../cards/MovieCard.jsx'
 
 function formatVotes(n) {
   if (!n) return null
@@ -528,6 +529,116 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   const [toastMessage, setToastMessage] = useState(null)
   const [addingMovieId, setAddingMovieId] = useState(null)
   const [selectedSection, setSelectedSection] = useState('todo')
+  const [modalTrailer, setModalTrailer] = useState(null)
+  const [isModalVideoReady, setIsModalVideoReady] = useState(false)
+  const [isModalMuted, setIsModalMuted] = useState(true)
+  const [isModalFullscreen, setIsModalFullscreen] = useState(false)
+  const modalTrailerIframeRef = useRef(null)
+  const modalTrailerContainerRef = useRef(null)
+
+  useEffect(() => {
+    if (!selectedMovie) {
+      setModalTrailer(null)
+      setIsModalMuted(true)
+      setIsModalFullscreen(false)
+      return
+    }
+    let active = true
+    const tmdb_id = selectedMovie.tmdb_id || selectedMovie.id
+    const movieTitle = selectedMovie.title || selectedMovie.name
+    const isTv = selectedMovie.media_type === 'tv' || Boolean(selectedMovie.seasons && selectedMovie.seasons !== '-' && selectedMovie.seasons !== '—' && /season|ep/i.test(selectedMovie.seasons))
+
+    const fn = (api && api.getMovieTrailer) ? api.getMovieTrailer : (window.api && window.api.getMovieTrailer ? window.api.getMovieTrailer : null)
+    if (fn) {
+      fn(tmdb_id, isTv ? 'tv' : 'movie', movieTitle)
+        .then(res => {
+          if (active && res?.trailer) {
+            setModalTrailer(res.trailer)
+          }
+        })
+        .catch(() => {})
+    }
+    return () => { active = false }
+  }, [selectedMovie])
+
+  useEffect(() => {
+    if (!selectedMovie || !modalTrailer?.key) {
+      setIsModalVideoReady(false)
+      return
+    }
+
+    let active = true
+    setIsModalVideoReady(false)
+    const timer = setTimeout(() => {
+      if (active) setIsModalVideoReady(true)
+    }, 350)
+
+    const handleMessage = (e) => {
+      try {
+        if (!e.data) return
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
+        if (data.event === 'onStateChange' && (data.info === 1 || data.info === 3)) {
+          if (active) setIsModalVideoReady(true)
+        }
+      } catch (_) {}
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => {
+      active = false
+      clearTimeout(timer)
+      window.removeEventListener('message', handleMessage)
+    }
+  }, [selectedMovie, modalTrailer?.key])
+
+  const handleToggleModalMute = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const nextMute = !isModalMuted
+    setIsModalMuted(nextMute)
+    if (modalTrailerIframeRef.current?.contentWindow) {
+      try {
+        const cmd = nextMute ? 'mute' : 'unMute'
+        modalTrailerIframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func: cmd, args: [] }),
+          '*'
+        )
+        if (!nextMute) {
+          modalTrailerIframeRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'setVolume', args: [100] }),
+            '*'
+          )
+        }
+      } catch (err) {}
+    }
+  }
+
+  const handleToggleModalFullscreen = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const el = modalTrailerContainerRef.current || modalTrailerIframeRef.current
+    if (!el) return
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {})
+      setIsModalFullscreen(false)
+    } else {
+      const requestFs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen
+      if (requestFs) {
+        requestFs.call(el).then(() => setIsModalFullscreen(true)).catch(() => {
+          modalTrailerIframeRef.current?.requestFullscreen?.().catch(() => {})
+        })
+      }
+    }
+  }
+
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsModalFullscreen(Boolean(document.fullscreenElement))
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
 
   const canvasRef = useRef(null)
   const zoomRef = useRef(zoom)
@@ -812,6 +923,12 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   const movies = universeData?.movies || []
   const displayTitle = universeData?.universe_name || universeData?.collection_name || 'Kino Xronologiyasi'
 
+  useEffect(() => {
+    if (movies.length > 0) {
+      movies.slice(0, 15).forEach(m => prefetchTrailer(m))
+    }
+  }, [movies])
+
   // Memoized DAG graph and node placement calculation (zero-cost during panning/zooming)
   const layoutData = useMemo(() => {
     const CARD_W = 280
@@ -898,11 +1015,13 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   }, [movies, sidebarOpen])
 
   // Callbacks for Memoized Cards
-  const handleCardHover = useCallback((id) => {
+  const handleCardHover = useCallback((id, movie) => {
     setHoveredNodeId(id)
+    if (movie) prefetchTrailer(movie)
   }, [])
 
   const handleCardSelect = useCallback((movie) => {
+    prefetchTrailer(movie)
     setSelectedMovie(movie)
   }, [])
 
@@ -1525,42 +1644,200 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               color: 'var(--text-primary)'
             }}
           >
-            {/* Modal Header Banner */}
-            <div style={{ position: 'relative', width: '100%', height: 260, overflow: 'hidden', borderRadius: '24px 24px 0 0' }}>
-              <img
-                src={selectedMovie.poster_path || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="90" fill="%23888"><rect width="60" height="90"/></svg>'}
-                alt=""
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  filter: 'blur(20px) brightness(0.45)',
-                  transform: 'scale(1.2)',
-                  display: 'block'
-                }}
-              />
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 20%, var(--space-modal-banner-grad) 100%)' }} />
+            {/* Modal Header Banner with Background Video Trailer */}
+            <div
+              ref={modalTrailerContainerRef}
+              style={{
+                position: 'relative',
+                width: '100%',
+                height: 270,
+                overflow: 'hidden',
+                borderRadius: '24px 24px 0 0',
+                background: '#09090b',
+                borderBottom: '1px solid var(--border)'
+              }}
+            >
+              {modalTrailer?.key ? (
+                <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+                  <iframe
+                    ref={modalTrailerIframeRef}
+                    src={`https://www.youtube-nocookie.com/embed/${modalTrailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${modalTrailer.key}&disablekb=1&widget_referrer=${window.location.origin}`}
+                    title={`${selectedMovie.title} trailer`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    style={{
+                      position: 'absolute',
+                      top: '-20%',
+                      left: '-15%',
+                      width: '130%',
+                      height: '140%',
+                      border: 'none',
+                      pointerEvents: 'none',
+                      display: 'block'
+                    }}
+                  />
 
-              {/* Close Button */}
-              <button
-                onClick={() => setSelectedMovie(null)}
+                  {/* Smooth Cover Poster Backdrop while YouTube initial splash/controls fade */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      opacity: isModalVideoReady ? 0 : 1,
+                      transition: 'opacity 0.5s ease',
+                      pointerEvents: 'none',
+                      background: '#09090b',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <img
+                      src={selectedMovie.poster_path || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="90" fill="%23888"><rect width="60" height="90"/></svg>'}
+                      alt=""
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        filter: 'blur(20px) brightness(0.45)',
+                        transform: 'scale(1.2)',
+                        display: 'block'
+                      }}
+                    />
+                  </div>
+
+                  {/* Cinematic Bottom & Edge Vignette Overlay */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.75) 100%)',
+                      pointerEvents: 'none'
+                    }}
+                  />
+                </div>
+              ) : (
+                <>
+                  <img
+                    src={selectedMovie.poster_path || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="90" fill="%23888"><rect width="60" height="90"/></svg>'}
+                    alt=""
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      filter: 'blur(20px) brightness(0.45)',
+                      transform: 'scale(1.2)',
+                      display: 'block'
+                    }}
+                  />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.7) 100%)' }} />
+                </>
+              )}
+
+              {/* Action Buttons: Mute/Unmute, Fullscreen, and Close */}
+              <div
                 style={{
                   position: 'absolute',
                   top: 16,
                   right: 16,
-                  border: '1px solid var(--border)',
-                  background: 'var(--space-panel-bg)',
-                  color: 'var(--text-primary)',
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 10
+                  gap: 8,
+                  zIndex: 20
                 }}
-              ><X size={18} /></button>
+              >
+                {modalTrailer?.key && (
+                  <>
+                    {/* 1. Mute/Unmute Toggle */}
+                    <button
+                      type="button"
+                      onClick={handleToggleModalMute}
+                      title={isModalMuted ? "Ovozni yoqish (Unmute)" : "Ovozsiz qilish (Mute)"}
+                      style={{
+                        border: isModalMuted ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(147, 197, 253, 0.6)',
+                        background: isModalMuted ? 'rgba(0, 0, 0, 0.65)' : 'rgba(59, 130, 246, 0.85)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        color: '#ffffff',
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                        transition: 'all 0.18s ease'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      {isModalMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                    </button>
+
+                    {/* 2. Fullscreen Button */}
+                    <button
+                      type="button"
+                      onClick={handleToggleModalFullscreen}
+                      title="Kattalashtirish (Fullscreen)"
+                      style={{
+                        border: '1px solid rgba(255, 255, 255, 0.25)',
+                        background: 'rgba(0, 0, 0, 0.65)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        color: '#ffffff',
+                        width: 36,
+                        height: 36,
+                        borderRadius: 18,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                        transition: 'all 0.18s ease'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      <Maximize2 size={16} />
+                    </button>
+                  </>
+                )}
+
+                {/* 3. Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedMovie(null)}
+                  title={t('common.close')}
+                  style={{
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    background: 'rgba(0, 0, 0, 0.7)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    color: '#ffffff',
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                    transition: 'all 0.18s ease'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)'
+                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 1)'
+                    e.currentTarget.style.color = '#fff'
+                    e.currentTarget.style.transform = 'scale(1.08)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
+                    e.currentTarget.style.color = '#ffffff'
+                    e.currentTarget.style.transform = 'scale(1)'
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
               {/* Poster & Main Header Info */}
               <div style={{ position: 'absolute', bottom: 16, left: 24, right: 24, display: 'flex', gap: 20, alignItems: 'flex-end', zIndex: 5 }}>
@@ -1573,33 +1850,60 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                     objectFit: 'cover',
                     borderRadius: 14,
                     boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6)',
-                    border: '2px solid var(--border)',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
                     flexShrink: 0
                   }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <span style={{
-                      background: 'var(--space-panel-bg)',
-                      border: '1px solid var(--border)',
-                      padding: '2px 8px',
+                      background: 'rgba(0, 0, 0, 0.65)',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      padding: '2px 9px',
                       borderRadius: 10,
                       fontSize: 11,
                       fontWeight: 800,
-                      color: 'var(--accent)'
+                      color: '#c084fc'
                     }}>
                       #{selectedMovie.chronology_index || 1}
                     </span>
                     {selectedMovie.rating ? (
-                      <span style={{ color: '#fbbf24', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                        <Star size={13} fill="#fbbf24" color="#fbbf24" /> {selectedMovie.rating}
+                      <span style={{
+                        background: 'rgba(0, 0, 0, 0.65)',
+                        backdropFilter: 'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(251, 191, 36, 0.35)',
+                        padding: '2px 8px',
+                        borderRadius: 10,
+                        color: '#fbbf24',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3
+                      }}>
+                        <Star size={12} fill="#fbbf24" color="#fbbf24" /> {selectedMovie.rating}
                       </span>
                     ) : null}
                   </div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25, textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
+                  <div style={{
+                    fontSize: 23,
+                    fontWeight: 800,
+                    color: '#ffffff',
+                    lineHeight: 1.25,
+                    textShadow: '0 2px 14px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,0.8)'
+                  }}>
                     {selectedMovie.title}
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                  <div style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: 'rgba(255, 255, 255, 0.85)',
+                    marginTop: 4,
+                    textShadow: '0 1px 6px rgba(0,0,0,0.9)'
+                  }}>
                     {selectedMovie.release_year || selectedMovie.release_date?.split('-')[0] || '-'}
                   </div>
                 </div>
@@ -1615,20 +1919,20 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   <div style={{
                     background: 'var(--space-panel-bg)',
                     border: '1px solid var(--border)',
-                    borderRadius: 16,
-                    padding: '14px 18px',
+                    borderRadius: 18,
+                    padding: '16px 20px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     flexWrap: 'wrap',
-                    gap: 12
+                    gap: 14
                   }}>
                     {selectedMovie.in_board ? (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: 10 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{
-                            width: 32,
-                            height: 32,
+                            width: 34,
+                            height: 34,
                             borderRadius: 10,
                             background: 'rgba(52, 211, 153, 0.15)',
                             border: '1px solid rgba(52, 211, 153, 0.3)',
@@ -1640,17 +1944,17 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                             <CheckCircle size={18} />
                           </div>
                           <div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.inYourColumn')}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t('space.inBoardStatus')}</div>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.inYourColumn')}</div>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{t('space.inBoardStatus')}</div>
                           </div>
                         </div>
                         <div style={{
                           background: sStyle.badgeBg,
                           border: `1px solid ${sStyle.badgeBorder}`,
                           color: sStyle.color,
-                          borderRadius: 8,
-                          padding: '5px 12px',
-                          fontSize: 12,
+                          borderRadius: 10,
+                          padding: '6px 14px',
+                          fontSize: 12.5,
                           fontWeight: 700,
                           letterSpacing: '0.5px',
                           display: 'flex',
@@ -1662,67 +1966,89 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                         </div>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: 12 }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.notInYourColumn')}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{t('space.selectColumnHint')}</div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ position: 'relative' }}>
-                            <select
-                              value={selectedSection}
-                              onChange={e => setSelectedSection(e.target.value)}
-                              style={{
-                                appearance: 'none',
-                                WebkitAppearance: 'none',
-                                MozAppearance: 'none',
-                                background: 'var(--bg-input)',
-                                color: 'var(--text-primary)',
-                                border: '1px solid var(--border)',
-                                borderRadius: 12,
-                                padding: '8px 34px 8px 14px',
-                                fontSize: 12.5,
-                                fontWeight: 600,
-                                outline: 'none',
-                                cursor: 'pointer',
-                                transition: 'border-color 0.2s, box-shadow 0.2s'
-                              }}
-                            >
-                              <option value="todo" style={{ background: 'var(--bg-card)', color: '#fbbf24' }}>🟡 {t('sections.todo')}</option>
-                              <option value="futured" style={{ background: 'var(--bg-card)', color: '#a78bfa' }}>🟣 {t('sections.futured')}</option>
-                              <option value="doing" style={{ background: 'var(--bg-card)', color: '#34d399' }}>🟢 {t('sections.doing')}</option>
-                              <option value="done" style={{ background: 'var(--bg-card)', color: '#60a5fa' }}>🔵 {t('sections.done')}</option>
-                            </select>
-                            <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
-                              <ChevronDown size={14} />
-                            </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 8,
+                            background: 'rgba(139, 92, 246, 0.14)',
+                            border: '1px solid rgba(139, 92, 246, 0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--accent)'
+                          }}>
+                            <Plus size={15} />
                           </div>
+                          <div>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.notInYourColumn')}</div>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{t('space.selectColumnHint', null, 'Kerakli ustunga bitta bosish bilan qo\'shing:')}</div>
+                          </div>
+                        </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleAddMovieToBoard(selectedMovie, selectedSection)}
-                            disabled={addingMovieId === selectedMovie.tmdb_id}
-                            style={{
-                              border: '1px solid rgba(255, 255, 255, 0.15)',
-                              background: 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)',
-                              color: '#ffffff',
-                              borderRadius: 12,
-                              padding: '8px 18px',
-                              fontSize: 13,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              boxShadow: '0 4px 16px rgba(139, 92, 246, 0.35)',
-                              transition: 'transform 0.15s ease, box-shadow 0.15s ease'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.5)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(139, 92, 246, 0.35)'; }}
-                          >
-                            {addingMovieId === selectedMovie.tmdb_id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                            <span>{t('space.addToColumn')}</span>
-                          </button>
+                        {/* NoteLab 4-Column Sleek Quick-Add Buttons */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+                          gap: 10,
+                          marginTop: 2
+                        }}>
+                          {[
+                            { key: 'todo', label: t('sections.todo'), dot: '#fbbf24', bg: 'rgba(251, 191, 36, 0.08)', border: 'rgba(251, 191, 36, 0.25)', glow: 'rgba(251, 191, 36, 0.25)' },
+                            { key: 'futured', label: t('sections.futured'), dot: '#a78bfa', bg: 'rgba(167, 139, 250, 0.08)', border: 'rgba(167, 139, 250, 0.25)', glow: 'rgba(167, 139, 250, 0.25)' },
+                            { key: 'doing', label: t('sections.doing'), dot: '#34d399', bg: 'rgba(52, 211, 153, 0.08)', border: 'rgba(52, 211, 153, 0.25)', glow: 'rgba(52, 211, 153, 0.25)' },
+                            { key: 'done', label: t('sections.done'), dot: '#60a5fa', bg: 'rgba(96, 165, 250, 0.08)', border: 'rgba(96, 165, 250, 0.25)', glow: 'rgba(96, 165, 250, 0.25)' },
+                          ].map(col => {
+                            const isThisLoading = addingMovieId === `${selectedMovie.tmdb_id}_${col.key}` || (addingMovieId === selectedMovie.tmdb_id && selectedSection === col.key)
+                            return (
+                              <button
+                                key={col.key}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedSection(col.key)
+                                  handleAddMovieToBoard(selectedMovie, col.key)
+                                }}
+                                disabled={Boolean(addingMovieId)}
+                                style={{
+                                  background: col.bg,
+                                  border: `1px solid ${col.border}`,
+                                  borderRadius: 14,
+                                  padding: '12px 10px',
+                                  cursor: Boolean(addingMovieId) ? 'not-allowed' : 'pointer',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 6,
+                                  color: col.dot,
+                                  transition: 'all 0.18s ease',
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+                                }}
+                                onMouseEnter={e => {
+                                  if (!addingMovieId) {
+                                    e.currentTarget.style.transform = 'translateY(-2px)'
+                                    e.currentTarget.style.borderColor = col.dot
+                                    e.currentTarget.style.boxShadow = `0 6px 14px ${col.glow}`
+                                  }
+                                }}
+                                onMouseLeave={e => {
+                                  e.currentTarget.style.transform = 'translateY(0)'
+                                  e.currentTarget.style.borderColor = col.border
+                                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.02)'
+                                }}
+                              >
+                                {isThisLoading ? (
+                                  <Loader2 size={16} className="animate-spin" style={{ color: col.dot }} />
+                                ) : (
+                                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot, flexShrink: 0, boxShadow: `0 0 8px ${col.dot}` }} />
+                                )}
+                                <span style={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                  {col.label}
+                                </span>
+                              </button>
+                            )
+                          })}
                         </div>
                       </div>
                     )}

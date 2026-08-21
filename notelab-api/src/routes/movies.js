@@ -377,7 +377,6 @@ router.post('/', async (req, res) => {
     db.movies.push(movie);
     await writeDB(db);
 
-    const supabase = getSupabase();
     if (supabase) {
       try {
         await supabase.from('movies').upsert([sanitizeForSupabase(movie)], { onConflict: 'id' });

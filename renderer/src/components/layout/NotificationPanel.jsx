@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import { Bell, Film, Sparkles, Check, CheckCheck, Trash2, Plus, X, Play, Tv, DollarSign, ExternalLink } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 
@@ -13,6 +13,17 @@ export default function NotificationPanel({
   const { t } = useLanguage()
   const [addingIds, setAddingIds] = useState({})
   const addingRef = useRef(new Set())
+
+  const uniqueNotifications = useMemo(() => {
+    const seen = new Set()
+    return notifications.filter(n => {
+      if (!n) return false
+      const key = `${n.type}_${n.movie_data?.tmdb_id || (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim()}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [notifications])
 
   const handleAddMovie = async (notif) => {
     if (!notif.movie_data || addingRef.current.has(notif.id)) return
@@ -84,7 +95,7 @@ export default function NotificationPanel({
           <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
             {t('notifications.title')}
           </span>
-          {notifications.filter(n => !n.is_read).length > 0 && (
+          {uniqueNotifications.filter(n => !n.is_read).length > 0 && (
             <span
               style={{
                 background: 'var(--accent, #8b5cf6)',
@@ -95,13 +106,13 @@ export default function NotificationPanel({
                 fontWeight: 600
               }}
             >
-              {notifications.filter(n => !n.is_read).length}
+              {uniqueNotifications.filter(n => !n.is_read).length}
             </span>
           )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {notifications.some(n => !n.is_read) && (
+          {uniqueNotifications.some(n => !n.is_read) && (
             <button
               onClick={onMarkAllRead}
               title={t('notifications.markAllRead')}
@@ -140,7 +151,7 @@ export default function NotificationPanel({
 
       {/* List */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-        {notifications.length === 0 ? (
+        {uniqueNotifications.length === 0 ? (
           <div
             style={{
               padding: '32px 16px',
@@ -152,7 +163,7 @@ export default function NotificationPanel({
             {t('notifications.noNotifications')}
           </div>
         ) : (
-          notifications.map(notif => (
+          uniqueNotifications.map(notif => (
             <div
               key={notif.id}
               style={{

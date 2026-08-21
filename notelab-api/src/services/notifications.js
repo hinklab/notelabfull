@@ -99,6 +99,29 @@ async function getNotifications(userId) {
     list = localList.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }
 
+  // Deduplicate list (keep newest unique notification for each movie/type)
+  const seenKeys = new Set();
+  const seenIds = new Set();
+  const uniqueList = [];
+  const duplicateIdsToDelete = [];
+
+  for (const n of list) {
+    if (seenIds.has(n.id)) {
+      duplicateIdsToDelete.push(n.id);
+      continue;
+    }
+    seenIds.add(n.id);
+
+    const mKey = `${n.type}_${n.movie_data?.tmdb_id || (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim()}`;
+    if (seenKeys.has(mKey)) {
+      duplicateIdsToDelete.push(n.id);
+      continue;
+    }
+    seenKeys.add(mKey);
+    uniqueList.push(n);
+  }
+  list = uniqueList;
+
   // Auto-filter: exclude any recommendation notification if the movie is ALREADY in user's movies list!
   try {
     const userMovies = await getAllUserMovies(userId);
@@ -112,15 +135,46 @@ async function getNotifications(userId) {
       const nImdbId = n.movie_data?.imdb_id ? String(n.movie_data.imdb_id) : null;
       const rawTitle = (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim();
 
-      if (nTmdbId && existingTmdbIds.has(nTmdbId)) return false;
-      if (nImdbId && existingImdbIds.has(nImdbId)) return false;
-      if (rawTitle && existingTitles.has(rawTitle)) return false;
+      if (nTmdbId && existingTmdbIds.has(nTmdbId)) {
+        duplicateIdsToDelete.push(n.id);
+        return false;
+      }
+      if (nImdbId && existingImdbIds.has(nImdbId)) {
+        duplicateIdsToDelete.push(n.id);
+        return false;
+      }
+      if (rawTitle && existingTitles.has(rawTitle)) {
+        duplicateIdsToDelete.push(n.id);
+        return false;
+      }
       for (const t of existingTitles) {
-        if (t && t.length > 3 && (rawTitle === t || rawTitle.includes(t) || t.includes(rawTitle))) return false;
+        if (t && t.length > 3 && (rawTitle === t || rawTitle.includes(t) || t.includes(rawTitle))) {
+          duplicateIdsToDelete.push(n.id);
+          return false;
+        }
       }
 
       return true;
     });
+
+    // Cleanup detected duplicates or added movies from DB asynchronously
+    if (duplicateIdsToDelete.length > 0) {
+      setImmediate(async () => {
+        try {
+          if (supabase) {
+            for (const dId of duplicateIdsToDelete) {
+              await supabase.from('notifications').delete().eq('id', dId).catch(() => {});
+            }
+          }
+          const freshDb = readDB();
+          if (freshDb.notifications) {
+            const delSet = new Set(duplicateIdsToDelete);
+            freshDb.notifications = freshDb.notifications.filter(n => !delSet.has(n.id));
+            writeDB(freshDb);
+          }
+        } catch (_) {}
+      });
+    }
   } catch (filterErr) {
     console.warn('Error filtering notifications against added movies:', filterErr.message);
   }
@@ -747,14 +801,29 @@ async function generateEpisodeAlerts(userId) {
   return created;
 }
 
+const lastSmartCheckByUser = new Map();
+let isSmartRunning = false;
+
 // Master Smart Notification Runner
 async function generateSmartNotifications(userId) {
   if (!userId) return [];
-  const recs = await generateRecommendations(userId).catch(() => []);
-  const trailers = await generateTrailerAlerts(userId).catch(() => []);
-  const boxOffice = await generateBoxOfficeAlerts(userId).catch(() => []);
-  const episodes = await generateEpisodeAlerts(userId).catch(() => []);
-  return [...recs, ...trailers, ...boxOffice, ...episodes];
+  const now = Date.now();
+  const lastTime = lastSmartCheckByUser.get(userId) || 0;
+  if (now - lastTime < 10 * 60 * 1000 || isSmartRunning) {
+    return [];
+  }
+  isSmartRunning = true;
+  lastSmartCheckByUser.set(userId, now);
+
+  try {
+    const recs = await generateRecommendations(userId).catch(() => []);
+    const trailers = await generateTrailerAlerts(userId).catch(() => []);
+    const boxOffice = await generateBoxOfficeAlerts(userId).catch(() => []);
+    const episodes = await generateEpisodeAlerts(userId).catch(() => []);
+    return [...recs, ...trailers, ...boxOffice, ...episodes];
+  } finally {
+    isSmartRunning = false;
+  }
 }
 
 module.exports = {
