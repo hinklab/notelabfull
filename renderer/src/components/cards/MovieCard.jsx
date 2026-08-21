@@ -51,55 +51,241 @@ export function prefetchTrailer(movie, title) {
   }
 }
 
-function RatingStars10Inline({ value, onChange, t }) {
+function MovieRatingModal({ movie, currentRating, onRate, onClose }) {
   const [hoverVal, setHoverVal] = useState(null)
-  const activeVal = hoverVal !== null ? hoverVal : (value || 0)
+  const [selectedVal, setSelectedVal] = useState(currentRating || 0)
+
+  const activeVal = hoverVal !== null ? hoverVal : selectedVal
+
+  const getRatingLabel = (val) => {
+    if (!val) return 'Baholash uchun yulduzni tanlang'
+    if (val === 10) return '🌟 10/10 — Şahona asar (Masterpiece)'
+    if (val === 9) return '🔥 9/10 — Ajoyib (Outstanding)'
+    if (val === 8) return '👍 8/10 — Juda yaxshi (Very Good)'
+    if (val === 7) return '👌 7/10 — Yaxshi (Good)'
+    if (val === 6) return '😐 6/10 — O\'rtacha (Average)'
+    if (val === 5) return '😕 5/10 — Qoniqarsiz (Below Average)'
+    if (val === 4) return '👎 4/10 — Yomon (Poor)'
+    return `💔 ${val}/10 — Tavsiya etilmaydi`
+  }
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-      padding: '10px 14px',
-      background: 'rgba(59, 130, 246, 0.08)',
-      border: '1px solid rgba(59, 130, 246, 0.22)',
-      borderRadius: 12
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#93c5fd' }}>{t ? t('card.rating') : 'Bahoingiz'}:</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa' }}>{activeVal ? `${activeVal}/10` : '-'}</span>
-      </div>
-      <div style={{ display: 'flex', gap: 3, justifyContent: 'space-between' }}>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(star => (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 999999,
+        background: 'rgba(0,0,0,0.75)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: 'min(400px, 92vw)',
+          background: 'var(--bg-surface, #18181b)',
+          border: '1px solid var(--border, #27272a)',
+          borderRadius: 20,
+          padding: '22px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          boxShadow: '0 25px 60px rgba(0,0,0,0.7)'
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              background: 'rgba(59, 130, 246, 0.15)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Star size={18} color="#60a5fa" fill="#60a5fa" />
+            </div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Filmga baho bering
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {movie?.title || 'Film'}
+              </div>
+            </div>
+          </div>
           <button
-            key={star}
             type="button"
-            onMouseEnter={() => setHoverVal(star)}
-            onMouseLeave={() => setHoverVal(null)}
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onChange(star)
-            }}
+            onClick={onClose}
             style={{
-              background: 'none',
               border: 'none',
-              padding: 2,
+              background: 'var(--bg-input, rgba(255,255,255,0.06))',
+              color: 'var(--text-muted)',
+              width: 30,
+              height: 30,
+              borderRadius: 8,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'transform 0.1s ease',
-              transform: hoverVal === star ? 'scale(1.3)' : 'scale(1)'
+              justifyContent: 'center'
             }}
           >
-            <Star
-              size={15}
-              fill={star <= activeVal ? '#60a5fa' : 'transparent'}
-              color={star <= activeVal ? '#60a5fa' : 'var(--text-muted)'}
-            />
+            <X size={15} />
           </button>
-        ))}
+        </div>
+
+        {/* Dynamic Label Badge */}
+        <div style={{
+          background: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          borderRadius: 12,
+          padding: '10px 14px',
+          textAlign: 'center',
+          fontSize: 13,
+          fontWeight: 600,
+          color: '#93c5fd',
+          minHeight: 42,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          {getRatingLabel(activeVal)}
+        </div>
+
+        {/* 10 Interactive Glowing Stars */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '10px 8px',
+            background: 'var(--bg-input, rgba(255,255,255,0.03))',
+            borderRadius: 14,
+            border: '1px solid var(--border)'
+          }}
+          onMouseLeave={() => setHoverVal(null)}
+        >
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(starNum => {
+            const isFilled = starNum <= activeVal
+            return (
+              <button
+                key={starNum}
+                type="button"
+                onClick={() => {
+                  setSelectedVal(starNum)
+                  onRate(starNum)
+                  onClose()
+                }}
+                onMouseEnter={() => setHoverVal(starNum)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 2,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  outline: 'none'
+                }}
+              >
+                <Star
+                  size={21}
+                  fill={isFilled ? '#60a5fa' : 'none'}
+                  color={isFilled ? '#60a5fa' : 'rgba(255,255,255,0.2)'}
+                  style={{
+                    transition: 'all 0.12s cubic-bezier(0.16, 1, 0.3, 1)',
+                    transform: hoverVal === starNum ? 'scale(1.35)' : 'scale(1)',
+                    filter: isFilled ? 'drop-shadow(0 0 6px rgba(96, 165, 250, 0.6))' : 'none'
+                  }}
+                />
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Quick Numbers Selection Grid (1 to 10) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 4 }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+            <button
+              key={num}
+              type="button"
+              onClick={() => {
+                setSelectedVal(num)
+                onRate(num)
+                onClose()
+              }}
+              onMouseEnter={() => setHoverVal(num)}
+              onMouseLeave={() => setHoverVal(null)}
+              style={{
+                padding: '7px 0',
+                background: (num === selectedVal) ? '#2563eb' : (num === activeVal) ? 'rgba(59, 130, 246, 0.2)' : 'var(--bg-input, rgba(255,255,255,0.05))',
+                color: (num === selectedVal || num === activeVal) ? '#ffffff' : 'var(--text-muted)',
+                border: (num === selectedVal) ? '1px solid #3b82f6' : '1px solid var(--border)',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.12s ease'
+              }}
+            >
+              {num}
+            </button>
+          ))}
+        </div>
+
+        {/* Footer Actions */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+          {currentRating ? (
+            <button
+              type="button"
+              onClick={() => {
+                onRate(null)
+                onClose()
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#ef4444',
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '4px 6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+            >
+              <Trash2 size={13} />
+              <span>Bahoni o'chirish</span>
+            </button>
+          ) : <div />}
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'var(--bg-input, rgba(255,255,255,0.08))',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              padding: '7px 16px',
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+          >
+            Yopish
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -305,6 +491,7 @@ function MovieCard({
   const [watchProvider, setWatchProvider] = useState(null)
   const [cinemasCount, setCinemasCount] = useState(0)
   const [showCinemasModal, setShowCinemasModal] = useState(false)
+  const [showRatingModal, setShowRatingModal] = useState(false)
   const [trailer, setTrailer] = useState(null)
   const [trailerLoading, setTrailerLoading] = useState(false)
   const [isVideoReady, setIsVideoReady] = useState(false)
@@ -762,7 +949,27 @@ function MovieCard({
                   ) : null}
                 </div>
                 {effectiveUserRating ? (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.35)', padding: '0px 6px', borderRadius: 4 }}>
+                  <div
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setShowRatingModal(true)
+                    }}
+                    title={`Sizning bahoyingiz: ${effectiveUserRating}/10 (O'zgartirish uchun bosing)`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      border: '1px solid rgba(59, 130, 246, 0.35)',
+                      padding: '0px 6px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      transition: 'all 0.12s ease'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#60a5fa'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.35)'}
+                  >
                     <Star size={10} color="#60a5fa" fill="#60a5fa" />
                     <span style={{ color: '#60a5fa', fontSize: 11, fontWeight: 600 }}>{Number(effectiveUserRating).toFixed(1).replace(/\.0$/, '')}</span>
                   </div>
@@ -1078,13 +1285,7 @@ function MovieCard({
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    const newRate = prompt('Bahoyingizni kiriting (1-10):', effectiveUserRating)
-                    if (newRate !== null) {
-                      const num = parseFloat(newRate)
-                      if (!isNaN(num) && num >= 1 && num <= 10) {
-                        handleRate(num)
-                      }
-                    }
+                    setShowRatingModal(true)
                   }}
                   title={`Sizning bahoyingiz: ${effectiveUserRating}/10 (O'zgartirish uchun bosing)`}
                   style={{
@@ -1111,18 +1312,12 @@ function MovieCard({
                 >
                   <Star size={10} fill="#60a5fa" color="#60a5fa" /> {Number(effectiveUserRating).toFixed(1).replace(/\.0$/, '')}
                 </span>
-              ) : currentSection === 'done' ? (
+              ) : (currentSection === 'done' || movie.section === 'done') ? (
                 <span
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    const newRate = prompt('Bahoyingizni kiriting (1-10):')
-                    if (newRate !== null) {
-                      const num = parseFloat(newRate)
-                      if (!isNaN(num) && num >= 1 && num <= 10) {
-                        handleRate(num)
-                      }
-                    }
+                    setShowRatingModal(true)
                   }}
                   title="Baholash (1-10)"
                   style={{
@@ -1136,7 +1331,10 @@ function MovieCard({
                     alignItems: 'center',
                     gap: 4,
                     cursor: 'pointer',
+                    transition: 'all 0.15s ease'
                   }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#60a5fa'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.35)'}
                 >
                   <Star size={10} color="#93c5fd" /> Baholash
                 </span>
@@ -1308,6 +1506,15 @@ function MovieCard({
         <CinemasModal
           movie={movie}
           onClose={() => setShowCinemasModal(false)}
+        />
+      )}
+
+      {showRatingModal && (
+        <MovieRatingModal
+          movie={movie}
+          currentRating={effectiveUserRating}
+          onRate={handleRate}
+          onClose={() => setShowRatingModal(false)}
         />
       )}
     </div>
