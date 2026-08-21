@@ -510,25 +510,58 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
           poster_path: data.poster_path || data.cover_url || null,
           genre: data.genre || '-',
           director: data.director || '-',
+          overview: data.overview || '',
           tmdb_id: data.tmdb_id || null,
           imdb_id: data.imdb_id || null,
           media_type: data.media_type || null,
+          seasons: data.seasons || null,
           note: data.note || '',
           section: sectionKey,
           note_id: noteId,
         })
+
+        if (added && added.id) {
+          setItemsByGroup(prev => {
+            const list = (prev[groupId] || []).map(item => {
+              if (item.id === tempId) {
+                return {
+                  ...item,
+                  id: added.id,
+                  _movie: {
+                    ...(item._movie || {}),
+                    id: added.id,
+                    ...added
+                  }
+                }
+              }
+              return item
+            })
+            return { ...prev, [groupId]: list }
+          })
+        }
 
         if (sectionKey === 'done') {
           const addedObj = added || { id: tempId, title: data.title, section: 'done' }
           setRatePromptItem({ ...addedObj, section: 'done' })
         }
       } else {
-        await window.api.addItem(groupId, data)
+        const addedItem = await window.api.addItem(groupId, data)
+        if (addedItem && addedItem.id) {
+          setItemsByGroup(prev => {
+            const list = (prev[groupId] || []).map(item => {
+              if (item.id === tempId) return { ...item, ...addedItem, id: addedItem.id }
+              return item
+            })
+            return { ...prev, [groupId]: list }
+          })
+        }
       }
-      await reloadGroup(groupId)
     } catch (err) {
       console.error('Failed to add item:', err)
-      await reloadGroup(groupId)
+      setItemsByGroup(prev => ({
+        ...prev,
+        [groupId]: (prev[groupId] || []).filter(item => item.id !== tempId)
+      }))
     }
   }
 

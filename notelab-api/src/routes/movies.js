@@ -288,7 +288,8 @@ router.post('/', async (req, res) => {
     let media_type = data.media_type || (isTv ? 'tv' : 'movie');
     let seasons = data.seasons || '-';
 
-    if (data.tmdb_id && tmdbKey) {
+    const needsTmdbEnrich = data.tmdb_id && tmdbKey && (!poster_path || genre === '-');
+    if (needsTmdbEnrich) {
       try {
         let primaryUrl = isTv
           ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=credits&language=en-US`
@@ -297,9 +298,9 @@ router.post('/', async (req, res) => {
           ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=credits&language=en-US`
           : `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=credits&language=en-US`;
 
-        let res = await fetch(primaryUrl);
+        let res = await fetch(primaryUrl, { signal: AbortSignal.timeout(2000) });
         if (!res.ok && res.status === 404) {
-          res = await fetch(fallbackUrl);
+          res = await fetch(fallbackUrl, { signal: AbortSignal.timeout(2000) });
         }
         if (res.ok) {
           const detail = await res.json();
@@ -321,9 +322,8 @@ router.post('/', async (req, res) => {
           }
           if (detail.overview) overview = detail.overview;
 
-          // Extract accurate runtime info into seasons field
           if (media_type === 'tv' || detail.number_of_seasons) {
-            seasons = await resolveTvRuntime(data.tmdb_id, tmdbKey, detail);
+            seasons = `${detail.number_of_seasons} seasons · ${detail.number_of_episodes || 10} ep`;
           } else if (detail.runtime) {
             seasons = `${detail.runtime} min`;
           }
@@ -331,7 +331,7 @@ router.post('/', async (req, res) => {
       } catch (err) {
         console.error('TMDB Enrich Error on Add:', err.message);
       }
-    } else if (data.imdb_id && omdbKey) {
+    } else if (data.imdb_id && omdbKey && (!poster_path || genre === '-')) {
       try {
         const url = `http://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&i=${encodeURIComponent(data.imdb_id)}`;
         const res = await fetch(url);

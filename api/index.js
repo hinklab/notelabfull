@@ -2612,18 +2612,19 @@ module.exports = async (req, res) => {
         position = -1;
       }
 
-      // Enrich from TMDB
+      // Enrich from TMDB (Fast-Path: Skip if client already provided metadata from search step)
       let genre = body.genre || '-', director = body.director || '-', overview = body.overview || '';
       let poster_path = body.poster_path || null, release_date = body.release_date || null;
       let release_year = body.release_year || '-', rating = body.rating || null;
       let vote_count = body.vote_count || null, seasons = body.seasons || '-';
       let media_type = body.media_type || 'movie';
 
-      if (body.tmdb_id && TMDB_KEY) {
+      const needsTmdbEnrich = body.tmdb_id && TMDB_KEY && (!poster_path || genre === '-');
+      if (needsTmdbEnrich) {
         try {
           const isTv = media_type === 'tv';
           const tmdbUrl = `https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${body.tmdb_id}?api_key=${TMDB_KEY}&append_to_response=credits&language=en-US`;
-          const tmdbRes = await fetch(tmdbUrl);
+          const tmdbRes = await fetch(tmdbUrl, { signal: AbortSignal.timeout(2000) });
           if (tmdbRes.ok) {
             const d = await tmdbRes.json();
             release_date = d.release_date || d.first_air_date || release_date;
@@ -2636,11 +2637,11 @@ module.exports = async (req, res) => {
               const dir = d.credits.crew.find(c => c.job === 'Director');
               if (dir) director = dir.name;
             }
-            if (d.created_by?.length && director === '-') director = d.created_by.map(c => c.name).join(', ');
+            if (d.created_by?.length && (director === '-' || !director)) director = d.created_by.map(c => c.name).join(', ');
             if (d.overview) overview = d.overview;
             if (d.number_of_seasons) {
               media_type = 'tv';
-              seasons = await resolveTvRuntime(body.tmdb_id, TMDB_KEY, d);
+              seasons = `${d.number_of_seasons} seasons · ${d.number_of_episodes || 10} ep`;
             } else if (d.runtime) {
               seasons = `${d.runtime} min`;
             }
