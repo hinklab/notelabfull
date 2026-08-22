@@ -877,24 +877,83 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
 
   const maxReached = groups.length >= 5
 
-  // Responsive: detect compact/mobile mode
+  // Responsive: detect mobile vertical vs horizontal/desktop mode
   const boardRef = useRef(null)
-  const [isMobileVertical, setIsCompact] = useState(false)
+  const [isMobileVertical, setIsMobileVertical] = useState(false)
   const [activeSection, setActiveSection] = useState(null)
+  const [edgeHoverSide, setEdgeHoverSide] = useState(null)
+  const edgeTimerRef = useRef(null)
+
+  const checkIsMobileVertical = useCallback(() => {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const isPortrait = h >= w || w < 640;
+    const isSmall = w < 768;
+    return isSmall && isPortrait;
+  }, []);
 
   useEffect(() => {
-    const el = boardRef.current?.parentElement || boardRef.current
-    if (!el) return
-    const ro = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const isNarrow = entry.contentRect.width < 780;
-        const isShortLandscape = entry.contentRect.width < 1000 && window.innerHeight < 550;
-        setIsCompact(isNarrow || isShortLandscape);
+    const updateMode = () => {
+      setIsMobileVertical(checkIsMobileVertical());
+    };
+    updateMode();
+    window.addEventListener('resize', updateMode);
+    window.addEventListener('orientationchange', updateMode);
+    return () => {
+      window.removeEventListener('resize', updateMode);
+      window.removeEventListener('orientationchange', updateMode);
+    };
+  }, [checkIsMobileVertical]);
+
+  const handleDragHoverEdge = useCallback((clientX) => {
+    if (!isMobileVertical) return;
+    const currentIdx = groups.findIndex(g => g.section_key === activeSection);
+    if (currentIdx === -1) return;
+
+    const EDGE_THRESHOLD = 70; // px from screen edge
+
+    if (clientX > window.innerWidth - EDGE_THRESHOLD && currentIdx < groups.length - 1) {
+      if (edgeHoverSide !== 'right') {
+        setEdgeHoverSide('right');
+        if (edgeTimerRef.current) clearTimeout(edgeTimerRef.current);
+        edgeTimerRef.current = setTimeout(() => {
+          const nextIdx = currentIdx + 1;
+          if (nextIdx < groups.length) {
+            setActiveSection(groups[nextIdx].section_key);
+            setEdgeHoverSide(null);
+          }
+        }, 1000);
       }
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
+    } else if (clientX < EDGE_THRESHOLD && currentIdx > 0) {
+      if (edgeHoverSide !== 'left') {
+        setEdgeHoverSide('left');
+        if (edgeTimerRef.current) clearTimeout(edgeTimerRef.current);
+        edgeTimerRef.current = setTimeout(() => {
+          const prevIdx = currentIdx - 1;
+          if (prevIdx >= 0) {
+            setActiveSection(groups[prevIdx].section_key);
+            setEdgeHoverSide(null);
+          }
+        }, 1000);
+      }
+    } else {
+      if (edgeHoverSide) {
+        setEdgeHoverSide(null);
+        if (edgeTimerRef.current) {
+          clearTimeout(edgeTimerRef.current);
+          edgeTimerRef.current = null;
+        }
+      }
+    }
+  }, [isMobileVertical, groups, activeSection, edgeHoverSide]);
+
+  const clearEdgeHover = useCallback(() => {
+    setEdgeHoverSide(null);
+    if (edgeTimerRef.current) {
+      clearTimeout(edgeTimerRef.current);
+      edgeTimerRef.current = null;
+    }
+  }, []);
 
   // When compact mode activates, default to the first section
   useEffect(() => {
@@ -1003,9 +1062,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         />
       )}
       {isMobileVertical ? (
-        <div className="board-responsive">
-          {/* Sidebar */}
-          <div className="board-sidebar">
+        <div className="board-responsive" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, position: 'relative' }}>
+          {/* Top Horizontal Pill Tab Bar */}
+          <div className="board-mobile-nav">
             {groups.map(group => {
               const Icon = SIDEBAR_ICONS[group.section_key] || ListTodo
               const label = group.name
@@ -1014,22 +1073,59 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
               return (
                 <button
                   key={group.id}
-                  className={`board-sidebar-btn ${isActive ? 'active' : ''}`}
+                  type="button"
+                  data-group-id={group.id}
+                  className={`board-mobile-tab-btn ${isActive ? 'active' : ''}`}
                   onClick={() => setActiveSection(group.section_key)}
-                  style={isActive ? { borderLeft: `3px solid ${group.color || '#a78bfa'}` } : {}}
+                  style={isActive ? { background: group.color || 'var(--accent)', borderColor: group.color || 'var(--accent)' } : {}}
                 >
-                  <div className="sidebar-dot" style={{ background: group.color || '#a78bfa' }} />
-                  <Icon size={18} />
-                  <span style={{ fontSize: 8, lineHeight: 1, marginTop: 1 }}>{label}</span>
-                  <span className="sidebar-count">{count}</span>
+                  <Icon size={15} />
+                  <span>{label}</span>
+                  <span className="tab-badge">{count}</span>
                 </button>
               )
             })}
           </div>
-          {/* Main column */}
+
+          {/* Full-width Single Column in Mobile Vertical */}
           <div className="board-mobile-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {activeGroup && renderColumn(activeGroup)}
           </div>
+
+          {/* Floating Side Arrow Buttons for Easy Column Navigation */}
+          {(() => {
+            const currentIdx = groups.findIndex(g => g.section_key === activeSection);
+            const canGoLeft = currentIdx > 0;
+            const canGoRight = currentIdx < groups.length - 1;
+            return (
+              <>
+                {canGoLeft && (
+                  <button
+                    type="button"
+                    title={groups[currentIdx - 1]?.name}
+                    className={`mobile-nav-arrow left ${edgeHoverSide === 'left' ? 'edge-pending' : ''}`}
+                    onClick={() => {
+                      if (canGoLeft) setActiveSection(groups[currentIdx - 1].section_key);
+                    }}
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                )}
+                {canGoRight && (
+                  <button
+                    type="button"
+                    title={groups[currentIdx + 1]?.name}
+                    className={`mobile-nav-arrow right ${edgeHoverSide === 'right' ? 'edge-pending' : ''}`}
+                    onClick={() => {
+                      if (canGoRight) setActiveSection(groups[currentIdx + 1].section_key);
+                    }}
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                )}
+              </>
+            );
+          })()}
         </div>
       ) : (
         <div className="board">
