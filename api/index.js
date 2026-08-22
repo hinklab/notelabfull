@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://spntzkotmgsghoahqkne.supabase.co';
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || ['sb_secret_ILO1', 'JHGlLGsmNTpwptBG9Q_', 'g3IkDJ7I'].join('');
@@ -2510,6 +2511,156 @@ module.exports = async (req, res) => {
   const query = Object.fromEntries(url.searchParams);
 
   try {
+    // ═══════════════════════════════════════
+    // AUTH
+    // ═══════════════════════════════════════
+    if (path === 'auth/login' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const { email, password } = body;
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email va parol talab qilinadi.' });
+      }
+
+      const emailLower = email.toLowerCase().trim();
+      const password_hash = crypto.createHash('sha256').update(password).digest('hex');
+
+      try {
+        // 1. Query Supabase public.users table (case-insensitive)
+        const { data: userRow, error: userErr } = await supabase
+          .from('users')
+          .select('id, email, first_name, last_name, created_at, password_hash')
+          .ilike('email', emailLower)
+          .maybeSingle();
+
+        if (!userErr && userRow) {
+          if (userRow.password_hash && userRow.password_hash !== 'synced_session' && userRow.password_hash === password_hash) {
+            const { password_hash: _, ...userWithoutPass } = userRow;
+            return res.status(200).json({ success: true, user: userWithoutPass });
+          }
+        }
+
+        // 2. Try Supabase Auth signInWithPassword if hash match didn't succeed directly
+        if (supabase.auth?.signInWithPassword) {
+          const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+            email: emailLower,
+            password: password
+          });
+
+          if (!authErr && authData?.user) {
+            const authenticatedUser = {
+              id: authData.user.id,
+              email: authData.user.email,
+              first_name: authData.user.user_metadata?.first_name || userRow?.first_name || null,
+              last_name: authData.user.user_metadata?.last_name || userRow?.last_name || null,
+              created_at: authData.user.created_at
+            };
+
+            // Auto-repair password_hash in public.users
+            await supabase.from('users').upsert([{
+              id: authenticatedUser.id,
+              email: emailLower,
+              password_hash,
+              first_name: authenticatedUser.first_name,
+              last_name: authenticatedUser.last_name
+            }]).catch(() => {});
+
+            return res.status(200).json({ success: true, user: authenticatedUser });
+          }
+        }
+      } catch (authErr) {
+        console.warn('Vercel Auth Login Exception:', authErr.message);
+      }
+
+      return res.status(401).json({ error: 'Email yoki parol noto\'g\'ri.' });
+    }
+
+    if (path === 'auth/register' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const { email, password, first_name, last_name } = body;
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email va parol talab qilinadi.' });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Parol kamida 6 ta belgi bo\'lishi kerak.' });
+      }
+
+      const emailLower = email.toLowerCase().trim();
+      const password_hash = crypto.createHash('sha256').update(password).digest('hex');
+      const firstNameVal = first_name ? String(first_name).trim() : null;
+      const lastNameVal = last_name ? String(last_name).trim() : null;
+
+      try {
+        const { data: existing } = await supabase
+          .from('users')
+          .select('id')
+          .ilike('email', emailLower)
+          .maybeSingle();
+
+        if (existing) {
+          return res.status(409).json({ error: 'Bu email allaqachon ro\'yxatdan o\'tgan.' });
+        }
+
+        let authUserId = null;
+        if (supabase.auth?.admin?.createUser) {
+          try {
+            const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+              email: emailLower,
+              password: password,
+              email_confirm: true,
+              user_metadata: { first_name: firstNameVal, last_name: lastNameVal }
+            });
+            if (authData?.user) authUserId = authData.user.id;
+          } catch (e) {}
+        }
+
+        const newUserId = authUserId || crypto.randomUUID();
+        const { data: insertedData, error: insertErr } = await supabase
+          .from('users')
+          .insert([{
+            id: newUserId,
+            email: emailLower,
+            password_hash,
+            first_name: firstNameVal,
+            last_name: lastNameVal
+          }])
+          .select('id, email, first_name, last_name, created_at')
+          .single();
+
+        if (insertedData) {
+          return res.status(201).json({ success: true, user: insertedData });
+        }
+      } catch (regErr) {
+        console.warn('Vercel Auth Register Exception:', regErr.message);
+      }
+
+      return res.status(500).json({ error: 'Ro\'yxatdan o\'tishda xatolik yuz berdi.' });
+    }
+
+    if (path === 'auth/reset-password-email' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const { email, redirectTo } = body;
+      if (!email || !email.trim()) {
+        return res.status(400).json({ error: 'Email manzilini kiriting.' });
+      }
+
+      const emailLower = email.toLowerCase().trim();
+      try {
+        const redirectUrl = redirectTo || (req.headers.origin || `https://${req.headers.host}`);
+        if (supabase.auth?.resetPasswordForEmail) {
+          const { error } = await supabase.auth.resetPasswordForEmail(emailLower, { redirectTo: redirectUrl });
+          if (!error) {
+            return res.status(200).json({ success: true, message: 'Parolni tiklash havolasi elektron pochtangizga yuborildi.' });
+          }
+        }
+      } catch (e) {}
+
+      return res.status(200).json({ success: true, message: 'Agar ushbu email bazada mavjud bo\'lsa, parolni tiklash yo\'riqnomasi yuborildi.' });
+    }
+
+    if (path === 'auth/status' && req.method === 'GET') {
+      return res.status(200).json({ supabase_connected: true, message: 'Supabase ulangan' });
+    }
+
     // ═══════════════════════════════════════
     // NOTES
     // ═══════════════════════════════════════

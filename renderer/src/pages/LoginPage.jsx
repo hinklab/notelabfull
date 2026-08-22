@@ -70,12 +70,12 @@ export default function LoginPage({ onSwitch }) {
 
         {!showForgot ? (
           <>
-            <h2 style={styles.title}>{t('auth.loginTitle')}</h2>
-            <p style={styles.subtitle}>{t('auth.loginSubtitle')}</p>
+            <h2 style={styles.title}>{t('auth.loginTitle', null, 'Xush kelibsiz')}</h2>
+            <p style={styles.subtitle}>{t('auth.loginSubtitle', null, 'Notelab hisobingizga kiring')}</p>
 
             <form onSubmit={handleSubmit} style={styles.form}>
               <div style={styles.field}>
-                <label style={styles.label}>{t('auth.email')}</label>
+                <label style={styles.label}>{t('auth.email', null, 'Elektron pochta')}</label>
                 <input
                   type="email"
                   value={email}
@@ -89,7 +89,7 @@ export default function LoginPage({ onSwitch }) {
 
               <div style={styles.field}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={styles.label}>{t('auth.password')}</label>
+                  <label style={styles.label}>{t('auth.password', null, 'Parol')}</label>
                   <span
                     onClick={() => {
                       setForgotEmail(email)
@@ -97,7 +97,7 @@ export default function LoginPage({ onSwitch }) {
                     }}
                     style={{ fontSize: 12, color: 'var(--accent)', cursor: 'pointer', fontWeight: 500 }}
                   >
-                    {t('auth.forgotPassword')}
+                    {t('auth.forgotPassword', null, 'Parolni unutdingizmi?')}
                   </span>
                 </div>
                 <div style={{ position: 'relative', width: '100%' }}>
@@ -140,14 +140,14 @@ export default function LoginPage({ onSwitch }) {
               {error && <div style={styles.error}>{error}</div>}
 
               <button type="submit" style={{ ...styles.btn, opacity: loading ? 0.6 : 1 }} disabled={loading}>
-                {loading ? '...' : t('auth.loginButton')}
+                {loading ? '...' : t('auth.loginButton', null, 'Kirish')}
               </button>
             </form>
 
             <p style={styles.switchText}>
-              {t('auth.noAccount')}{' '}
+              {t('auth.noAccount', null, 'Hisobingiz yo\'qmi?')}{' '}
               <span style={styles.switchLink} onClick={onSwitch}>
-                {t('auth.registerLink')}
+                {t('auth.registerLink', null, 'Ro\'yxatdan o\'ting')}
               </span>
             </p>
           </>

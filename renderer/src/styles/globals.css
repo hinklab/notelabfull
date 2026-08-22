@@ -97,6 +97,15 @@ html, body {
   color: var(--text-primary);
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
+  user-select: none;
+  -webkit-user-select: none;
+  caret-color: transparent;
+}
+
+input, textarea, [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+  caret-color: auto;
 }
 
 #root {
