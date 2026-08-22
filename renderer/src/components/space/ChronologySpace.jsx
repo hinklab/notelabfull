@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import ReactDOM from 'react-dom'
-import { Plus, Minus, RotateCcw, Sparkles, CheckCircle, Clock, Film, Star, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Search, ListFilter, AlertCircle, ExternalLink, X, Calendar, PlusCircle, Check, Loader2, Trash2, Volume2, VolumeX, Maximize2 } from 'lucide-react'
+import { Plus, Minus, RotateCcw, Sparkles, CheckCircle, Clock, Film, Star, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, Search, ListFilter, AlertCircle, ExternalLink, X, Calendar, PlusCircle, Check, Loader2, Trash2, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { api } from '../../config/api.js'
 import { prefetchTrailer } from '../cards/MovieCard.jsx'
@@ -641,6 +641,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   }, [])
 
   const canvasRef = useRef(null)
+  const viewportContainerRef = useRef(null)
   const zoomRef = useRef(zoom)
   const panRef = useRef(pan)
   const rafRef = useRef(null)
@@ -900,6 +901,126 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
       el.removeEventListener('wheel', handleWheel)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       if (wheelTimeoutRef.current) clearTimeout(wheelTimeoutRef.current)
+    }
+  }, [])
+
+  // Mobile Touch Pan (1 Finger) and Pinch-to-Zoom (2 Fingers)
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+
+    const touchState = {
+      mode: 'none', // 'pan' | 'pinch'
+      startX: 0,
+      startY: 0,
+      startPan: { x: 0, y: 0 },
+      initialDist: 0,
+      initialZoom: 1,
+      pinchCenter: { x: 0, y: 0 },
+      midStart: { x: 0, y: 0 }
+    }
+
+    const handleTouchStart = (e) => {
+      // Don't intercept touches inside sidebar or interactive controls
+      if (e.target.closest('.space-controls') || e.target.closest('.space-sidebar') || e.target.closest('.space-modal')) {
+        return
+      }
+
+      if (e.touches.length === 1) {
+        touchState.mode = 'pan'
+        touchState.startX = e.touches[0].clientX
+        touchState.startY = e.touches[0].clientY
+        touchState.startPan = { ...panRef.current }
+        setIsPanning(true)
+        setIsInteracting(true)
+      } else if (e.touches.length === 2) {
+        const t0 = e.touches[0]
+        const t1 = e.touches[1]
+        const dist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY)
+        const midX = (t0.clientX + t1.clientX) / 2
+        const midY = (t0.clientY + t1.clientY) / 2
+        const rect = el.getBoundingClientRect()
+
+        touchState.mode = 'pinch'
+        touchState.initialDist = dist || 1
+        touchState.initialZoom = zoomRef.current
+        touchState.pinchCenter = { x: midX - rect.left, y: midY - rect.top }
+        touchState.startPan = { ...panRef.current }
+        touchState.midStart = { x: midX, y: midY }
+        setIsPanning(true)
+        setIsInteracting(true)
+      }
+    }
+
+    const handleTouchMove = (e) => {
+      if (touchState.mode === 'none') return
+      if (e.cancelable) e.preventDefault()
+
+      if (touchState.mode === 'pan' && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - touchState.startX
+        const dy = e.touches[0].clientY - touchState.startY
+        const nextX = touchState.startPan.x + dx
+        const nextY = touchState.startPan.y + dy
+
+        panRef.current = { x: nextX, y: nextY }
+        if (viewportContainerRef.current) {
+          viewportContainerRef.current.style.transform = `translate3d(${nextX}px, ${nextY}px, 0) scale(${zoomRef.current})`
+        }
+
+        if (rafRef.current) cancelAnimationFrame(rafRef.current)
+        rafRef.current = requestAnimationFrame(() => {
+          setPan({ x: nextX, y: nextY })
+        })
+      } else if (touchState.mode === 'pinch' && e.touches.length === 2) {
+        const t0 = e.touches[0]
+        const t1 = e.touches[1]
+        const curDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY)
+        const ratio = curDist / (touchState.initialDist || 1)
+        const newZoom = Math.min(Math.max(touchState.initialZoom * ratio, 0.25), 2.5)
+
+        const midX = (t0.clientX + t1.clientX) / 2
+        const midY = (t0.clientY + t1.clientY) / 2
+        const panDeltaX = midX - touchState.midStart.x
+        const panDeltaY = midY - touchState.midStart.y
+
+        const centerX = touchState.pinchCenter.x
+        const centerY = touchState.pinchCenter.y
+
+        const newPanX = centerX - (centerX - touchState.startPan.x) * (newZoom / touchState.initialZoom) + panDeltaX
+        const newPanY = centerY - (centerY - touchState.startPan.y) * (newZoom / touchState.initialZoom) + panDeltaY
+
+        if (rafRef.current) cancelAnimationFrame(rafRef.current)
+        rafRef.current = requestAnimationFrame(() => {
+          setZoom(newZoom)
+          setPan({ x: newPanX, y: newPanY })
+        })
+      }
+    }
+
+    const handleTouchEnd = (e) => {
+      if (e.touches.length === 0) {
+        touchState.mode = 'none'
+        setIsPanning(false)
+        setIsInteracting(false)
+      } else if (e.touches.length === 1) {
+        touchState.mode = 'pan'
+        touchState.startX = e.touches[0].clientX
+        touchState.startY = e.touches[0].clientY
+        touchState.startPan = { ...panRef.current }
+      }
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: false })
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd, { passive: false })
+    el.addEventListener('touchcancel', handleTouchEnd, { passive: false })
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+      el.removeEventListener('touchcancel', handleTouchEnd)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
   }, [])
 
@@ -1491,7 +1612,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
       )}
 
       {/* Infinite/Pan Canvas Grid Viewport */}
-      <div style={{
+      <div ref={viewportContainerRef} style={{
         transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
         transformOrigin: '0 0',
         willChange: 'transform',
@@ -1645,71 +1766,71 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
             }}
           >
             {/* Modal Header Banner with Background Video Trailer */}
+            {/* Modal Header Banner with Background Video Trailer (Clean Unobstructed View) */}
             <div
               ref={modalTrailerContainerRef}
               style={{
-                position: 'relative',
-                width: '100%',
-                height: 330,
-                overflow: 'hidden',
-                borderRadius: '24px 24px 0 0',
-                background: '#09090b',
-                borderBottom: '1px solid var(--border)'
+                position: "relative",
+                width: "100%",
+                height: 240,
+                overflow: "hidden",
+                borderRadius: "24px 24px 0 0",
+                background: "#09090b",
+                borderBottom: "1px solid var(--border)"
               }}
             >
               {modalTrailer?.key ? (
-                <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+                <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
                   <iframe
                     ref={modalTrailerIframeRef}
                     src={`https://www.youtube-nocookie.com/embed/${modalTrailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${modalTrailer.key}&disablekb=1&widget_referrer=${window.location.origin}`}
                     title={`${selectedMovie.title} trailer`}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                    allowFullScreen
                     style={{
-                      position: 'absolute',
-                      top: '-20%',
-                      left: '-15%',
-                      width: '130%',
-                      height: '140%',
-                      border: 'none',
-                      pointerEvents: 'none',
-                      display: 'block'
+                      position: "absolute",
+                      top: "-20%",
+                      left: "-15%",
+                      width: "130%",
+                      height: "140%",
+                      border: "none",
+                      pointerEvents: "none",
+                      display: "block"
                     }}
                   />
 
                   {/* Smooth Cover Poster Backdrop while YouTube initial splash/controls fade */}
                   <div
                     style={{
-                      position: 'absolute',
+                      position: "absolute",
                       inset: 0,
                       opacity: isModalVideoReady ? 0 : 1,
-                      transition: 'opacity 0.5s ease',
-                      pointerEvents: 'none',
-                      background: '#09090b',
-                      overflow: 'hidden'
+                      transition: "opacity 0.5s ease",
+                      pointerEvents: "none",
+                      background: "#09090b",
+                      overflow: "hidden"
                     }}
                   >
                     <img
                       src={selectedMovie.poster_path || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="90" fill="%23888"><rect width="60" height="90"/></svg>'}
                       alt=""
                       style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        filter: 'blur(20px) brightness(0.45)',
-                        transform: 'scale(1.2)',
-                        display: 'block'
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        filter: "blur(20px) brightness(0.45)",
+                        transform: "scale(1.2)",
+                        display: "block"
                       }}
                     />
                   </div>
 
-                  {/* Cinematic Bottom & Edge Vignette Overlay */}
+                  {/* Top & Bottom Vignette for Controls Readability */}
                   <div
                     style={{
-                      position: 'absolute',
+                      position: "absolute",
                       inset: 0,
-                      background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.75) 100%)',
-                      pointerEvents: 'none'
+                      background: "linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 40%, rgba(0,0,0,0.4) 100%)",
+                      pointerEvents: "none"
                     }}
                   />
                 </div>
@@ -1719,199 +1840,207 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                     src={selectedMovie.poster_path || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="90" fill="%23888"><rect width="60" height="90"/></svg>'}
                     alt=""
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      filter: 'blur(20px) brightness(0.45)',
-                      transform: 'scale(1.2)',
-                      display: 'block'
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      filter: "blur(20px) brightness(0.45)",
+                      transform: "scale(1.2)",
+                      display: "block"
                     }}
                   />
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 20%, rgba(0,0,0,0.7) 100%)' }} />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.75) 100%)",
+                      display: "block"
+                    }}
+                  />
                 </>
               )}
 
-              {/* Action Buttons: Mute/Unmute, Fullscreen, and Close */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 16,
-                  right: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  zIndex: 20
-                }}
-              >
+              {/* Floating Top-Right Action Controls */}
+              <div style={{
+                position: "absolute",
+                top: 14,
+                right: 14,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                zIndex: 20
+              }}>
                 {modalTrailer?.key && (
                   <>
-                    {/* 1. Mute/Unmute Toggle */}
+                    {/* Audio Mute/Unmute Toggle */}
                     <button
                       type="button"
                       onClick={handleToggleModalMute}
-                      title={isModalMuted ? "Ovozni yoqish (Unmute)" : "Ovozsiz qilish (Mute)"}
+                      title={isModalMuted ? "Ovozni yoqish" : "Ovozni o'chirish"}
                       style={{
-                        border: isModalMuted ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(147, 197, 253, 0.6)',
-                        background: isModalMuted ? 'rgba(0, 0, 0, 0.65)' : 'rgba(59, 130, 246, 0.85)',
-                        backdropFilter: 'blur(12px)',
-                        WebkitBackdropFilter: 'blur(12px)',
-                        color: '#ffffff',
+                        background: "rgba(0, 0, 0, 0.75)",
+                        border: "1px solid rgba(255, 255, 255, 0.25)",
+                        borderRadius: "50%",
                         width: 36,
                         height: 36,
-                        borderRadius: 18,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                        transition: 'all 0.18s ease'
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#ffffff",
+                        cursor: "pointer",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        transition: "all 0.15s ease"
                       }}
-                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
-                      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = "var(--accent, #7c3aed)";
+                        e.currentTarget.style.borderColor = "var(--accent, #7c3aed)";
+                        e.currentTarget.style.transform = "scale(1.08)";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = "rgba(0, 0, 0, 0.75)";
+                        e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.25)";
+                        e.currentTarget.style.transform = "scale(1)";
+                      }}
                     >
                       {isModalMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                     </button>
 
-                    {/* 2. Fullscreen Button */}
+                    {/* Fullscreen Video Toggle */}
                     <button
                       type="button"
                       onClick={handleToggleModalFullscreen}
-                      title="Kattalashtirish (Fullscreen)"
+                      title={isModalFullscreen ? "Kichraytirish" : "To'liq ekranga olish"}
                       style={{
-                        border: '1px solid rgba(255, 255, 255, 0.25)',
-                        background: 'rgba(0, 0, 0, 0.65)',
-                        backdropFilter: 'blur(12px)',
-                        WebkitBackdropFilter: 'blur(12px)',
-                        color: '#ffffff',
+                        background: "rgba(0, 0, 0, 0.75)",
+                        border: "1px solid rgba(255, 255, 255, 0.25)",
+                        borderRadius: "50%",
                         width: 36,
                         height: 36,
-                        borderRadius: 18,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-                        transition: 'all 0.18s ease'
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#ffffff",
+                        cursor: "pointer",
+                        backdropFilter: "blur(8px)",
+                        WebkitBackdropFilter: "blur(8px)",
+                        transition: "all 0.15s ease"
                       }}
-                      onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
-                      onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = "var(--accent, #7c3aed)";
+                        e.currentTarget.style.borderColor = "var(--accent, #7c3aed)";
+                        e.currentTarget.style.transform = "scale(1.08)";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = "rgba(0, 0, 0, 0.75)";
+                        e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.25)";
+                        e.currentTarget.style.transform = "scale(1)";
+                      }}
                     >
-                      <Maximize2 size={16} />
+                      {isModalFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                     </button>
                   </>
                 )}
 
-                {/* 3. Close Button */}
+                {/* Close Button */}
                 <button
                   type="button"
                   onClick={() => setSelectedMovie(null)}
-                  title={t('common.close')}
+                  title="Yopish"
                   style={{
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                    background: 'rgba(0, 0, 0, 0.7)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    color: '#ffffff',
+                    background: "rgba(0, 0, 0, 0.75)",
+                    border: "1px solid rgba(255, 255, 255, 0.25)",
+                    borderRadius: "50%",
                     width: 36,
                     height: 36,
-                    borderRadius: 18,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                    transition: 'all 0.18s ease'
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#ffffff",
+                    cursor: "pointer",
+                    backdropFilter: "blur(8px)",
+                    WebkitBackdropFilter: "blur(8px)",
+                    transition: "all 0.15s ease"
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)'
-                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 1)'
-                    e.currentTarget.style.color = '#fff'
-                    e.currentTarget.style.transform = 'scale(1.08)'
+                    e.currentTarget.style.background = "rgba(239, 68, 68, 0.9)";
+                    e.currentTarget.style.borderColor = "rgba(239, 68, 68, 1)";
+                    e.currentTarget.style.color = "#fff";
+                    e.currentTarget.style.transform = "scale(1.08)";
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)'
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
-                    e.currentTarget.style.color = '#ffffff'
-                    e.currentTarget.style.transform = 'scale(1)'
+                    e.currentTarget.style.background = "rgba(0, 0, 0, 0.75)";
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.25)";
+                    e.currentTarget.style.color = "#ffffff";
+                    e.currentTarget.style.transform = "scale(1)";
                   }}
                 >
                   <X size={18} />
                 </button>
               </div>
+            </div>
 
-              {/* Poster & Main Header Info */}
-              <div style={{ position: 'absolute', bottom: 18, left: 28, right: 28, display: 'flex', gap: 22, alignItems: 'flex-end', zIndex: 5 }}>
+            {/* Modal Body Info with Clean Title & Poster Flow Below Trailer */}
+            <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+              {/* Poster + Title Section */}
+              <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginTop: -48, position: "relative", zIndex: 10 }}>
                 <img
                   src={selectedMovie.poster_path}
                   alt={selectedMovie.title}
                   style={{
-                    width: 130,
-                    height: 190,
-                    objectFit: 'cover',
-                    borderRadius: 16,
-                    boxShadow: '0 16px 36px rgba(0, 0, 0, 0.7)',
-                    border: '2px solid rgba(255, 255, 255, 0.25)',
+                    width: 105,
+                    height: 155,
+                    objectFit: "cover",
+                    borderRadius: 14,
+                    boxShadow: "0 12px 32px rgba(0, 0, 0, 0.65)",
+                    border: "2px solid rgba(255, 255, 255, 0.2)",
+                    background: "var(--bg-surface)",
                     flexShrink: 0
                   }}
                 />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ flex: 1, minWidth: 0, paddingTop: 52 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6, flexWrap: "wrap" }}>
                     <span style={{
-                      background: 'rgba(0, 0, 0, 0.65)',
-                      backdropFilter: 'blur(8px)',
-                      WebkitBackdropFilter: 'blur(8px)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      padding: '3px 10px',
-                      borderRadius: 10,
-                      fontSize: 12,
+                      background: "rgba(192, 132, 252, 0.15)",
+                      border: "1px solid rgba(192, 132, 252, 0.4)",
+                      padding: "2px 8px",
+                      borderRadius: 8,
+                      fontSize: 11.5,
                       fontWeight: 800,
-                      color: '#c084fc'
+                      color: "#c084fc"
                     }}>
                       #{selectedMovie.chronology_index || 1}
                     </span>
                     {selectedMovie.rating ? (
                       <span style={{
-                        background: 'rgba(0, 0, 0, 0.65)',
-                        backdropFilter: 'blur(8px)',
-                        WebkitBackdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(251, 191, 36, 0.35)',
-                        padding: '3px 9px',
-                        borderRadius: 10,
-                        color: '#fbbf24',
-                        fontSize: 12.5,
+                        background: "rgba(251, 191, 36, 0.15)",
+                        border: "1px solid rgba(251, 191, 36, 0.4)",
+                        padding: "2px 8px",
+                        borderRadius: 8,
+                        color: "#fbbf24",
+                        fontSize: 12,
                         fontWeight: 700,
-                        display: 'inline-flex',
-                        alignItems: 'center',
+                        display: "inline-flex",
+                        alignItems: "center",
                         gap: 4
                       }}>
-                        <Star size={13} fill="#fbbf24" color="#fbbf24" /> {selectedMovie.rating}
+                        <Star size={12} fill="#fbbf24" color="#fbbf24" /> {selectedMovie.rating}
                       </span>
                     ) : null}
+                    <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>
+                      {selectedMovie.release_year || selectedMovie.release_date?.split("-")[0] || "-"}
+                    </span>
                   </div>
                   <div style={{
-                    fontSize: 26,
+                    fontSize: 22,
                     fontWeight: 800,
-                    color: '#ffffff',
-                    lineHeight: 1.25,
-                    textShadow: '0 2px 16px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,0.8)'
+                    color: "var(--text-primary)",
+                    lineHeight: 1.25
                   }}>
                     {selectedMovie.title}
                   </div>
-                  <div style={{
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: 'rgba(255, 255, 255, 0.85)',
-                    marginTop: 5,
-                    textShadow: '0 1px 6px rgba(0,0,0,0.9)'
-                  }}>
-                    {selectedMovie.release_year || selectedMovie.release_date?.split('-')[0] || '-'}
-                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Modal Body Info */}
-            <div style={{ padding: '28px 34px', display: 'flex', flexDirection: 'column', gap: 24 }}>
               {/* Board Status Pill / Add Button */}
               {(() => {
                 const sStyle = getSectionStyle(selectedMovie.user_movie?.section)

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Star, Calendar, X, Trash2, Clock, Sparkles, Film, Check, Play, Ticket, ExternalLink, MapPin, Volume2, VolumeX, Maximize2 } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getStoredUserLocation } from '../../services/geo.js'
@@ -486,6 +487,9 @@ function MovieCard({
 
   const [hovered, setHovered] = useState(false)
   const [isTouchDragging, setIsTouchDragging] = useState(false)
+  const [dragMetrics, setDragMetrics] = useState({ x: 0, y: 0, offsetX: 0, offsetY: 0, width: 260, height: 116 })
+  const dragMetricsRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0, width: 260, height: 116 })
+  const portalGhostRef = useRef(null)
   const [touchDelta, setTouchDelta] = useState({ x: 0, y: 0 })
   const [userRating, setUserRating] = useState(movie?.user_rating || null)
   const [watchProvider, setWatchProvider] = useState(null)
@@ -710,7 +714,6 @@ function MovieCard({
     isTouchSessionRef.current = true
     touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: now }
     isTouchDraggingRef.current = false
-    setTouchDelta({ x: 0, y: 0 })
     setHovered(false)
   }
 
@@ -726,16 +729,28 @@ function MovieCard({
       const held = Date.now() - touchStartPos.current.time
 
       if (!isTouchDraggingRef.current) {
-        if (dist > 10 && held > 80 && !noDrag) {
+        if (dist > 8 && held > 60 && !noDrag) {
           isTouchDraggingRef.current = true
+          const rect = el.getBoundingClientRect()
+          const metrics = {
+            x: touch.clientX,
+            y: touch.clientY,
+            offsetX: touch.clientX - rect.left,
+            offsetY: touch.clientY - rect.top,
+            width: rect.width,
+            height: rect.height
+          }
+          dragMetricsRef.current = metrics
+          setDragMetrics(metrics)
           setIsTouchDragging(true)
-          setTouchDelta({ x: dx, y: dy })
           onTouchDragStart?.(movie, touch.clientX, touch.clientY)
         }
       }
 
       if (isTouchDraggingRef.current) {
-        setTouchDelta({ x: dx, y: dy })
+        dragMetricsRef.current.x = touch.clientX
+        dragMetricsRef.current.y = touch.clientY
+        setDragMetrics(prev => ({ ...prev, x: touch.clientX, y: touch.clientY }))
         onTouchDragMove?.(movie, touch.clientX, touch.clientY)
       }
     }
@@ -751,7 +766,6 @@ function MovieCard({
     if (isTouchDraggingRef.current) {
       isTouchDraggingRef.current = false
       setIsTouchDragging(false)
-      setTouchDelta({ x: 0, y: 0 })
       const finalX = touch?.clientX || touchStartPos.current.x
       const finalY = touch?.clientY || touchStartPos.current.y
       onTouchDragEnd?.(movie, finalX, finalY)
@@ -766,7 +780,6 @@ function MovieCard({
     if (isTouchDraggingRef.current) {
       isTouchDraggingRef.current = false
       setIsTouchDragging(false)
-      setTouchDelta({ x: 0, y: 0 })
       onTouchDragEnd?.(movie, touchStartPos.current.x, touchStartPos.current.y)
     }
   }
@@ -794,20 +807,17 @@ function MovieCard({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
       style={{
-        background: isVisuallyExpanded ? 'var(--bg-surface)' : (isTouchDragging ? 'var(--bg-card-hover)' : 'var(--bg-card)'),
-        border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px solid var(--accent, #7c3aed)' : '1px solid var(--border)'),
+        background: isVisuallyExpanded ? 'var(--bg-surface)' : (isTouchDragging ? 'transparent' : 'var(--bg-card)'),
+        border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px dashed var(--accent, #a78bfa)' : '1px solid var(--border)'),
         borderRadius: 14,
         boxShadow: 'none',
         cursor: isCardExpanded ? 'default' : 'pointer',
         overflow: 'hidden',
         maxHeight: renderExpanded ? (isVisuallyExpanded ? 1100 : 116) : 'none',
-        transition: 'max-height 0.28s cubic-bezier(0.05, 0.9, 0.1, 1), border-color 0.18s ease, background 0.18s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.05, 0.9, 0.1, 1)',
-        transform: isTouchDragging ? `translate3d(${touchDelta.x}px, ${touchDelta.y}px, 0) scale(1.04)` : 'none',
-        zIndex: isTouchDragging ? 99999 : (isCardExpanded ? 15 : 1),
-        opacity: isTouchDragging ? 0.95 : 1,
+        transition: 'max-height 0.28s cubic-bezier(0.05, 0.9, 0.1, 1), border-color 0.18s ease, background 0.18s ease, box-shadow 0.2s ease',
+        opacity: isTouchDragging ? 0.35 : 1,
         touchAction: isCardExpanded ? 'auto' : 'none',
         WebkitTouchCallout: 'none',
-        pointerEvents: isTouchDragging ? 'none' : 'auto',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -1025,8 +1035,7 @@ function MovieCard({
                   ref={trailerIframeRef}
                   src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${trailer.key}&disablekb=1&widget_referrer=${window.location.origin}`}
                   title={`${displayTitle} trailer`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   style={{
                     position: 'absolute',
                     top: '-20%',
@@ -1516,10 +1525,89 @@ function MovieCard({
           onClose={() => setShowRatingModal(false)}
         />
       )}
+
+      {isTouchDragging && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            left: dragMetrics.x - dragMetrics.offsetX,
+            top: dragMetrics.y - dragMetrics.offsetY,
+            width: dragMetrics.width,
+            minHeight: dragMetrics.height,
+            zIndex: 99999999,
+            pointerEvents: 'none',
+            borderRadius: 14,
+            background: 'var(--bg-surface)',
+            border: '1.5px solid var(--accent, #7c3aed)',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.85), 0 0 0 2px var(--accent, #7c3aed)',
+            transform: 'scale(1.04) rotate(1deg)',
+            transition: 'transform 0.08s ease',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'stretch',
+            userSelect: 'none',
+            boxSizing: 'border-box'
+          }}
+        >
+          {movie.poster_path ? (
+            <div className="movie-poster-thumb" style={{
+              width: 82,
+              minWidth: 82,
+              flexShrink: 0,
+              overflow: 'hidden',
+              borderRadius: '13px 0 0 13px',
+              background: '#08080a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <img
+                src={movie.poster_path}
+                alt=""
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
+            </div>
+          ) : (
+            <div className="movie-poster-thumb" style={{
+              width: 82,
+              minWidth: 82,
+              flexShrink: 0,
+              borderRadius: '13px 0 0 13px',
+              background: '#141414',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted)',
+            }}>
+              <Film size={22} color="var(--text-muted)" />
+            </div>
+          )}
+          <div className="movie-info-wrap" style={{ flex: 1, padding: '10px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
+            <div className="movie-card-title" style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {displayTitle}
+            </div>
+            {movie.vote_average > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                <Star size={12} fill="#eab308" color="#eab308" />
+                <span style={{ fontWeight: 700, color: '#eab308' }}>{Number(movie.vote_average).toFixed(1)}</span>
+                {effectiveUserRating && (
+                  <span style={{ marginLeft: 6, background: '#3b82f6', color: '#fff', fontSize: 10.5, fontWeight: 700, padding: '1px 5px', borderRadius: 4 }}>
+                    ★ {effectiveUserRating}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
 
 export default React.memo(MovieCard)
-
-

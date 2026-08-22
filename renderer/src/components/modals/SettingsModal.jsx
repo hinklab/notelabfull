@@ -179,19 +179,24 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
           })}
         </div>
 
-        {/* Fixed Height Viewport with Horizontal Sliding Track */}
-        <div style={{ minHeight: 440, maxHeight: '65vh', overflowY: 'auto', position: 'relative', width: '100%' }}>
-          <div
-            style={{
-              display: 'flex',
-              width: '300%',
-              minHeight: 440,
-              transform: `translateX(-${activeIndex * (100 / 3)}%)`,
-              transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-          >
-            {/* SLIDE 0: TAB 1 - Profil */}
-            <div style={{ width: '33.3333%', padding: 24, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Modal Scrollable Content Container */}
+        <div
+          style={{
+            flex: 1,
+            maxHeight: 'calc(80vh - 110px)',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            padding: 24,
+            boxSizing: 'border-box',
+            WebkitOverflowScrolling: 'touch',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 20
+          }}
+        >
+          {/* TAB 1: Profil */}
+          {activeTab === 'profile' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
                   {t('settings.email')}
@@ -327,9 +332,11 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                 </button>
               </div>
             </div>
+          )}
 
-            {/* SLIDE 1: TAB 2 - Ko'rinish & Til */}
-            <div style={{ width: '33.3333%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* TAB 2: Ko'rinish & Til */}
+          {activeTab === 'appearance' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* Language Selection Section */}
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -396,6 +403,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <button
+                    type="button"
                     onClick={() => handleThemeChange('dark')}
                     style={{
                       background: theme === 'dark' ? 'rgba(124,58,237,0.18)' : 'var(--bg-input)',
@@ -416,6 +424,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                     <Moon size={16} /> {t('settings.darkTheme')}
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleThemeChange('light')}
                     style={{
                       background: theme === 'light' ? 'rgba(124,58,237,0.18)' : 'var(--bg-input)',
@@ -503,9 +512,11 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                 </div>
               </div>
             </div>
+          )}
 
-            {/* SLIDE 2: TAB 3 - Chiqish */}
-            <div style={{ width: '33.3333%', height: '100%', padding: 24, boxSizing: 'border-box', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* TAB 3: Chiqish */}
+          {activeTab === 'logout' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
                 {t('settings.logout')}
               </div>
@@ -514,6 +525,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
               </p>
               <div style={{ marginTop: 12 }}>
                 <button
+                  type="button"
                   onClick={() => {
                     onClose()
                     logout()
@@ -537,7 +549,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                 </button>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>,

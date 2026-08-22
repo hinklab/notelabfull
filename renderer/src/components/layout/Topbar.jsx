@@ -200,51 +200,47 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
           }}>
             <button
               type="button"
+              title={t('nav.movies')}
               onClick={() => onViewChange && onViewChange('movies')}
               style={{
                 border: 'none',
                 background: activeView === 'movies' ? 'var(--accent, #7c3aed)' : 'transparent',
                 color: activeView === 'movies' ? '#ffffff' : 'var(--text-muted)',
-                fontSize: 12,
-                fontWeight: 600,
-                padding: '4px 10px',
+                padding: '6px 9px',
                 borderRadius: 16,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 5,
+                justifyContent: 'center',
                 transition: 'all 0.15s ease',
               }}
             >
-              <Film size={13} />
-              <span>{t('nav.movies')}</span>
+              <Film size={15} />
             </button>
             <button
               type="button"
+              title={t('nav.space')}
               onClick={() => onViewChange && onViewChange('space')}
               style={{
                 border: 'none',
                 background: activeView === 'space' ? 'var(--accent, #7c3aed)' : 'transparent',
                 color: activeView === 'space' ? '#ffffff' : 'var(--text-muted)',
-                fontSize: 12,
-                fontWeight: 600,
-                padding: '4px 10px',
+                padding: '6px 9px',
                 borderRadius: 16,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 5,
+                justifyContent: 'center',
                 transition: 'all 0.15s ease',
               }}
             >
-              <Sparkles size={13} />
-              <span>{t('nav.space')}</span>
+              <Sparkles size={15} />
             </button>
           </div>
         </span>
       </div>
 
-      <div className="topbar-search-container" style={{ flex: '1 1 auto', minWidth: 60, maxWidth: 480, margin: '0 8px', display: 'flex', justifyContent: 'center' }}>
+      <div className="topbar-search-container" style={{ flex: '1 1 auto', minWidth: 60, maxWidth: 620, margin: '0 10px', display: 'flex', justifyContent: 'center' }}>
         <input
           type="search"
           name="notelab_search_field_query"

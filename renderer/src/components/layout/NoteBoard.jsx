@@ -1043,6 +1043,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       isColumnDraggingItem={draggingFromGroupId === group.id}
       onItemDragStart={(gId) => setDraggingFromGroupId(gId)}
       onItemDragEnd={() => setDraggingFromGroupId(null)}
+      isMobileVertical={isMobileVertical}
+      activeSection={activeSection}
+      groups={groups}
     />
   )
 
@@ -1091,9 +1094,21 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
             })}
           </div>
 
-          {/* Full-width Single Column in Mobile Vertical */}
+          {/* Full-width Single Column in Mobile Vertical (All columns remain mounted so drag stream is never severed) */}
           <div className="board-mobile-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-            {activeGroup && renderColumn(activeGroup)}
+            {groups.map(g => (
+              <div
+                key={g.id}
+                style={{
+                  display: g.section_key === activeSection ? 'flex' : 'none',
+                  flexDirection: 'column',
+                  flex: 1,
+                  minWidth: 0
+                }}
+              >
+                {renderColumn(g)}
+              </div>
+            ))}
           </div>
 
           {/* Floating Side Arrow Buttons for Easy Column Navigation */}
@@ -1320,7 +1335,10 @@ onSaveRating,
   onDragHoverEdgeEnd,
   isColumnDraggingItem,
   onItemDragStart,
-  onItemDragEnd
+  onItemDragEnd,
+  isMobileVertical,
+  activeSection,
+  groups
 }) {
   const { t } = useLanguage()
   const color = group.color || '#a78bfa'
@@ -1597,13 +1615,26 @@ onSaveRating,
 
     let targetGroupId = null
 
-    // 1. Check all column bounding rectangles (100% reliable across landscape & portrait)
-    const allColEls = Array.from(document.querySelectorAll('.note-column[data-group-id]'))
-    for (const col of allColEls) {
-      const rect = col.getBoundingClientRect()
-      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-        targetGroupId = col.dataset.groupId
-        break
+    // 0. In mobile vertical single-column mode, target is ALWAYS the active visible tab/column on screen!
+    if (isMobileVertical) {
+      const activeTabBtn = document.querySelector('.board-mobile-tab-btn.active[data-group-id]')
+      if (activeTabBtn?.dataset?.groupId) {
+        targetGroupId = activeTabBtn.dataset.groupId
+      } else if (activeSection && Array.isArray(groups)) {
+        const activeG = groups.find(g => g.section_key === activeSection)
+        if (activeG) targetGroupId = activeG.id
+      }
+    }
+
+    // 1. Check all column bounding rectangles (100% reliable across landscape)
+    if (!targetGroupId) {
+      const allColEls = Array.from(document.querySelectorAll('.note-column[data-group-id]'))
+      for (const col of allColEls) {
+        const rect = col.getBoundingClientRect()
+        if (rect.width > 0 && clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          targetGroupId = col.dataset.groupId
+          break
+        }
       }
     }
 
