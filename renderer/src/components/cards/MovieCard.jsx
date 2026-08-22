@@ -735,12 +735,14 @@ function MovieCard({
       }
 
       if (isTouchDraggingRef.current) {
-        e.preventDefault()
+        if (e.cancelable) {
+          e.preventDefault()
+        }
         setTouchDelta({ x: dx, y: dy })
         onTouchDragMove?.(movie, touch.clientX, touch.clientY)
       }
     }
-    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchmove', onMove, { passive: true })
     return () => el.removeEventListener('touchmove', onMove)
   }, [noDrag, movie, onTouchDragStart, onTouchDragMove, isCardExpanded])
 

@@ -887,7 +887,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     if (!el) return
     const ro = new ResizeObserver(entries => {
       for (const entry of entries) {
-        setIsCompact(entry.contentRect.width < 700)
+        const isNarrow = entry.contentRect.width < 780;
+        const isShortLandscape = entry.contentRect.width < 1000 && window.innerHeight < 550;
+        setIsCompact(isNarrow || isShortLandscape);
       }
     })
     ro.observe(el)
@@ -1613,6 +1615,7 @@ function NoteColumn({
                   e.dataTransfer.setData('fromGroup', String(group.id))
                   e.dataTransfer.effectAllowed = 'move'
                 }}
+                onTouchDragStart={(movie, x, y) => handleTouchDragStart?.(item, x, y)}
                 onTouchDragMove={(movie, x, y) => handleTouchDragMove(item, x, y)}
                 onTouchDragEnd={(movie, x, y) => handleTouchDragEnd(item, x, y)}
                 onOpenChronology={onOpenChronology}
