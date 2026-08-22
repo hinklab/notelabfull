@@ -1634,8 +1634,8 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
             className="smooth-modal-content"
             style={{
               position: 'relative',
-              width: 'min(740px, 94vw)',
-              maxHeight: '90vh',
+              width: 'min(920px, 95vw)',
+              maxHeight: '92vh',
               overflowY: 'auto',
               background: 'var(--space-modal-bg)',
               border: '1px solid var(--space-modal-border)',
@@ -1650,7 +1650,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               style={{
                 position: 'relative',
                 width: '100%',
-                height: 270,
+                height: 330,
                 overflow: 'hidden',
                 borderRadius: '24px 24px 0 0',
                 background: '#09090b',
@@ -1840,30 +1840,30 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               </div>
 
               {/* Poster & Main Header Info */}
-              <div style={{ position: 'absolute', bottom: 16, left: 24, right: 24, display: 'flex', gap: 20, alignItems: 'flex-end', zIndex: 5 }}>
+              <div style={{ position: 'absolute', bottom: 18, left: 28, right: 28, display: 'flex', gap: 22, alignItems: 'flex-end', zIndex: 5 }}>
                 <img
                   src={selectedMovie.poster_path}
                   alt={selectedMovie.title}
                   style={{
-                    width: 110,
-                    height: 160,
+                    width: 130,
+                    height: 190,
                     objectFit: 'cover',
-                    borderRadius: 14,
-                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6)',
-                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: 16,
+                    boxShadow: '0 16px 36px rgba(0, 0, 0, 0.7)',
+                    border: '2px solid rgba(255, 255, 255, 0.25)',
                     flexShrink: 0
                   }}
                 />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <span style={{
                       background: 'rgba(0, 0, 0, 0.65)',
                       backdropFilter: 'blur(8px)',
                       WebkitBackdropFilter: 'blur(8px)',
                       border: '1px solid rgba(255, 255, 255, 0.3)',
-                      padding: '2px 9px',
+                      padding: '3px 10px',
                       borderRadius: 10,
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: 800,
                       color: '#c084fc'
                     }}>
@@ -1875,33 +1875,33 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                         backdropFilter: 'blur(8px)',
                         WebkitBackdropFilter: 'blur(8px)',
                         border: '1px solid rgba(251, 191, 36, 0.35)',
-                        padding: '2px 8px',
+                        padding: '3px 9px',
                         borderRadius: 10,
                         color: '#fbbf24',
-                        fontSize: 12,
+                        fontSize: 12.5,
                         fontWeight: 700,
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: 3
+                        gap: 4
                       }}>
-                        <Star size={12} fill="#fbbf24" color="#fbbf24" /> {selectedMovie.rating}
+                        <Star size={13} fill="#fbbf24" color="#fbbf24" /> {selectedMovie.rating}
                       </span>
                     ) : null}
                   </div>
                   <div style={{
-                    fontSize: 23,
+                    fontSize: 26,
                     fontWeight: 800,
                     color: '#ffffff',
                     lineHeight: 1.25,
-                    textShadow: '0 2px 14px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,0.8)'
+                    textShadow: '0 2px 16px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,0.8)'
                   }}>
                     {selectedMovie.title}
                   </div>
                   <div style={{
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 500,
                     color: 'rgba(255, 255, 255, 0.85)',
-                    marginTop: 4,
+                    marginTop: 5,
                     textShadow: '0 1px 6px rgba(0,0,0,0.9)'
                   }}>
                     {selectedMovie.release_year || selectedMovie.release_date?.split('-')[0] || '-'}
@@ -1911,7 +1911,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
             </div>
 
             {/* Modal Body Info */}
-            <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ padding: '28px 34px', display: 'flex', flexDirection: 'column', gap: 24 }}>
               {/* Board Status Pill / Add Button */}
               {(() => {
                 const sStyle = getSectionStyle(selectedMovie.user_movie?.section)
@@ -1919,21 +1919,21 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   <div style={{
                     background: 'var(--space-panel-bg)',
                     border: '1px solid var(--border)',
-                    borderRadius: 18,
-                    padding: '16px 20px',
+                    borderRadius: 20,
+                    padding: '18px 22px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     flexWrap: 'wrap',
-                    gap: 14
+                    gap: 16
                   }}>
                     {selectedMovie.in_board ? (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 10,
+                            width: 38,
+                            height: 38,
+                            borderRadius: 12,
                             background: 'rgba(52, 211, 153, 0.15)',
                             border: '1px solid rgba(52, 211, 153, 0.3)',
                             display: 'flex',
@@ -1941,37 +1941,37 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                             justifyContent: 'center',
                             color: '#34d399'
                           }}>
-                            <CheckCircle size={18} />
+                            <CheckCircle size={20} />
                           </div>
                           <div>
-                            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.inYourColumn')}</div>
-                            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{t('space.inBoardStatus')}</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.inYourColumn')}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t('space.inBoardStatus')}</div>
                           </div>
                         </div>
                         <div style={{
                           background: sStyle.badgeBg,
                           border: `1px solid ${sStyle.badgeBorder}`,
                           color: sStyle.color,
-                          borderRadius: 10,
-                          padding: '6px 14px',
-                          fontSize: 12.5,
+                          borderRadius: 12,
+                          padding: '7px 16px',
+                          fontSize: 13,
                           fontWeight: 700,
                           letterSpacing: '0.5px',
                           display: 'flex',
                           alignItems: 'center',
                           gap: 6
                         }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: sStyle.color }} />
+                          <span style={{ width: 7, height: 7, borderRadius: '50%', background: sStyle.color }} />
                           {t(`sections.${selectedMovie.user_movie?.section || 'todo'}_short`, null, sStyle.short)}
                         </div>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 8,
+                            width: 32,
+                            height: 32,
+                            borderRadius: 10,
                             background: 'rgba(139, 92, 246, 0.14)',
                             border: '1px solid rgba(139, 92, 246, 0.3)',
                             display: 'flex',
@@ -1979,19 +1979,19 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                             justifyContent: 'center',
                             color: 'var(--accent)'
                           }}>
-                            <Plus size={15} />
+                            <Plus size={16} />
                           </div>
                           <div>
-                            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.notInYourColumn')}</div>
-                            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{t('space.selectColumnHint', null, 'Kerakli ustunga bitta bosish bilan qo\'shing:')}</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t('space.notInYourColumn')}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t('space.selectColumnHint', null, 'Kerakli ustunga bitta bosish bilan qo\'shing:')}</div>
                           </div>
                         </div>
 
                         {/* NoteLab 4-Column Sleek Quick-Add Buttons */}
                         <div style={{
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-                          gap: 10,
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                          gap: 12,
                           marginTop: 2
                         }}>
                           {[
@@ -2013,14 +2013,14 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                                 style={{
                                   background: col.bg,
                                   border: `1px solid ${col.border}`,
-                                  borderRadius: 14,
-                                  padding: '12px 10px',
+                                  borderRadius: 16,
+                                  padding: '14px 12px',
                                   cursor: Boolean(addingMovieId) ? 'not-allowed' : 'pointer',
                                   display: 'flex',
                                   flexDirection: 'column',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  gap: 6,
+                                  gap: 7,
                                   color: col.dot,
                                   transition: 'all 0.18s ease',
                                   boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
@@ -2039,11 +2039,11 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                                 }}
                               >
                                 {isThisLoading ? (
-                                  <Loader2 size={16} className="animate-spin" style={{ color: col.dot }} />
+                                  <Loader2 size={18} className="animate-spin" style={{ color: col.dot }} />
                                 ) : (
-                                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot, flexShrink: 0, boxShadow: `0 0 8px ${col.dot}` }} />
+                                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: col.dot, flexShrink: 0, boxShadow: `0 0 8px ${col.dot}` }} />
                                 )}
-                                <span style={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                <span style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap' }}>
                                   {col.label}
                                 </span>
                               </button>
@@ -2057,25 +2057,25 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               })()}
 
               {/* Tags & Meta Details */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, fontSize: 13 }}>
                 {selectedMovie.release_date && (
-                  <span style={{ background: 'var(--space-chip-bg)', borderRadius: 8, padding: '5px 12px', color: 'var(--space-chip-color)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Calendar size={12} color="var(--accent)" /> {formatReleaseDate(selectedMovie.release_date, language)}
+                  <span style={{ background: 'var(--space-chip-bg)', borderRadius: 10, padding: '7px 15px', color: 'var(--space-chip-color)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Calendar size={13} color="var(--accent)" /> {formatReleaseDate(selectedMovie.release_date, language)}
                   </span>
                 )}
                 {selectedMovie.genre && selectedMovie.genre !== '-' && (
-                  <span style={{ background: 'var(--space-chip-bg)', borderRadius: 8, padding: '5px 12px', color: 'var(--space-chip-color)' }}>
+                  <span style={{ background: 'var(--space-chip-bg)', borderRadius: 10, padding: '7px 15px', color: 'var(--space-chip-color)' }}>
                     {selectedMovie.genre}
                   </span>
                 )}
                 {selectedMovie.director && selectedMovie.director !== '-' && (
-                  <span style={{ background: 'var(--space-chip-bg)', borderRadius: 8, padding: '5px 12px', color: 'var(--space-chip-color)' }}>
+                  <span style={{ background: 'var(--space-chip-bg)', borderRadius: 10, padding: '7px 15px', color: 'var(--space-chip-color)' }}>
                     {t('card.director')}: {selectedMovie.director}
                   </span>
                 )}
                 {selectedMovie.seasons && selectedMovie.seasons !== '-' && (
-                  <span style={{ background: 'var(--space-chip-bg)', borderRadius: 8, padding: '5px 12px', color: 'var(--space-chip-color)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Clock size={12} color="var(--accent)" /> {selectedMovie.seasons}
+                  <span style={{ background: 'var(--space-chip-bg)', borderRadius: 10, padding: '7px 15px', color: 'var(--space-chip-color)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Clock size={13} color="var(--accent)" /> {selectedMovie.seasons}
                   </span>
                 )}
               </div>
@@ -2083,10 +2083,10 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               {/* Overview / Story Plot */}
               {selectedMovie.overview && (
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     {t('space.storyPlot')}
                   </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-primary)' }}>
+                  <div style={{ fontSize: 14.5, lineHeight: 1.7, color: 'var(--text-primary)' }}>
                     {selectedMovie.overview}
                   </div>
                 </div>
