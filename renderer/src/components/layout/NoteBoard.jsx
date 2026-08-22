@@ -881,6 +881,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
   const boardRef = useRef(null)
   const [isMobileVertical, setIsMobileVertical] = useState(false)
   const [activeSection, setActiveSection] = useState(null)
+  const [draggingFromGroupId, setDraggingFromGroupId] = useState(null)
   const [edgeHoverSide, setEdgeHoverSide] = useState(null)
   const edgeTimerRef = useRef(null)
 
@@ -1039,6 +1040,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       onGroupDrop={handleGroupDrop}
       onDragHoverEdge={handleDragHoverEdge}
       onDragHoverEdgeEnd={clearEdgeHover}
+      isColumnDraggingItem={draggingFromGroupId === group.id}
+      onItemDragStart={(gId) => setDraggingFromGroupId(gId)}
+      onItemDragEnd={() => setDraggingFromGroupId(null)}
     />
   )
 
@@ -1654,7 +1658,7 @@ function NoteColumn({
           handleDrop(e)
         }
       }}
-      style={{ background: 'var(--bg-surface)', borderRadius: 10, border: `1px solid ${isDragging ? color : 'var(--border)'}`, flexShrink: 0, opacity: isDragging ? 0.5 : 1, transition: 'opacity 0.15s, border-color 0.15s' }}
+      style={{ background: 'var(--bg-surface)', borderRadius: 10, border: `1px solid ${isDragging ? color : 'var(--border)'}`, flexShrink: 0, opacity: isDragging ? 0.5 : 1, transition: 'opacity 0.15s, border-color 0.15s', position: 'relative', zIndex: isColumnDraggingItem ? 9999 : 1 }}
     >
       <div
         className="column-header-sticky"
@@ -1722,6 +1726,7 @@ function NoteColumn({
           borderRadius: shouldCollapse ? '0' : '0 0 10px 10px',
           transition: 'max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), outline 0.1s',
           maxHeight: shouldCollapse ? collapsedHeight : 'none',
+          overflow: isColumnDraggingItem ? 'visible' : (shouldCollapse ? 'hidden' : 'visible'),
           overflow: shouldCollapse ? 'hidden' : 'visible',
           position: 'relative',
           maskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 65px), transparent 100%)' : 'none',

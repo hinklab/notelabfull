@@ -661,3 +661,25 @@ input, textarea, [contenteditable="true"] {
     display: none !important;
   }
 }
+
+
+/* ══════════════════════════════════════════════════════ */
+/* DRAG AND DROP HIGH-FIDELITY LAYERING                 */
+/* ══════════════════════════════════════════════════════ */
+
+.board {
+  position: relative;
+  z-index: 1;
+}
+
+.note-column {
+  position: relative;
+  transition: z-index 0s, border-color 0.15s, background 0.15s;
+}
+
+.movie-card-drag-active {
+  z-index: 999999 !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 0 2px var(--accent, #7c3aed) !important;
+  opacity: 0.96 !important;
+  pointer-events: none !important;
+}
