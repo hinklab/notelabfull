@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { BookOpen, Eye, EyeOff } from 'lucide-react'
+import { BookOpen, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext.jsx'
 
-export default function RegisterPage({ onSwitch }) {
+export default function RegisterPage({ onSwitch, onBack }) {
   const { register } = useAuth()
   const { t } = useLanguage()
   const [email, setEmail] = useState('')
@@ -13,6 +13,25 @@ export default function RegisterPage({ onSwitch }) {
   const [showConfirm, setShowConfirm] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    return document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark'
+  })
+
+  useEffect(() => {
+    const updateTheme = () => {
+      const t = document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark'
+      setCurrentTheme(t)
+    }
+    window.addEventListener('storage', updateTheme)
+    window.addEventListener('notelab_theme_changed', updateTheme)
+    const observer = new MutationObserver(() => updateTheme())
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => {
+      window.removeEventListener('storage', updateTheme)
+      window.removeEventListener('notelab_theme_changed', updateTheme)
+      observer.disconnect()
+    }
+  }, [])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -42,12 +61,39 @@ export default function RegisterPage({ onSwitch }) {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: 12.5,
+              cursor: 'pointer',
+              marginBottom: 12,
+              alignSelf: 'flex-start',
+              padding: 0,
+              transition: 'color 0.15s ease'
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+          >
+            <ArrowLeft size={14} />
+            <span>{t('common.back', null, 'Bosh sahifa')}</span>
+          </button>
+        )}
+
         {/* Logo */}
-        <div style={styles.logo}>
-          <div style={styles.logoIconWrap}>
-            <BookOpen size={18} color="#a78bfa" />
-          </div>
-          <span className="font-logo" style={styles.logoText}>notelab</span>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+          <img
+            src={currentTheme === 'light' ? '/saqlab-logo-b.png' : '/saqlab-logo-w.png'}
+            alt="saqlab"
+            style={{ height: 24, width: 'auto', objectFit: 'contain' }}
+          />
         </div>
 
         <h2 style={styles.title}>{t('auth.registerTitle', null, 'Ro\'yxatdan o\'tish')}</h2>

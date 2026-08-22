@@ -1,9 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { BookOpen, ArrowLeft, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext.jsx'
 
-export default function LoginPage({ onSwitch }) {
+export default function LoginPage({ onSwitch, onBack }) {
   const { login } = useAuth()
   const { t } = useLanguage()
   const [email, setEmail] = useState('')
@@ -11,6 +11,25 @@ export default function LoginPage({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [currentTheme, setCurrentTheme] = useState(() => {
+    return document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark'
+  })
+
+  useEffect(() => {
+    const updateTheme = () => {
+      const t = document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark'
+      setCurrentTheme(t)
+    }
+    window.addEventListener('storage', updateTheme)
+    window.addEventListener('notelab_theme_changed', updateTheme)
+    const observer = new MutationObserver(() => updateTheme())
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => {
+      window.removeEventListener('storage', updateTheme)
+      window.removeEventListener('notelab_theme_changed', updateTheme)
+      observer.disconnect()
+    }
+  }, [])
 
   // Forgot password view state
   const [showForgot, setShowForgot] = useState(false)
@@ -60,18 +79,45 @@ export default function LoginPage({ onSwitch }) {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: 12.5,
+              cursor: 'pointer',
+              marginBottom: 12,
+              alignSelf: 'flex-start',
+              padding: 0,
+              transition: 'color 0.15s ease'
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+          >
+            <ArrowLeft size={14} />
+            <span>{t('common.back', null, 'Bosh sahifa')}</span>
+          </button>
+        )}
+
         {/* Logo */}
-        <div style={styles.logo}>
-          <div style={styles.logoIconWrap}>
-            <BookOpen size={18} color="#a78bfa" />
-          </div>
-          <span className="font-logo" style={styles.logoText}>notelab</span>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+          <img
+            src={currentTheme === 'light' ? '/saqlab-logo-b.png' : '/saqlab-logo-w.png'}
+            alt="saqlab"
+            style={{ height: 24, width: 'auto', objectFit: 'contain' }}
+          />
         </div>
 
         {!showForgot ? (
           <>
             <h2 style={styles.title}>{t('auth.loginTitle', null, 'Xush kelibsiz')}</h2>
-            <p style={styles.subtitle}>{t('auth.loginSubtitle', null, 'Notelab hisobingizga kiring')}</p>
+            <p style={styles.subtitle}>{t('auth.loginSubtitle', null, 'saqlab hisobingizga kiring')}</p>
 
             <form onSubmit={handleSubmit} style={styles.form}>
               <div style={styles.field}>

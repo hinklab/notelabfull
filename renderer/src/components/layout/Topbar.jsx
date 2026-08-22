@@ -4,6 +4,27 @@ import NotificationPanel from './NotificationPanel.jsx'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 
 export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onRefresh, refreshing, noteLabel, user, onLogout, onAddMovieSuccess, activeView = 'movies', onViewChange }) {
+  const [currentTheme, setCurrentTheme] = React.useState(() => {
+    return document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark';
+  });
+
+  React.useEffect(() => {
+    const updateTheme = () => {
+      const t = document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark';
+      setCurrentTheme(t);
+    };
+    window.addEventListener('storage', updateTheme);
+    window.addEventListener('notelab_theme_changed', updateTheme);
+
+    const observer = new MutationObserver(() => updateTheme());
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    return () => {
+      window.removeEventListener('storage', updateTheme);
+      window.removeEventListener('notelab_theme_changed', updateTheme);
+      observer.disconnect();
+    };
+  }, []);
   const { t } = useLanguage()
   const [showNotifications, setShowNotifications] = useState(false)
   const [notifications, setNotifications] = useState([])
@@ -165,9 +186,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
       }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 10, WebkitAppRegion: 'no-drag' }}>
-          <span className="font-logo" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.4px', color: 'var(--text-primary)' }}>
-            notelab
-          </span>
+          <img src={currentTheme === "light" ? "/saqlab-logo-b.png" : "/saqlab-logo-w.png"} alt="saqlab" style={{ height: 20, width: "auto", objectFit: "contain", display: "block" }} />
 
           {/* Navigation View Toggle: Movies vs Space */}
           <div style={{

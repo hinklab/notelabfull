@@ -1,3 +1,8 @@
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
 @import "tailwindcss";
 
 :root, [data-theme="dark"] {

@@ -4,6 +4,7 @@ import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard, { prefetchTrailer } from '../cards/MovieCard.jsx'
 import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
+import { getMovieFranchiseInfo } from '../../config/chronologyData.js'
 
 function hexToRgba(hex, alpha) {
   if (!hex || hex.length < 7) return `rgba(124,58,237,${alpha})`
@@ -180,11 +181,14 @@ function RatingStars10({ value, onChange }) {
 
 export function sortMoviesForSection(moviesList, sectionKey) {
   const isFutured = sectionKey === 'futured' || String(sectionKey) === '1' || String(sectionKey) === 'g_futured'
+  const isDone = sectionKey === 'done' || String(sectionKey) === '4' || String(sectionKey) === 'g_done'
+
   return [...moviesList].sort((a, b) => {
     const movieA = a._movie || a
     const movieB = b._movie || b
+
     if (isFutured) {
-      // Futured ONLY: nearest release date first -> furthest release date last (eng yaqin chiqish > eng oxirgi chiqish)
+      // 1. Futured ONLY: nearest release date first -> furthest release date last (eng yaqin chiqish > eng oxirgi chiqish)
       const parseDate = (d) => {
         if (!d || d === '-' || d === 'null' || d === 'undefined') return Infinity
         const ts = new Date(d).getTime()
@@ -198,9 +202,10 @@ export function sortMoviesForSection(moviesList, sectionKey) {
       const timeA = new Date(movieA.created_at || movieA.updated_at || 0).getTime()
       const timeB = new Date(movieB.created_at || movieB.updated_at || 0).getTime()
       return timeB - timeA
-    } else {
-      // Other 3 columns (To Do, Doing, Done):
-      // Most recently added movies MUST be at the top!
+    }
+
+    if (isDone) {
+      // 2. Done ONLY: Most recently added / completed movies at the top
       const posA = typeof movieA.position === 'number' ? movieA.position : 0
       const posB = typeof movieB.position === 'number' ? movieB.position : 0
       if (posA !== posB) return posA - posB
@@ -209,6 +214,28 @@ export function sortMoviesForSection(moviesList, sectionKey) {
       const timeB = new Date(movieB.created_at || movieB.updated_at || 0).getTime()
       return timeB - timeA
     }
+
+    // 3. To Do and Doing (Going):
+    // If movies belong to the SAME franchise / chronology universe,
+    // the earlier chapter/movie in the chronology order MUST be above the later one!
+    const fA = getMovieFranchiseInfo(movieA)
+    const fB = getMovieFranchiseInfo(movieB)
+
+    if (fA && fB && fA.universe_key === fB.universe_key) {
+      if (fA.chronology_index !== fB.chronology_index) {
+        return fA.chronology_index - fB.chronology_index
+      }
+    }
+
+    // Otherwise (different franchises or standalone movies):
+    // Position if explicitly reordered, else newest added first
+    const posA = typeof movieA.position === 'number' ? movieA.position : 0
+    const posB = typeof movieB.position === 'number' ? movieB.position : 0
+    if (posA !== posB) return posA - posB
+
+    const timeA = new Date(movieA.created_at || movieA.updated_at || 0).getTime()
+    const timeB = new Date(movieB.created_at || movieB.updated_at || 0).getTime()
+    return timeB - timeA
   })
 }
 
@@ -461,8 +488,14 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       genre: data.genre || '-',
       director: data.director || '-',
       overview: data.overview || '',
-      release_year: data.release_year || '-',
+      release_date: data.release_date || null,
+      release_year: data.release_year || (data.release_date ? data.release_date.split('-')[0] : '-'),
+      tmdb_id: data.tmdb_id || null,
+      imdb_id: data.imdb_id || null,
+      seasons: data.seasons || null,
       media_type: data.media_type || 'movie',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
       position: 0,
       _movie: {
         id: tempId,
@@ -474,8 +507,14 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         genre: data.genre || '-',
         director: data.director || '-',
         overview: data.overview || '',
-        release_year: data.release_year || '-',
+        release_date: data.release_date || null,
+        release_year: data.release_year || (data.release_date ? data.release_date.split('-')[0] : '-'),
+        tmdb_id: data.tmdb_id || null,
+        imdb_id: data.imdb_id || null,
+        seasons: data.seasons || null,
         media_type: data.media_type || 'movie',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
     } : {
       id: tempId,
@@ -526,17 +565,19 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
               if (item.id === tempId) {
                 return {
                   ...item,
+                  ...added,
                   id: added.id,
                   _movie: {
                     ...(item._movie || {}),
-                    id: added.id,
-                    ...added
+                    ...added,
+                    id: added.id
                   }
                 }
               }
               return item
             })
-            return { ...prev, [groupId]: list }
+            const sortedList = isMovieNote ? sortMoviesForSection(list, sectionKey) : list
+            return { ...prev, [groupId]: sortedList }
           })
         }
 

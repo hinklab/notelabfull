@@ -39,12 +39,25 @@ export function LanguageProvider({ children }) {
 
   /**
    * Helper function to get translation string by path (e.g. 'common.save', 'space.addToColumn')
-   * Supports interpolations: t('common.itemsCount', { count: 5 })
+   * Supports: t('key', 'Fallback') AND t('key', { count: 5 }, 'Fallback') AND t('key', null, 'Fallback')
    */
   const t = (path, params = null, fallback = '') => {
     if (!path) return '';
+    let actualFallback = '';
+    let actualParams = null;
+
+    if (typeof params === 'string') {
+      actualFallback = params;
+    } else if (params && typeof params === 'object') {
+      actualParams = params;
+      actualFallback = fallback || '';
+    } else {
+      actualFallback = fallback || '';
+    }
+
+    const currentLang = (language || 'uz').toLowerCase();
     const keys = path.split('.');
-    let cur = translations[language];
+    let cur = translations[currentLang];
 
     for (const k of keys) {
       if (cur && cur[k] !== undefined) {
@@ -55,7 +68,7 @@ export function LanguageProvider({ children }) {
       }
     }
 
-    // Fallback to uz or en if missing
+    // Fallback to uz if missing in current language
     if (cur === null || cur === undefined) {
       let fallbackCur = translations['uz'];
       for (const k of keys) {
@@ -66,18 +79,18 @@ export function LanguageProvider({ children }) {
           break;
         }
       }
-      cur = fallbackCur !== null && fallbackCur !== undefined ? fallbackCur : (fallback || path);
+      cur = fallbackCur !== null && fallbackCur !== undefined ? fallbackCur : (actualFallback || path);
     }
 
-    if (typeof cur === 'string' && params && typeof params === 'object') {
+    if (typeof cur === 'string' && actualParams) {
       let res = cur;
-      Object.keys(params).forEach(pKey => {
-        res = res.replace(new RegExp(`\\{${pKey}\\}`, 'g'), params[pKey]);
+      Object.keys(actualParams).forEach(pKey => {
+        res = res.replace(new RegExp(`\\{${pKey}\\}`, 'g'), actualParams[pKey]);
       });
       return res;
     }
 
-    return cur !== null && cur !== undefined ? cur : (fallback || path);
+    return cur !== null && cur !== undefined ? cur : (actualFallback || path);
   };
 
   const [movieTranslations, setMovieTranslations] = useState(() => {

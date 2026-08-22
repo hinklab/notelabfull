@@ -248,14 +248,58 @@ router.get('/images', async (req, res) => {
 
 // In-memory cache for trailers: `${id/title}_${type}` -> response
 const trailerServerCache = new Map();
+const TRAILER_CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours TTL for trailer refresh
+
+// Helper to select the newest, best trailer from TMDB video results
+function selectLatestBestTrailer(list) {
+  const ytVideos = (list || []).filter(v => v.site === 'YouTube' && v.key);
+  if (ytVideos.length === 0) return null;
+
+  const candidateVideos = ytVideos.filter(v => 
+    v.type === 'Trailer' || v.type === 'Teaser' || v.type === 'Clip' || /trailer|teaser|preview|sneak/i.test(v.name)
+  );
+
+  const pool = candidateVideos.length > 0 ? candidateVideos : ytVideos;
+
+  const sorted = [...pool].sort((a, b) => {
+    const categoryA = a.type === 'Trailer' ? 2 : (a.type === 'Teaser' ? 1 : 0);
+    const categoryB = b.type === 'Trailer' ? 2 : (b.type === 'Teaser' ? 1 : 0);
+
+    // If one is a full Trailer and another is just a Teaser/Clip, prioritize Trailer
+    if (categoryA !== categoryB) {
+      return categoryB - categoryA;
+    }
+
+    // Within the same tier (e.g. both are Trailers), ALWAYS pick the NEWEST published trailer!
+    const timeA = a.published_at ? new Date(a.published_at).getTime() : 0;
+    const timeB = b.published_at ? new Date(b.published_at).getTime() : 0;
+    if (timeA !== timeB) {
+      return timeB - timeA;
+    }
+
+    // Fallback to name specificity
+    const getSpecificity = (v) => {
+      let s = 0;
+      const n = (v.name || '').toLowerCase();
+      if (n.includes('final trailer') || n.includes('main trailer')) s += 20;
+      else if (n.includes('official trailer')) s += 15;
+      if (v.official) s += 10;
+      return s;
+    };
+    return getSpecificity(b) - getSpecificity(a);
+  });
+
+  return sorted[0] || null;
+}
 
 // GET /api/content/trailer?tmdb_id=123&title=Matrix&media_type=movie
 router.get('/trailer', async (req, res) => {
   try {
     let { tmdb_id, title, media_type } = req.query;
     const cacheKey = `${tmdb_id || title}_${media_type || 'movie'}`.toLowerCase();
-    if (trailerServerCache.has(cacheKey)) {
-      return res.json(trailerServerCache.get(cacheKey));
+    const cached = trailerServerCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < TRAILER_CACHE_TTL_MS)) {
+      return res.json(cached.data);
     }
 
     const db = readDB();
@@ -296,31 +340,20 @@ router.get('/trailer', async (req, res) => {
       } catch (e) {}
     }
 
-    const sorted = list
-      .filter(v => v.site === 'YouTube' && v.key)
-      .sort((a, b) => {
-        const getScore = (v) => {
-          let score = 0;
-          if (v.type === 'Trailer') score += 100;
-          else if (v.type === 'Teaser') score += 50;
-          else if (v.type === 'Clip') score += 20;
-          if (v.official) score += 30;
-          return score;
-        };
-        return getScore(b) - getScore(a);
-      });
+    const bestTrailer = selectLatestBestTrailer(list);
 
-    const result = sorted.length > 0 ? {
+    const result = bestTrailer ? {
       trailer: {
-        key: sorted[0].key,
-        name: sorted[0].name,
-        type: sorted[0].type,
-        site: sorted[0].site,
-        embed_url: `https://www.youtube-nocookie.com/embed/${sorted[0].key}`
+        key: bestTrailer.key,
+        name: bestTrailer.name,
+        type: bestTrailer.type,
+        site: bestTrailer.site,
+        published_at: bestTrailer.published_at || null,
+        embed_url: `https://www.youtube-nocookie.com/embed/${bestTrailer.key}`
       }
     } : { trailer: null };
 
-    trailerServerCache.set(cacheKey, result);
+    trailerServerCache.set(cacheKey, { timestamp: Date.now(), data: result });
     return res.json(result);
   } catch (err) {
     return res.json({ trailer: null });

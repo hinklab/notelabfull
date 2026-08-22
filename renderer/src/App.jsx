@@ -6,6 +6,7 @@ import SettingsModal from './components/modals/SettingsModal.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
+import LandingPage from './pages/LandingPage.jsx'
 
 import OnboardingSurvey from './components/modals/OnboardingSurvey.jsx'
 import GeolocationPromptModal from './components/modals/GeolocationPromptModal.jsx'
@@ -25,7 +26,7 @@ function sanitizeNote(note) {
 
 export default function App() {
   const { user, loading: authLoading, isNewRegistration, setIsNewRegistration, logout } = useAuth()
-  const [authPage, setAuthPage] = useState('login') // 'login' | 'register'
+  const [authPage, setAuthPage] = useState('landing') // 'landing' | 'login' | 'register'
   const [showSurvey, setShowSurvey] = useState(false)
   const [checkingSurvey, setCheckingSurvey] = useState(true)
 
@@ -62,11 +63,15 @@ export default function App() {
     )
   }
 
-  // Auth guard — kirish/ro'yxat sahifalari
+  // Auth guard — landing / kirish / ro'yxat sahifalari
   if (!user) {
-    return authPage === 'login'
-      ? <LoginPage onSwitch={() => setAuthPage('register')} />
-      : <RegisterPage onSwitch={() => setAuthPage('login')} />
+    if (authPage === 'login') {
+      return <LoginPage onSwitch={() => setAuthPage('register')} onBack={() => setAuthPage('landing')} />
+    }
+    if (authPage === 'register') {
+      return <RegisterPage onSwitch={() => setAuthPage('login')} onBack={() => setAuthPage('landing')} />
+    }
+    return <LandingPage onNavigate={(page) => setAuthPage(page)} />
   }
 
   return (

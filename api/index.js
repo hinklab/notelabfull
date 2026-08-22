@@ -3024,8 +3024,9 @@ module.exports = async (req, res) => {
     if (path === 'content/trailer' && req.method === 'GET') {
       let { tmdb_id, title, media_type } = query;
       const cacheKey = `${tmdb_id || title}_${media_type || 'movie'}`.toLowerCase();
-      if (tmdbTrailerCache.has(cacheKey)) {
-        return res.status(200).json(tmdbTrailerCache.get(cacheKey));
+      const cached = tmdbTrailerCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp < 2 * 60 * 60 * 1000)) {
+        return res.status(200).json(cached.data);
       }
 
       if (!tmdb_id && title && TMDB_KEY) {
@@ -3062,31 +3063,51 @@ module.exports = async (req, res) => {
           } catch (e) {}
         }
 
-        const sorted = list
-          .filter(v => v.site === 'YouTube' && v.key)
-          .sort((a, b) => {
-            const getScore = (v) => {
-              let score = 0;
-              if (v.type === 'Trailer') score += 100;
-              else if (v.type === 'Teaser') score += 50;
-              else if (v.type === 'Clip') score += 20;
-              if (v.official) score += 30;
-              return score;
-            };
-            return getScore(b) - getScore(a);
-          });
+        const ytVideos = list.filter(v => v.site === 'YouTube' && v.key);
+        const candidateVideos = ytVideos.filter(v => 
+          v.type === 'Trailer' || v.type === 'Teaser' || v.type === 'Clip' || /trailer|teaser|preview|sneak/i.test(v.name)
+        );
+        const pool = candidateVideos.length > 0 ? candidateVideos : ytVideos;
 
-        const result = sorted.length > 0 ? {
+        const sorted = [...pool].sort((a, b) => {
+          const categoryA = a.type === 'Trailer' ? 2 : (a.type === 'Teaser' ? 1 : 0);
+          const categoryB = b.type === 'Trailer' ? 2 : (b.type === 'Teaser' ? 1 : 0);
+
+          if (categoryA !== categoryB) {
+            return categoryB - categoryA;
+          }
+
+          const timeA = a.published_at ? new Date(a.published_at).getTime() : 0;
+          const timeB = b.published_at ? new Date(b.published_at).getTime() : 0;
+          if (timeA !== timeB) {
+            return timeB - timeA;
+          }
+
+          const getSpecificity = (v) => {
+            let s = 0;
+            const n = (v.name || '').toLowerCase();
+            if (n.includes('final trailer') || n.includes('main trailer')) s += 20;
+            else if (n.includes('official trailer')) s += 15;
+            if (v.official) s += 10;
+            return s;
+          };
+          return getSpecificity(b) - getSpecificity(a);
+        });
+
+        const bestTrailer = sorted[0];
+
+        const result = bestTrailer ? {
           trailer: {
-            key: sorted[0].key,
-            name: sorted[0].name,
-            type: sorted[0].type,
-            site: sorted[0].site,
-            embed_url: `https://www.youtube-nocookie.com/embed/${sorted[0].key}`
+            key: bestTrailer.key,
+            name: bestTrailer.name,
+            type: bestTrailer.type,
+            site: bestTrailer.site,
+            published_at: bestTrailer.published_at || null,
+            embed_url: `https://www.youtube-nocookie.com/embed/${bestTrailer.key}`
           }
         } : { trailer: null };
 
-        tmdbTrailerCache.set(cacheKey, result);
+        tmdbTrailerCache.set(cacheKey, { timestamp: Date.now(), data: result });
         return res.status(200).json(result);
       } catch (e) {}
       return res.status(200).json({ trailer: null });

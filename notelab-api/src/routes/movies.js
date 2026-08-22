@@ -235,13 +235,31 @@ router.post('/', async (req, res) => {
     const section = data.section || 'todo';
 
     // Server-side deduplication guard: if movie with same tmdb_id, imdb_id, or title already exists, return existing movie!
-    const existingMovie = db.movies.find(m =>
+    let existingMovie = db.movies.find(m =>
       (m.user_id || DEFAULT_USER_ID) === userId && (
         (data.tmdb_id && m.tmdb_id && String(m.tmdb_id) === String(data.tmdb_id)) ||
         (data.imdb_id && m.imdb_id && String(m.imdb_id) === String(data.imdb_id)) ||
         (data.title && m.title && m.title.toLowerCase().trim() === String(data.title).toLowerCase().trim())
       )
     );
+
+    const supabase = getSupabase();
+    if (!existingMovie && supabase) {
+      try {
+        if (data.tmdb_id) {
+          const { data: byTmdb } = await supabase.from('movies').select('*').eq('user_id', userId).eq('tmdb_id', parseInt(data.tmdb_id)).maybeSingle();
+          if (byTmdb) existingMovie = byTmdb;
+        }
+        if (!existingMovie && data.imdb_id) {
+          const { data: byImdb } = await supabase.from('movies').select('*').eq('user_id', userId).eq('imdb_id', data.imdb_id).maybeSingle();
+          if (byImdb) existingMovie = byImdb;
+        }
+        if (!existingMovie && data.title) {
+          const { data: byTitle } = await supabase.from('movies').select('*').eq('user_id', userId).ilike('title', data.title.trim()).maybeSingle();
+          if (byTitle) existingMovie = byTitle;
+        }
+      } catch (e) {}
+    }
 
     if (existingMovie) {
       console.log(`[POST /api/movies] Skipped duplicate addition for "${data.title}" (existing id: ${existingMovie.id})`);
@@ -259,7 +277,6 @@ router.post('/', async (req, res) => {
     let position;
     let existingInSec = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === section && (m.note_id ?? null) === note_id);
     
-    const supabase = getSupabase();
     if (supabase) {
       try {
         let sbQuery = supabase.from('movies').select('position').eq('user_id', userId).eq('section', section);

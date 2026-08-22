@@ -989,9 +989,9 @@ function MovieCard({
             )}
 
             {movie.seasons && movie.seasons !== '—' && movie.seasons !== '-' && (
-              <div style={{ color: 'var(--text-muted)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Clock size={11} color="var(--text-muted)" />
-                <span>{formatCardRuntime(movie.seasons)}</span>
+              <div style={{ color: 'var(--text-muted)', fontSize: 11, display: 'flex', alignItems: 'flex-start', gap: 5, marginTop: 1 }}>
+                <Clock size={11} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: 2 }} />
+                <span style={{ lineHeight: 1.35, wordBreak: 'break-word' }}>{formatCardRuntime(movie.seasons)}</span>
               </div>
             )}
           </div>

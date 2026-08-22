@@ -64,7 +64,8 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
   const handleThemeChange = (newTheme) => {
     setTheme(newTheme)
     localStorage.setItem('theme', newTheme)
-    document.documentElement.setAttribute('data-theme', newTheme)
+    document.documentElement.setAttribute('data-theme', newTheme);
+    window.dispatchEvent(new CustomEvent('notelab_theme_changed', { detail: newTheme }));
   }
 
   const tabs = [
