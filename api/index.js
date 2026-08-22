@@ -2911,9 +2911,12 @@ module.exports = async (req, res) => {
     if (path === 'movies/reorder' && req.method === 'POST') {
       const body = await parseBody(req);
       if (Array.isArray(body.ids)) {
-        for (let i = 0; i < body.ids.length; i++) {
-          await supabase.from('movies').update({ position: i, updated_at: new Date().toISOString() }).eq('id', body.ids[i]);
-        }
+        const now = new Date().toISOString();
+        const updates = body.ids.map((id, pos) => {
+          const parsedId = (typeof id === 'string' && !isNaN(Number(id))) ? Number(id) : id;
+          return supabase.from('movies').update({ position: pos, updated_at: now }).eq('id', parsedId);
+        });
+        await Promise.all(updates);
       }
       return res.status(200).json({ success: true });
     }

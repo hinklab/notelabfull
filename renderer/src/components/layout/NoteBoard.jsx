@@ -1588,19 +1588,42 @@ function NoteColumn({
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
 
-    const el = document.elementFromPoint(clientX, clientY)
-    const colEl = el?.closest('.note-column')
-    const tabEl = el?.closest('.board-mobile-tab-btn')
-    let targetGroupId = colEl?.dataset?.groupId
-    if (!targetGroupId && tabEl?.dataset?.groupId) {
-      targetGroupId = tabEl.dataset.groupId
+    let targetGroupId = null
+
+    // 1. Check all column bounding rectangles (100% reliable across landscape & portrait)
+    const allColEls = Array.from(document.querySelectorAll('.note-column[data-group-id]'))
+    for (const col of allColEls) {
+      const rect = col.getBoundingClientRect()
+      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+        targetGroupId = col.dataset.groupId
+        break
+      }
     }
+
+    // 2. Check mobile tabs bounding rectangles
+    if (!targetGroupId) {
+      const allTabEls = Array.from(document.querySelectorAll('.board-mobile-tab-btn[data-group-id]'))
+      for (const tab of allTabEls) {
+        const rect = tab.getBoundingClientRect()
+        if (clientX >= rect.left - 10 && clientX <= rect.right + 10 && clientY >= rect.top - 10 && clientY <= rect.bottom + 10) {
+          targetGroupId = tab.dataset.groupId
+          break
+        }
+      }
+    }
+
+    // 3. Fallback: document.elementFromPoint
+    if (!targetGroupId) {
+      const el = document.elementFromPoint(clientX, clientY)
+      targetGroupId = el?.closest('.note-column')?.dataset?.groupId || el?.closest('.board-mobile-tab-btn')?.dataset?.groupId
+    }
+
     if (!targetGroupId) targetGroupId = group.id
 
     const dropInfo = getDropPosition(items, clientY, cardsRef)
 
     if (String(targetGroupId) === String(group.id)) {
-      if (dropInfo.targetId != null) {
+      if (dropInfo.targetId != null && String(dropInfo.targetId) !== String(item.id)) {
         await onReorderItem(item.id, dropInfo.targetId, dropInfo.position, group.id)
       }
     } else {

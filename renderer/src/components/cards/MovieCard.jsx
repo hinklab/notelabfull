@@ -735,9 +735,6 @@ function MovieCard({
       }
 
       if (isTouchDraggingRef.current) {
-        if (e.cancelable) {
-          e.preventDefault()
-        }
         setTouchDelta({ x: dx, y: dy })
         onTouchDragMove?.(movie, touch.clientX, touch.clientY)
       }

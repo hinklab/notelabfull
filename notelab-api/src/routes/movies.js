@@ -573,10 +573,15 @@ router.post('/reorder', async (req, res) => {
       const supabase = getSupabase();
       if (supabase) {
         try {
-          for (let pos = 0; pos < ids.length; pos++) {
-            await supabase.from('movies').update({ position: pos }).eq('id', ids[pos]);
-          }
-        } catch (e) {}
+          const now = new Date().toISOString();
+          const updates = ids.map((id, pos) => {
+            const parsedId = (typeof id === 'string' && !isNaN(Number(id))) ? Number(id) : id;
+            return supabase.from('movies').update({ position: pos, updated_at: now }).eq('id', parsedId);
+          });
+          await Promise.all(updates);
+        } catch (e) {
+          console.warn('Supabase movies reorder warning:', e.message);
+        }
       }
     }
     
