@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffe
 import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard, { prefetchTrailer } from '../cards/MovieCard.jsx'
-import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard } from 'lucide-react'
+import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getMovieFranchiseInfo } from '../../config/chronologyData.js'
 
@@ -879,7 +879,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
 
   // Responsive: detect compact/mobile mode
   const boardRef = useRef(null)
-  const [isCompact, setIsCompact] = useState(false)
+  const [isMobileVertical, setIsCompact] = useState(false)
   const [activeSection, setActiveSection] = useState(null)
 
   useEffect(() => {
@@ -898,10 +898,10 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
 
   // When compact mode activates, default to the first section
   useEffect(() => {
-    if (isCompact && groups.length > 0 && !activeSection) {
+    if (isMobileVertical && groups.length > 0 && !activeSection) {
       setActiveSection(groups[0].section_key)
     }
-  }, [isCompact, groups, activeSection])
+  }, [isMobileVertical, groups, activeSection])
 
   const SIDEBAR_ICONS = { futured: Clock, todo: ListTodo, doing: Play, done: CheckCircle }
 
@@ -978,10 +978,12 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       onGroupDragEnd={handleGroupDragEnd}
       onGroupDragOver={() => handleGroupDragOverCol(group.id)}
       onGroupDrop={handleGroupDrop}
+      onDragHoverEdge={handleDragHoverEdge}
+      onDragHoverEdgeEnd={clearEdgeHover}
     />
   )
 
-  const activeGroup = isCompact ? groups.find(g => g.section_key === activeSection) : null
+  const activeGroup = isMobileVertical ? groups.find(g => g.section_key === activeSection) : null
   const showTmdbFallback = (search || '').trim().length >= 2 && totalFilteredCount === 0
 
   return (
@@ -1000,7 +1002,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
           noteType={note?.type || 'movie'}
         />
       )}
-      {isCompact ? (
+      {isMobileVertical ? (
         <div className="board-responsive">
           {/* Sidebar */}
           <div className="board-sidebar">
@@ -1472,11 +1474,13 @@ function NoteColumn({
   }
 
   const handleTouchDragMove = (item, clientX, clientY) => {
+    onDragHoverEdge?.(clientX);
     const dropInfo = getDropPosition(items, clientY, cardsRef)
     updateMarker(clientY)
   }
 
   const handleTouchDragEnd = async (item, clientX, clientY) => {
+    onDragHoverEdgeEnd?.();
     const markerEls = cardsRef.current?.querySelectorAll('.drag-marker-line')
     markerEls?.forEach(m => { m.style.opacity = '0'; m.style.display = 'none' })
 
