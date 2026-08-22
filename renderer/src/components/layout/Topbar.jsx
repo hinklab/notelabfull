@@ -97,12 +97,15 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
     let isDeleting = false
     let timer = null
 
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640
+
     const tick = () => {
       const currentTitle = SAMPLE_TITLES[titleIdx % SAMPLE_TITLES.length]
+      const prefix = isMobile ? '' : `${searchPrefix}: `
 
       if (!isDeleting) {
         charIdx++
-        setAnimatedPlaceholder(`${searchPrefix}: "${currentTitle.slice(0, charIdx)}"`)
+        setAnimatedPlaceholder(`${prefix}"${currentTitle.slice(0, charIdx)}"`)
 
         if (charIdx >= currentTitle.length) {
           isDeleting = true
@@ -112,7 +115,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         }
       } else {
         charIdx--
-        setAnimatedPlaceholder(charIdx > 0 ? `${searchPrefix}: "${currentTitle.slice(0, charIdx)}"` : t('common.search'))
+        setAnimatedPlaceholder(charIdx > 0 ? `${prefix}"${currentTitle.slice(0, charIdx)}"` : t('common.search'))
 
         if (charIdx <= 0) {
           isDeleting = false
@@ -242,7 +245,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
 
       <div className="topbar-search-container" style={{ flex: '1 1 auto', minWidth: 60, maxWidth: 620, margin: '0 10px', display: 'flex', justifyContent: 'center' }}>
         <input
-          type="search"
+          type="text"
           name="notelab_search_field_query"
           className="topbar-search-input"
           autoComplete="off"

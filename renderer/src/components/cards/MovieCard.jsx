@@ -679,9 +679,13 @@ function MovieCard({
     }
   }
 
+  const isTouchDevice = typeof window !== "undefined" && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
   const touchStartPos = useRef({ x: 0, y: 0, time: 0 })
   const isTouchDraggingRef = useRef(false)
   const isTouchSessionRef = useRef(false)
+  const longPressTimerRef = useRef(null)
+  const isLongPressTriggeredRef = useRef(false)
+  const touchMovedRef = useRef(false)
   const cardRef = useRef(null)
 
   const handleDragStart = (e) => {
@@ -708,13 +712,39 @@ function MovieCard({
   }
 
   const handleTouchStart = (e) => {
-    if (isCardExpanded) return
+    if (isCardExpanded || noDrag) return
     const touch = e.touches[0]
     const now = Date.now()
     isTouchSessionRef.current = true
-    touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: now }
     isTouchDraggingRef.current = false
+    isLongPressTriggeredRef.current = false
+    touchMovedRef.current = false
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY, time: now }
     setHovered(false)
+
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+    longPressTimerRef.current = setTimeout(() => {
+      if (isTouchSessionRef.current && !touchMovedRef.current && !isCardExpanded && !noDrag) {
+        const el = cardRef.current
+        if (!el) return
+        isLongPressTriggeredRef.current = true
+        isTouchDraggingRef.current = true
+        const rect = el.getBoundingClientRect()
+        const metrics = {
+          x: touchStartPos.current.x,
+          y: touchStartPos.current.y,
+          offsetX: touchStartPos.current.x - rect.left,
+          offsetY: touchStartPos.current.y - rect.top,
+          width: rect.width,
+          height: rect.height
+        }
+        dragMetricsRef.current = metrics
+        setDragMetrics(metrics)
+        setIsTouchDragging(true)
+        try { if (navigator.vibrate) navigator.vibrate(35) } catch {}
+        onTouchDragStart?.(movie, touchStartPos.current.x, touchStartPos.current.y)
+      }
+    }, 220)
   }
 
   useEffect(() => {
@@ -726,45 +756,48 @@ function MovieCard({
       const dx = touch.clientX - touchStartPos.current.x
       const dy = touch.clientY - touchStartPos.current.y
       const dist = Math.hypot(dx, dy)
-      const held = Date.now() - touchStartPos.current.time
 
-      if (!isTouchDraggingRef.current) {
-        if (dist > 8 && held > 60 && !noDrag) {
-          isTouchDraggingRef.current = true
-          const rect = el.getBoundingClientRect()
-          const metrics = {
-            x: touch.clientX,
-            y: touch.clientY,
-            offsetX: touch.clientX - rect.left,
-            offsetY: touch.clientY - rect.top,
-            width: rect.width,
-            height: rect.height
+      // If finger moved before long-press elapsed, cancel long-press and allow normal smooth page scrolling!
+      if (!isLongPressTriggeredRef.current) {
+        if (dist > 8) {
+          touchMovedRef.current = true
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current)
+            longPressTimerRef.current = null
           }
-          dragMetricsRef.current = metrics
-          setDragMetrics(metrics)
-          setIsTouchDragging(true)
-          onTouchDragStart?.(movie, touch.clientX, touch.clientY)
         }
+        return
       }
 
+      // If long-press is active, user is dragging the card!
       if (isTouchDraggingRef.current) {
+        if (e.cancelable) e.preventDefault()
         dragMetricsRef.current.x = touch.clientX
         dragMetricsRef.current.y = touch.clientY
-        setDragMetrics(prev => ({ ...prev, x: touch.clientX, y: touch.clientY }))
+        if (portalGhostRef.current) {
+          const posX = touch.clientX - dragMetricsRef.current.offsetX
+          const posY = touch.clientY - dragMetricsRef.current.offsetY
+          portalGhostRef.current.style.transform = `translate3d(${posX}px, ${posY}px, 0) scale(1.04)`
+        }
         onTouchDragMove?.(movie, touch.clientX, touch.clientY)
       }
     }
-    el.addEventListener('touchmove', onMove, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
     return () => el.removeEventListener('touchmove', onMove)
   }, [noDrag, movie, onTouchDragStart, onTouchDragMove, isCardExpanded])
 
   const handleTouchEnd = (e) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
     if (isCardExpanded) return
     isTouchSessionRef.current = false
     const touch = e.changedTouches[0] || e.touches[0]
 
     if (isTouchDraggingRef.current) {
       isTouchDraggingRef.current = false
+      isLongPressTriggeredRef.current = false
       setIsTouchDragging(false)
       const finalX = touch?.clientX || touchStartPos.current.x
       const finalY = touch?.clientY || touchStartPos.current.y
@@ -772,13 +805,21 @@ function MovieCard({
       return
     }
 
-    handleExpand(e)
+    // Only expand modal on clean tap if finger did not scroll/move
+    if (!touchMovedRef.current) {
+      handleExpand(e)
+    }
   }
 
   const handleTouchCancel = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
     isTouchSessionRef.current = false
     if (isTouchDraggingRef.current) {
       isTouchDraggingRef.current = false
+      isLongPressTriggeredRef.current = false
       setIsTouchDragging(false)
       onTouchDragEnd?.(movie, touchStartPos.current.x, touchStartPos.current.y)
     }
@@ -792,7 +833,7 @@ function MovieCard({
       ref={cardRef}
       data-closing={isClosing ? 'true' : undefined}
       className={isClosing ? 'movie-card-closing' : (isVisuallyExpanded ? 'movie-card-expanded' : '')}
-      draggable={!noDrag && !isCardExpanded}
+      draggable={false}
       onDragStart={noDrag || isCardExpanded ? undefined : handleDragStart}
       onDragEnd={noDrag || isCardExpanded ? undefined : handleDragEnd}
       onContextMenu={onContextMenu ? (e) => {
@@ -816,7 +857,7 @@ function MovieCard({
         maxHeight: renderExpanded ? (isVisuallyExpanded ? 1100 : 116) : 'none',
         transition: 'max-height 0.28s cubic-bezier(0.05, 0.9, 0.1, 1), border-color 0.18s ease, background 0.18s ease, box-shadow 0.2s ease',
         opacity: isTouchDragging ? 0.35 : 1,
-        touchAction: isCardExpanded ? 'auto' : 'none',
+        touchAction: 'pan-y',
         WebkitTouchCallout: 'none',
         display: 'flex',
         flexDirection: 'column',

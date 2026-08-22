@@ -963,6 +963,32 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     }
   }, [isMobileVertical, groups, activeSection])
 
+  const mobileMainScrollRef = useRef(null)
+  const isPointerDownRef = useRef(false)
+  const pointerStartYRef = useRef(0)
+  const pointerStartScrollTopRef = useRef(0)
+
+  const handleMobilePointerDown = (e) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return
+    if (e.target.closest('button, input, textarea, a, select, iframe')) return
+    isPointerDownRef.current = true
+    pointerStartYRef.current = e.clientY
+    pointerStartScrollTopRef.current = mobileMainScrollRef.current ? mobileMainScrollRef.current.scrollTop : 0
+  }
+
+  const handleMobilePointerMove = (e) => {
+    if (!isPointerDownRef.current || !mobileMainScrollRef.current) return
+    if (draggingFromGroupId) return
+    const dy = e.clientY - pointerStartYRef.current
+    if (Math.abs(dy) > 2) {
+      mobileMainScrollRef.current.scrollTop = pointerStartScrollTopRef.current - dy
+    }
+  }
+
+  const handleMobilePointerUp = () => {
+    isPointerDownRef.current = false
+  }
+
   const SIDEBAR_ICONS = { futured: Clock, todo: ListTodo, doing: Play, done: CheckCircle }
 
   const filteredItemsByGroup = useMemo(() => {
@@ -1360,9 +1386,10 @@ onSaveRating,
   const isDoneSection = group.section_key === 'done' || (group.name || '').toLowerCase() === 'done'
   const isCollapseEligible = isDoneSection && items.length > 10 && items.length > (maxOtherCount || 0)
   const visibleCardsTarget = Math.max(10, maxOtherCount || 0)
-  const collapsedHeightNumber = measuredHeight || Math.max(100, visibleCardsTarget * 124 - FOOTER_HEIGHT)
+  const defaultCardsHeight = visibleCardsTarget * 126
+  const collapsedHeightNumber = Math.max(defaultCardsHeight, measuredHeight || defaultCardsHeight)
 
-  // Auto-expand the column when a card that would be clipped or covered by the footer is opened
+  // Auto-expand the column when an inner card is opened
   const autoExpandedByCard = useMemo(() => {
     if (!isCollapseEligible || !expandedMovieId) return false
     const expIdx = items.findIndex(item => (
@@ -1370,7 +1397,7 @@ onSaveRating,
       (item._movie && String(item._movie.id) === String(expandedMovieId))
     ))
     if (expIdx === -1) return false
-    const cardExpandedBottom = 10 + (expIdx * 124) + 620
+    const cardExpandedBottom = 10 + (expIdx * 126) + 620
     return cardExpandedBottom > (collapsedHeightNumber - 20)
   }, [isCollapseEligible, expandedMovieId, items, collapsedHeightNumber])
 
@@ -1380,7 +1407,7 @@ onSaveRating,
   useLayoutEffect(() => {
     if (shouldCollapse && cardsRef.current) {
       const myCol = cardsRef.current.closest('.note-column')
-      const boardEl = myCol?.closest('.board') || document.querySelector('.board')
+      const boardEl = myCol?.closest('.board')
       
       if (boardEl) {
         const otherCols = Array.from(boardEl.querySelectorAll('.note-column'))
@@ -1400,37 +1427,29 @@ onSaveRating,
           const desiredTotalColHeight = maxOtherBottom - myColTop
           const headerEl = myCol.querySelector('.column-header-sticky')
           const headerH = headerEl ? headerEl.getBoundingClientRect().height : 42
-          const targetCardsH = Math.max(120, Math.round(desiredTotalColHeight - headerH - FOOTER_HEIGHT))
+          const targetCardsH = Math.max(defaultCardsHeight, Math.round(desiredTotalColHeight - headerH - FOOTER_HEIGHT))
           setMeasuredHeight(targetCardsH)
           return
         }
       }
-
-      const cardEls = Array.from(cardsRef.current.querySelectorAll('[data-item-id]'))
-      const targetIndex = Math.min(visibleCardsTarget, cardEls.length) - 1
-      if (targetIndex >= 0 && cardEls[targetIndex]) {
-        const containerRect = cardsRef.current.getBoundingClientRect()
-        const cardRect = cardEls[targetIndex].getBoundingClientRect()
-        const h = Math.max(100, Math.round(cardRect.bottom - containerRect.top - FOOTER_HEIGHT))
-        setMeasuredHeight(h)
-      }
+      setMeasuredHeight(defaultCardsHeight)
     } else {
       setMeasuredHeight(null)
     }
-  }, [shouldCollapse, visibleCardsTarget, items, maxOtherCount])
+  }, [shouldCollapse, defaultCardsHeight, items, maxOtherCount])
 
   useEffect(() => {
     if (!shouldCollapse || !cardsRef.current) return
 
     const myCol = cardsRef.current.closest('.note-column')
-    const boardEl = myCol?.closest('.board') || document.querySelector('.board')
+    const boardEl = myCol?.closest('.board')
     if (!boardEl) return
 
     const updateHeight = () => {
       if (!cardsRef.current) return
       const currentMyCol = cardsRef.current.closest('.note-column')
       if (!currentMyCol) return
-      const currentBoard = currentMyCol.closest('.board') || document.querySelector('.board')
+      const currentBoard = currentMyCol.closest('.board')
       if (!currentBoard) return
 
       const otherCols = Array.from(currentBoard.querySelectorAll('.note-column'))
@@ -1450,8 +1469,10 @@ onSaveRating,
         const desiredTotalColHeight = maxOtherBottom - myColTop
         const headerEl = currentMyCol.querySelector('.column-header-sticky')
         const headerH = headerEl ? headerEl.getBoundingClientRect().height : 42
-        const targetCardsH = Math.max(120, Math.round(desiredTotalColHeight - headerH - FOOTER_HEIGHT))
+        const targetCardsH = Math.max(defaultCardsHeight, Math.round(desiredTotalColHeight - headerH - FOOTER_HEIGHT))
         setMeasuredHeight(targetCardsH)
+      } else {
+        setMeasuredHeight(defaultCardsHeight)
       }
     }
 
@@ -1462,7 +1483,7 @@ onSaveRating,
     otherCols.forEach(col => ro.observe(col))
 
     return () => ro.disconnect()
-  }, [shouldCollapse, items, maxOtherCount])
+  }, [shouldCollapse, defaultCardsHeight, items, maxOtherCount])
 
   const collapsedHeight = `${collapsedHeightNumber}px`
 
@@ -1996,7 +2017,7 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
         boxShadow: isTouchDragging ? '0 20px 45px rgba(0,0,0,0.8)' : 'none',
         zIndex: isTouchDragging ? 99999 : 1,
         opacity: isTouchDragging ? 0.95 : 1,
-        touchAction: 'none',
+        touchAction: 'pan-y',
       }}
       onMouseEnter={e => { if (!isTouchDragging) { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
       onMouseLeave={e => { if (!isTouchDragging) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.transform = 'translateY(0)' } }}

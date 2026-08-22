@@ -31,29 +31,26 @@ export default function LandingPage({ onNavigate }) {
           justifyContent: 'space-between'
         }}>
           
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <img
-              src="/saqlab-logo-b.png"
-              alt="saqlab"
-              style={{ height: 26, width: 'auto', objectFit: 'contain' }}
-              draggable="false"
-            />
-          </div>
+          {/* Left: Logo + Language Selector (Fixed Anchor) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+              <img
+                src="/saqlab-logo-b.png"
+                alt="saqlab"
+                style={{ height: 26, width: 'auto', objectFit: 'contain' }}
+                draggable="false"
+              />
+            </div>
 
-          {/* Right: Language Pill & Auth Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-            
             {/* Language Selector */}
-            <div style={{
-              display: 'flex',
+            <div className="landing-lang-group" style={{
+              display: 'inline-flex',
               alignItems: 'center',
               background: '#f1f5f9',
               border: '1px solid #e2e8f0',
-              borderRadius: 12,
+              borderRadius: 10,
               padding: 3,
               gap: 2,
-              width: 116,
               boxSizing: 'border-box'
             }}>
               {[
@@ -66,12 +63,12 @@ export default function LandingPage({ onNavigate }) {
                   type="button"
                   onClick={() => setLanguage(lang.code)}
                   style={{
-                    width: 34,
+                    padding: '4px 9px',
                     height: 26,
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderRadius: 8,
+                    borderRadius: 7,
                     fontSize: 11.5,
                     fontWeight: 700,
                     cursor: 'pointer',
@@ -86,18 +83,19 @@ export default function LandingPage({ onNavigate }) {
                 </button>
               ))}
             </div>
+          </div>
 
+          {/* Right: Auth Buttons */}
+          <div className="landing-nav-right" style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
             {/* Login Link */}
             <button
               type="button"
+              className="landing-login-btn"
               onClick={() => onNavigate('login')}
               style={{
                 background: 'transparent',
                 border: 'none',
-                padding: '8px 6px',
-                width: 76,
-                minWidth: 76,
-                textAlign: 'center',
+                padding: '8px 12px',
                 fontSize: 14,
                 fontWeight: 600,
                 color: '#191a23',
@@ -112,15 +110,13 @@ export default function LandingPage({ onNavigate }) {
             {/* Sign Up Outline Button */}
             <button
               type="button"
+              className="landing-signup-btn"
               onClick={() => onNavigate('register')}
               style={{
                 background: 'transparent',
                 border: '1.5px solid #191a23',
-                borderRadius: 14,
-                padding: '9px 12px',
-                width: 175,
-                minWidth: 175,
-                textAlign: 'center',
+                borderRadius: 12,
+                padding: '8px 16px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -142,7 +138,6 @@ export default function LandingPage({ onNavigate }) {
             >
               {t('landing.signUp', "Ro'yxatdan o'tish")}
             </button>
-
           </div>
 
         </div>
@@ -186,6 +181,7 @@ export default function LandingPage({ onNavigate }) {
 
             <button
               type="button"
+              className="landing-hero-cta-btn"
               onClick={() => onNavigate('register')}
               style={{
                 background: '#191a23',
@@ -280,8 +276,8 @@ export default function LandingPage({ onNavigate }) {
       <section id="xizmatlar" style={{ maxWidth: 1200, margin: '0 auto', padding: '64px 24px' }}>
         
         {/* Header with Lime Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 32, marginBottom: 48 }}>
-          <span style={{
+        <div className="landing-services-header" style={{ display: 'flex', alignItems: 'center', gap: 32, marginBottom: 48 }}>
+          <span className="landing-services-badge" style={{
             background: '#b9ff66',
             color: '#191a23',
             fontSize: 26,
@@ -292,7 +288,7 @@ export default function LandingPage({ onNavigate }) {
           }}>
             {t('landing.servicesBadge', 'Xizmatlar')}
           </span>
-          <p style={{
+          <p className="landing-services-desc" style={{
             fontFamily: "'Inter', sans-serif",
             fontSize: 15,
             color: '#475569',
@@ -373,9 +369,7 @@ export default function LandingPage({ onNavigate }) {
           </div>
 
           {/* Card 2: Dark Card with White Pills */}
-          <div style={{
-            background: '#191a23',
-            color: '#ffffff',
+          <div className="landing-bento-card" style={{ background: '#191a23', color: '#ffffff',
             border: '1.5px solid #191a23',
             borderRadius: 36,
             boxShadow: '0 6px 0px #191a23',
@@ -438,9 +432,7 @@ export default function LandingPage({ onNavigate }) {
           </div>
 
           {/* Card 3: Dark Card with White Pills */}
-          <div style={{
-            background: '#191a23',
-            color: '#ffffff',
+          <div className="landing-bento-card" style={{ background: '#191a23', color: '#ffffff',
             border: '1.5px solid #191a23',
             borderRadius: 36,
             boxShadow: '0 6px 0px #191a23',
