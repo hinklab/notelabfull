@@ -444,8 +444,9 @@ router.put('/:id', async (req, res) => {
       try {
         const updatePayload = sanitizeForSupabase({ ...req.body, updated_at: new Date().toISOString() });
         delete updatePayload.id;
+        const parsedTargetId = (typeof targetId === 'string' && !isNaN(Number(targetId))) ? Number(targetId) : targetId;
         if (Object.keys(updatePayload).length > 0) {
-          await supabase.from('movies').update(updatePayload).eq('id', targetId);
+          await supabase.from('movies').update(updatePayload).eq('id', parsedTargetId);
         }
 
         if (req.body.user_rating !== undefined) {
@@ -535,11 +536,12 @@ router.post('/move', async (req, res) => {
     const supabase = getSupabase();
     if (supabase) {
       try {
+        const parsedMovieId = (typeof id === 'string' && !isNaN(Number(id))) ? Number(id) : id;
         await supabase.from('movies').update({
           section,
           position: position ?? 0,
           updated_at: new Date().toISOString()
-        }).eq('id', id);
+        }).eq('id', parsedMovieId);
 
         if (section !== 'done') {
           const { data: existingRow } = await supabase

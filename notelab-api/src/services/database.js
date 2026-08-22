@@ -153,33 +153,8 @@ async function writeDB(db, deletedInfo = null) {
         } catch (e) {}
       }
 
-      if (db.movies && db.movies.length) {
-        try {
-          const moviesPayload = db.movies.map(m => ({
-            id: m.id,
-            user_id: m.user_id || DEFAULT_USER_ID,
-            note_id: m.note_id || null,
-            title: m.title || '',
-            section: m.section || 'todo',
-            position: m.position || 0,
-            tmdb_id: m.tmdb_id || null,
-            imdb_id: m.imdb_id || null,
-            media_type: m.media_type || 'movie',
-            poster_path: m.poster_path || null,
-            rating: m.rating || null,
-            vote_count: m.vote_count || null,
-            genre: m.genre || '-',
-            director: m.director || '-',
-            overview: m.overview || '',
-            release_date: m.release_date || null,
-            release_year: m.release_year || '-',
-            seasons: m.seasons || '-',
-            note: m.note || '',
-            updated_at: new Date().toISOString()
-          }));
-          await supabase.from('movies').upsert(moviesPayload, { onConflict: 'id' });
-        } catch (e) {}
-      }
+      // Note: Movies are managed individually in routes/movies.js with atomic operations.
+      // We do not mass-upsert db.movies here to prevent overwriting fresh cloud status with stale local cache.
     } catch (err) {
       console.warn('Supabase cloud write warning:', err.message);
     }

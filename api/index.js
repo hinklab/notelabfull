@@ -2865,7 +2865,8 @@ module.exports = async (req, res) => {
 
       if (Object.keys(update).length > 1) {
         try {
-          await supabase.from('movies').update(update).eq('id', id);
+          const parsedId = (typeof id === 'string' && !isNaN(Number(id))) ? Number(id) : id;
+          await supabase.from('movies').update(update).eq('id', parsedId);
         } catch (upErr) {
           console.warn('Movie update error:', upErr.message);
         }
@@ -2891,7 +2892,8 @@ module.exports = async (req, res) => {
     // DELETE /api/movies/:id
     const movieDelMatch = path.match(/^movies\/(\d+)$/);
     if (movieDelMatch && req.method === 'DELETE') {
-      await supabase.from('movies').delete().eq('id', movieDelMatch[1]);
+      const delId = Number(movieDelMatch[1]) || movieDelMatch[1];
+      await supabase.from('movies').delete().eq('id', delId);
       return res.status(200).json({ success: true });
     }
 
@@ -2900,7 +2902,8 @@ module.exports = async (req, res) => {
       const body = await parseBody(req);
       const update = { section: body.section, position: body.position ?? 0, updated_at: new Date().toISOString() };
       if (body.section !== 'done') update.user_rating = null;
-      await supabase.from('movies').update(update).eq('id', body.id);
+      const parsedId = (typeof body.id === 'string' && !isNaN(Number(body.id))) ? Number(body.id) : body.id;
+      await supabase.from('movies').update(update).eq('id', parsedId);
       return res.status(200).json({ success: true });
     }
 

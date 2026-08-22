@@ -694,7 +694,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     setTimeout(() => setToastMessage(null), 2200)
 
     try {
-      await window.api.updateMovie(movieId, { user_rating: newRating })
+      await window.api.updateMovie(movieId, { user_rating: newRating, section: 'done' })
     } catch (err) {
       console.error('Failed to update movie rating:', err)
     }
