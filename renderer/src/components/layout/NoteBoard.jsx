@@ -727,14 +727,14 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         const updatedItem = {
           ...movedItem,
           section: toSection,
-          user_rating: toSection === 'done' ? movedItem.user_rating : null,
-          avg_rating: toSection === 'done' ? movedItem.avg_rating : null,
-          avg_user_rating: toSection === 'done' ? movedItem.avg_user_rating : null,
+          user_rating: movedItem.user_rating || movedItem._movie?.user_rating || null,
+          avg_rating: movedItem.avg_rating || movedItem._movie?.avg_rating || null,
+          avg_user_rating: movedItem.avg_user_rating || movedItem._movie?.avg_user_rating || null,
           _movie: movedItem._movie ? {
             ...movedItem._movie,
             section: toSection,
-            user_rating: toSection === 'done' ? movedItem._movie.user_rating : null,
-            avg_user_rating: toSection === 'done' ? movedItem._movie.avg_user_rating : null
+            user_rating: movedItem._movie.user_rating || movedItem.user_rating || null,
+            avg_user_rating: movedItem._movie.avg_user_rating || movedItem.avg_user_rating || null
           } : null
         }
 
@@ -756,8 +756,6 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         if (toSection === 'done' && fromSection !== 'done') {
           const movedObj = (itemsByGroup[fromGroupId] || []).find(i => String(i.id) === String(itemId)) || { id: itemId }
           setRatePromptItem({ ...movedObj, section: 'done' })
-        } else if (fromSection === 'done' && toSection !== 'done') {
-          window.api.updateMovie(itemId, { user_rating: null }).catch(console.error)
         }
       }
 

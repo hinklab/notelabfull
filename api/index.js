@@ -2901,7 +2901,7 @@ module.exports = async (req, res) => {
     if (path === 'movies/move' && req.method === 'POST') {
       const body = await parseBody(req);
       const update = { section: body.section, position: body.position ?? 0, updated_at: new Date().toISOString() };
-      if (body.section !== 'done') update.user_rating = null;
+      // Preserve user_rating across section moves
       const parsedId = (typeof body.id === 'string' && !isNaN(Number(body.id))) ? Number(body.id) : body.id;
       await supabase.from('movies').update(update).eq('id', parsedId);
       return res.status(200).json({ success: true });

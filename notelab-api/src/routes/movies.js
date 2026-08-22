@@ -516,9 +516,7 @@ router.post('/move', async (req, res) => {
     
     if (idx !== -1) {
       db.movies[idx].section = section;
-      if (section !== 'done') {
-        db.movies[idx].user_rating = null;
-      }
+      // Preserve user_rating across section moves
       
       if (position !== null && position !== undefined) {
         db.movies
@@ -543,23 +541,7 @@ router.post('/move', async (req, res) => {
           updated_at: new Date().toISOString()
         }).eq('id', parsedMovieId);
 
-        if (section !== 'done') {
-          const { data: existingRow } = await supabase
-            .from('user_settings')
-            .select('*')
-            .eq('id', 'movie_ratings')
-            .single();
-
-          if (existingRow && existingRow.settings && existingRow.settings[String(id)] !== undefined) {
-            delete existingRow.settings[String(id)];
-            await supabase.from('user_settings').upsert({
-              id: 'movie_ratings',
-              user_id: userId,
-              settings: existingRow.settings,
-              updated_at: new Date().toISOString()
-            });
-          }
-        }
+        // Preserve user_ratings in user_settings
       } catch (e) {
         console.error('Supabase movie move exception:', e.message);
       }
