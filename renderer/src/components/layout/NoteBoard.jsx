@@ -1311,7 +1311,9 @@ function NoteColumn({
   onGroupDragStart,
   onGroupDragEnd,
   onGroupDragOver,
-  onGroupDrop
+  onGroupDrop,
+  onDragHoverEdge,
+  onDragHoverEdgeEnd
 }) {
   const { t } = useLanguage()
   const color = group.color || '#a78bfa'
@@ -1569,14 +1571,18 @@ function NoteColumn({
     setTimeout(() => setDragMarker(null), 340)
   }
 
+  const handleTouchDragStart = (item, clientX, clientY) => {
+    onDragHoverEdge?.(clientX)
+  }
+
   const handleTouchDragMove = (item, clientX, clientY) => {
-    onDragHoverEdge?.(clientX);
+    onDragHoverEdge?.(clientX)
     const dropInfo = getDropPosition(items, clientY, cardsRef)
     updateMarker(clientY)
   }
 
   const handleTouchDragEnd = async (item, clientX, clientY) => {
-    onDragHoverEdgeEnd?.();
+    onDragHoverEdgeEnd?.()
     const markerEls = cardsRef.current?.querySelectorAll('.drag-marker-line')
     markerEls?.forEach(m => { m.style.opacity = '0'; m.style.display = 'none' })
 
@@ -1584,7 +1590,12 @@ function NoteColumn({
 
     const el = document.elementFromPoint(clientX, clientY)
     const colEl = el?.closest('.note-column')
-    const targetGroupId = colEl?.dataset?.groupId || group.id
+    const tabEl = el?.closest('.board-mobile-tab-btn')
+    let targetGroupId = colEl?.dataset?.groupId
+    if (!targetGroupId && tabEl?.dataset?.groupId) {
+      targetGroupId = tabEl.dataset.groupId
+    }
+    if (!targetGroupId) targetGroupId = group.id
 
     const dropInfo = getDropPosition(items, clientY, cardsRef)
 
