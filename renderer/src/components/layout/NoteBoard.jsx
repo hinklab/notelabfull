@@ -1309,7 +1309,7 @@ function NoteColumn({
   onItemDelete,
   onMoveItem,
   onReorderItem,
-  onSaveRating,
+onSaveRating,
   onOpenChronology,
   isDragging,
   onGroupDragStart,
@@ -1317,7 +1317,10 @@ function NoteColumn({
   onGroupDragOver,
   onGroupDrop,
   onDragHoverEdge,
-  onDragHoverEdgeEnd
+  onDragHoverEdgeEnd,
+  isColumnDraggingItem,
+  onItemDragStart,
+  onItemDragEnd
 }) {
   const { t } = useLanguage()
   const color = group.color || '#a78bfa'
