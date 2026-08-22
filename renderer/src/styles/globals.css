@@ -575,3 +575,89 @@ input, textarea, [contenteditable="true"] {
     transform: translateY(-50%) scale(1.22);
   }
 }
+
+
+/* ══════════════════════════════════════════════════════ */
+/* LANDSCAPE & VERTICAL MOBILE PRECISION TUNING          */
+/* ══════════════════════════════════════════════════════ */
+
+/* Mobile Vertical Gutters - NO OVERLAP with side arrows */
+.board-mobile-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 48px !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  .board-mobile-main {
+    padding: 0 44px !important;
+  }
+  .mobile-nav-arrow {
+    width: 34px !important;
+    height: 48px !important;
+  }
+  .mobile-nav-arrow.left {
+    left: 4px !important;
+  }
+  .mobile-nav-arrow.right {
+    right: 4px !important;
+  }
+}
+
+/* Mobile Horizontal (Landscape) - Compact scaling to fit all 4 columns cleanly */
+@media (max-height: 540px) and (orientation: landscape), (max-width: 980px) and (orientation: landscape) {
+  .topbar-sticky {
+    height: 44px !important;
+    padding: 0 12px !important;
+  }
+  .topbar-search-container {
+    max-width: 240px !important;
+  }
+  .topbar-search-input {
+    font-size: 11.5px !important;
+    padding: 4px 8px !important;
+  }
+  .topbar-user-badge {
+    display: none !important;
+  }
+  .board {
+    gap: 8px !important;
+    padding: 8px 10px !important;
+  }
+  .board .note-column {
+    min-width: 190px !important;
+    border-radius: 8px !important;
+  }
+  .column-header-sticky {
+    padding: 6px 8px !important;
+    gap: 4px !important;
+  }
+  .column-header-sticky span {
+    font-size: 11px !important;
+  }
+  .column-header-sticky button {
+    width: 22px !important;
+    height: 22px !important;
+  }
+  .column-cards {
+    padding: 6px !important;
+    gap: 6px !important;
+  }
+  .movie-poster-thumb {
+    width: 66px !important;
+    min-width: 66px !important;
+  }
+  .movie-info-wrap {
+    padding: 6px 10px !important;
+    gap: 2px !important;
+  }
+  .movie-card-title {
+    font-size: 12px !important;
+  }
+  .column-runtime-badge {
+    display: none !important;
+  }
+}

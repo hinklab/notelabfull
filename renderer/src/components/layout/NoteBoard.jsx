@@ -1067,7 +1067,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
           <div className="board-mobile-nav">
             {groups.map(group => {
               const Icon = SIDEBAR_ICONS[group.section_key] || ListTodo
-              const label = group.name
+              const label = t(`sections.${group.section_key}`, null, group.name) || group.name;
               const count = (filteredItemsByGroup[group.id] || []).length
               const isActive = activeSection === group.section_key
               return (
@@ -1662,7 +1662,7 @@ function NoteColumn({
             {formattedRuntime && (
               <>
                 <span style={{ opacity: 0.5 }}>·</span>
-                <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formattedRuntime}</span>
+                <span className="column-runtime-badge" style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{formattedRuntime}</span>
               </>
             )}
           </span>

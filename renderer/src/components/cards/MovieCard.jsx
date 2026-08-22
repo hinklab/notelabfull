@@ -873,7 +873,7 @@ function MovieCard({
 
           {/* Left: Poster thumbnail */}
           {movie.poster_path ? (
-            <div style={{
+            <div className="movie-poster-thumb" style={{
               width: 82,
               minWidth: 82,
               flexShrink: 0,
@@ -897,7 +897,7 @@ function MovieCard({
               />
             </div>
           ) : (
-            <div style={{
+            <div className="movie-poster-thumb" style={{
               width: 82,
               minWidth: 82,
               flexShrink: 0,
@@ -913,8 +913,8 @@ function MovieCard({
           )}
 
           {/* Right: Text info */}
-          <div style={{ flex: 1, padding: '10px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
-            <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          <div className="movie-info-wrap" style={{ flex: 1, padding: '10px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
+            <div className="movie-card-title" style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
               {displayTitle}
               {movie.year && movie.year !== '—' && (
                 <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 5, fontSize: 12.5 }}>
