@@ -59,8 +59,8 @@ export default function RegisterPage({ onSwitch, onBack }) {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
+    <div className="auth-page" style={styles.page}>
+      <div className="auth-card" style={styles.card}>
         {onBack && (
           <button
             type="button"
@@ -96,32 +96,32 @@ export default function RegisterPage({ onSwitch, onBack }) {
           />
         </div>
 
-        <h2 style={styles.title}>{t('auth.registerTitle', null, 'Ro\'yxatdan o\'tish')}</h2>
-        <p style={styles.subtitle}>{t('auth.registerSubtitle', null, 'Yangi hisob yaratish')}</p>
+        <h2 className="auth-title" style={styles.title}>{t('auth.registerTitle', null, 'Ro\'yxatdan o\'tish')}</h2>
+        <p className="auth-subtitle" style={styles.subtitle}>{t('auth.registerSubtitle', null, 'Yangi hisob yaratish')}</p>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.field}>
-            <label style={styles.label}>{t('auth.email', null, 'Email')}</label>
+        <form onSubmit={handleSubmit} className="auth-form" style={styles.form}>
+          <div className="auth-field" style={styles.field}>
+            <label className="auth-label" style={styles.label}>{t('auth.email', null, 'Email')}</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="email@example.com"
-              style={styles.input}
+              className="auth-input" style={styles.input}
               autoFocus
               disabled={loading}
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>{t('auth.password', null, 'Parol')}</label>
+          <div className="auth-field" style={styles.field}>
+            <label className="auth-label" style={styles.label}>{t('auth.password', null, 'Parol')}</label>
             <div style={{ position: 'relative', width: '100%' }}>
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                style={{ ...styles.input, width: '100%', paddingRight: 40 }}
+                className="auth-input" style={{ ...styles.input, width: "100%", paddingRight: 40 }}
                 disabled={loading}
               />
               <button
@@ -152,15 +152,15 @@ export default function RegisterPage({ onSwitch, onBack }) {
             </div>
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>{t('auth.confirmPassword', null, 'Parolni tasdiqlang')}</label>
+          <div className="auth-field" style={styles.field}>
+            <label className="auth-label" style={styles.label}>{t('auth.confirmPassword', null, 'Parolni tasdiqlang')}</label>
             <div style={{ position: 'relative', width: '100%' }}>
               <input
                 type={showConfirm ? "text" : "password"}
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
                 placeholder="••••••••"
-                style={{ ...styles.input, width: '100%', paddingRight: 40 }}
+                className="auth-input" style={{ ...styles.input, width: "100%", paddingRight: 40 }}
                 disabled={loading}
               />
               <button
@@ -198,7 +198,7 @@ export default function RegisterPage({ onSwitch, onBack }) {
           </button>
         </form>
 
-        <p style={styles.switchText}>
+        <p className="auth-switch" style={styles.switchText}>
           {t('auth.hasAccount', null, 'Hisobingiz bormi?')}{' '}
           <span style={styles.switchLink} onClick={onSwitch}>
             {t('auth.loginLink', null, 'Kirish')}

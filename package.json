@@ -1,7 +1,7 @@
 {
-  "name": "notelab",
+  "name": "saqlab",
   "version": "1.0.0",
-  "description": "AI-powered personal workspace",
+  "description": "saqlab - Cinematic universe tracker and personal watchlist workspace",
   "main": "electron/main.js",
   "author": "hinklab",
   "license": "ISC",
@@ -40,8 +40,8 @@
     "vite": "^8.1.5"
   },
   "build": {
-    "appId": "com.hinklab.notelab",
-    "productName": "notelab",
+    "appId": "com.hinklab.saqlab",
+    "productName": "saqlab",
     "copyright": "Copyright © 2025 hinklab",
     "directories": {
       "output": "dist-electron"
@@ -83,10 +83,10 @@
       "installerHeaderIcon": "build/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "notelab"
+      "shortcutName": "saqlab"
     },
     "portable": {
-      "artifactName": "notelab-portable-${version}.exe"
+      "artifactName": "saqlab-portable-${version}.exe"
     },
     "asar": true,
     "asarUnpack": [

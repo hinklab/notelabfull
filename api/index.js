@@ -3357,7 +3357,7 @@ module.exports = async (req, res) => {
           const overpassUrl = `${endpoint}?data=${encodeURIComponent(overpassQuery)}`;
           const r = await fetch(overpassUrl, {
             signal: AbortSignal.timeout(5000),
-            headers: { 'User-Agent': 'NotelabApp/1.0' }
+            headers: { 'User-Agent': 'SaqlabApp/1.0' }
           });
           if (r.ok) {
             const json = await r.json();

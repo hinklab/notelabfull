@@ -1,7 +1,7 @@
 {
-  "name": "notelab-api",
+  "name": "saqlab-api",
   "version": "1.0.0",
-  "description": "Notelab Express API with Supabase",
+  "description": "saqlab Express API with Supabase",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

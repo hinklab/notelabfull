@@ -77,8 +77,8 @@ export default function LoginPage({ onSwitch, onBack }) {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
+    <div className="auth-page" style={styles.page}>
+      <div className="auth-card" style={styles.card}>
         {onBack && (
           <button
             type="button"
@@ -116,26 +116,26 @@ export default function LoginPage({ onSwitch, onBack }) {
 
         {!showForgot ? (
           <>
-            <h2 style={styles.title}>{t('auth.loginTitle', null, 'Xush kelibsiz')}</h2>
-            <p style={styles.subtitle}>{t('auth.loginSubtitle', null, 'saqlab hisobingizga kiring')}</p>
+            <h2 className="auth-title" style={styles.title}>{t('auth.loginTitle', null, 'Xush kelibsiz')}</h2>
+            <p className="auth-subtitle" style={styles.subtitle}>{t('auth.loginSubtitle', null, 'saqlab hisobingizga kiring')}</p>
 
-            <form onSubmit={handleSubmit} style={styles.form}>
-              <div style={styles.field}>
-                <label style={styles.label}>{t('auth.email', null, 'Elektron pochta')}</label>
+            <form onSubmit={handleSubmit} className="auth-form" style={styles.form}>
+              <div className="auth-field" style={styles.field}>
+                <label className="auth-label" style={styles.label}>{t('auth.email', null, 'Elektron pochta')}</label>
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="email@example.com"
-                  style={styles.input}
+                  className="auth-input" style={styles.input}
                   autoFocus
                   disabled={loading}
                 />
               </div>
 
-              <div style={styles.field}>
+              <div className="auth-field" style={styles.field}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={styles.label}>{t('auth.password', null, 'Parol')}</label>
+                  <label className="auth-label" style={styles.label}>{t('auth.password', null, 'Parol')}</label>
                   <span
                     onClick={() => {
                       setForgotEmail(email)
@@ -152,7 +152,7 @@ export default function LoginPage({ onSwitch, onBack }) {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    style={{ ...styles.input, width: '100%', paddingRight: 40 }}
+                    className="auth-input" style={{ ...styles.input, width: "100%", paddingRight: 40 }}
                     disabled={loading}
                   />
                   <button
@@ -190,7 +190,7 @@ export default function LoginPage({ onSwitch, onBack }) {
               </button>
             </form>
 
-            <p style={styles.switchText}>
+            <p className="auth-switch" style={styles.switchText}>
               {t('auth.noAccount', null, 'Hisobingiz yo\'qmi?')}{' '}
               <span style={styles.switchLink} onClick={onSwitch}>
                 {t('auth.registerLink', null, 'Ro\'yxatdan o\'ting')}
@@ -230,14 +230,14 @@ export default function LoginPage({ onSwitch, onBack }) {
               </div>
             ) : (
               <form onSubmit={handleForgotSubmit} style={styles.form}>
-                <div style={styles.field}>
-                  <label style={styles.label}>{t('auth.email')}</label>
+                <div className="auth-field" style={styles.field}>
+                  <label className="auth-label" style={styles.label}>{t('auth.email')}</label>
                   <input
                     type="email"
                     value={forgotEmail}
                     onChange={e => setForgotEmail(e.target.value)}
                     placeholder="email@example.com"
-                    style={styles.input}
+                    className="auth-input" style={styles.input}
                     autoFocus
                     disabled={forgotLoading}
                   />
