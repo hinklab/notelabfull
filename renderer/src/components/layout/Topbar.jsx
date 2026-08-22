@@ -244,7 +244,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         </span>
       </div>
 
-      <div style={{ flex: '1 1 auto', minWidth: 160, maxWidth: 480, margin: '0 12px', display: 'flex', justifyContent: 'center' }}>
+      <div className="topbar-search-container" style={{ flex: '1 1 auto', minWidth: 60, maxWidth: 480, margin: '0 8px', display: 'flex', justifyContent: 'center' }}>
         <input
           type="search"
           name="notelab_search_field_query"
@@ -403,7 +403,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         {/* User Email / Name display (Logout moved to Settings tab 4) */}
         {user && (
           <div className="topbar-user-badge" style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+            <span className="topbar-user-name" style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
               {user.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user.email}
             </span>
           </div>

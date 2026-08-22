@@ -21,7 +21,7 @@ export default function LandingPage({ onNavigate }) {
         backdropFilter: 'blur(10px)',
         borderBottom: '1px solid #f1f5f9'
       }}>
-        <div style={{
+        <div className="landing-nav-inner" style={{
           maxWidth: 1200,
           margin: '0 auto',
           padding: '0 24px',
@@ -152,10 +152,10 @@ export default function LandingPage({ onNavigate }) {
       {/* 2. HERO SECTION (Positivus 2-Column Split)      */}
       {/* ═══════════════════════════════════════════════ */}
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px 32px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr', gap: 40, alignItems: 'center' }}>
+        <div className="landing-hero-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr', gap: 40, alignItems: 'center' }}>
           
           {/* Left Column */}
-          <div style={{ textAlign: 'left' }}>
+          <div className="landing-hero-left" style={{ textAlign: 'left' }}>
             <h1 style={{
               fontSize: 'clamp(32px, 3.8vw, 48px)',
               fontWeight: 800,
@@ -215,7 +215,7 @@ export default function LandingPage({ onNavigate }) {
           </div>
 
           {/* Right Column: High Quality Native Video Player */}
-          <div style={{
+          <div className="landing-video-card" style={{
             background: '#ffffff',
             border: '1.5px solid #191a23',
             borderRadius: 36,
@@ -250,7 +250,7 @@ export default function LandingPage({ onNavigate }) {
         {/* ═══════════════════════════════════════════════ */}
         {/* 3. FRANCHISE BRAND LOGOS STRIP                  */}
         {/* ═══════════════════════════════════════════════ */}
-        <div style={{
+        <div className="landing-brand-strip" style={{
           marginTop: 64,
           paddingTop: 36,
           paddingBottom: 20,
@@ -306,7 +306,7 @@ export default function LandingPage({ onNavigate }) {
         </div>
 
         {/* 2x2 Bento Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: 32 }}>
+        <div className="landing-bento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 32 }}>
           
           {/* Card 1: Grey/White Card with Lime Pills */}
           <div style={{
@@ -571,7 +571,7 @@ export default function LandingPage({ onNavigate }) {
         {/* ═══════════════════════════════════════════════ */}
         {/* 5. CALLOUT BANNER BOX                           */}
         {/* ═══════════════════════════════════════════════ */}
-        <div style={{
+        <div className="landing-callout-box" style={{
           background: '#f3f3f3',
           border: '1.5px solid #191a23',
           borderRadius: 36,
@@ -609,7 +609,7 @@ export default function LandingPage({ onNavigate }) {
             </button>
           </div>
 
-          <div style={{
+          <div className="landing-callout-icon" style={{
             width: 100,
             height: 100,
             borderRadius: '50%',
@@ -642,7 +642,7 @@ export default function LandingPage({ onNavigate }) {
             </span>
           </div>
 
-          <div style={{
+          <div className="landing-stats-grid" style={{
             background: '#191a23',
             color: '#ffffff',
             borderRadius: 36,
@@ -651,21 +651,21 @@ export default function LandingPage({ onNavigate }) {
             gridTemplateColumns: 'repeat(3, 1fr)',
             gap: 32
           }}>
-            <div style={{ paddingRight: 24, borderRight: '1px solid #334155' }}>
+            <div className="landing-stat-item" style={{ paddingRight: 24, borderRight: '1px solid #334155' }}>
               <div style={{ fontSize: 36, fontWeight: 800, color: '#b9ff66', marginBottom: 8 }}>{t('landing.stat1Title', '150+')}</div>
               <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: '#cbd5e1', lineHeight: 1.6, margin: 0, minHeight: 70 }}>
                 {t('landing.stat1Desc', "Marvel, Star Wars, DC, Harry Potter, John Wick va barcha mashhur franshizalar xronologiyasi to'liq kiritilgan.")}
               </p>
             </div>
 
-            <div style={{ paddingRight: 24, paddingLeft: 12, borderRight: '1px solid #334155' }}>
+            <div className="landing-stat-item" style={{ paddingRight: 24, paddingLeft: 12, borderRight: '1px solid #334155' }}>
               <div style={{ fontSize: 36, fontWeight: 800, color: '#b9ff66', marginBottom: 8 }}>{t('landing.stat2Title', '3 ta Til')}</div>
               <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: '#cbd5e1', lineHeight: 1.6, margin: 0, minHeight: 70 }}>
                 {t('landing.stat2Desc', "O'zbek, rus va ingliz tillarida bir zumda aqlli qidiruv va avtomatik tarjima.")}
               </p>
             </div>
 
-            <div style={{ paddingLeft: 12 }}>
+            <div className="landing-stat-item" style={{ paddingLeft: 12 }}>
               <div style={{ fontSize: 36, fontWeight: 800, color: '#b9ff66', marginBottom: 8 }}>{t('landing.stat3Title', '100%')}</div>
               <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 14, color: '#cbd5e1', lineHeight: 1.6, margin: 0, minHeight: 70 }}>
                 {t('landing.stat3Desc', "Reklamasiz, bepul va o'zingizga qulay shaxsiy kino makoni.")}
