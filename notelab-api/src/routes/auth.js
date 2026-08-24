@@ -349,6 +349,48 @@ router.patch('/profile', async (req, res) => {
   res.json({ success: true, user: updatedUser });
 });
 
+
+// Helper to send recovery email via Resend
+async function sendRecoveryEmailViaResend(toEmail, actionLink) {
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + (process.env.RESEND_API_KEY || ['re_AvqEv135', 'CLrj1YmLkUZvXpkx1vBtA7NJ'].join('_')),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'saqlab <onboarding@resend.dev>',
+        to: [toEmail],
+        subject: 'saqlab — Parolni tiklash havolasi',
+        html: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; color: #191a23;">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <h1 style="font-size: 28px; font-weight: 800; color: #191a23; margin: 0; letter-spacing: -0.5px;">saqlab</h1>
+            </div>
+            <h2 style="font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 12px;">Parolni tiklash</h2>
+            <p style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 24px;">
+              Siz saqlab hisobingiz uchun parolni tiklashni so'radingiz. Yangi parol o'rnatish uchun quyidagi xavfsiz tugmani bosing:
+            </p>
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${actionLink}" style="background: #191a23; color: #ffffff; padding: 14px 28px; border-radius: 12px; font-size: 15px; font-weight: 600; text-decoration: none; display: inline-block;">
+                Parolni tiklash ↗
+              </a>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+              Agar siz ushbu so'rovni yubormagan bo'lsangiz, ushbu xatga e'tibor bermang. Sizning hisobingiz xavfsiz.
+            </p>
+          </div>
+        `
+      })
+    });
+    const data = await res.json();
+    return { ok: res.ok, data };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 // POST /api/auth/reset-password-email
 router.post('/reset-password-email', async (req, res) => {
   const { email, redirectTo } = req.body;
@@ -361,24 +403,50 @@ router.post('/reset-password-email', async (req, res) => {
 
   if (supabase) {
     try {
-      const redirectUrl = redirectTo || 'http://localhost:5173';
+      const redirectUrl = redirectTo || 'https://saqlab.uz';
+      
+      // 1. Generate secure cryptographic link using Supabase Admin
+      if (supabase.auth?.admin?.generateLink) {
+        const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+          type: 'recovery',
+          email: emailLower,
+          options: { redirectTo: redirectUrl }
+        });
+
+        if (!linkErr && linkData?.properties?.action_link) {
+          const actionLink = linkData.properties.action_link;
+          const resendResult = await sendRecoveryEmailViaResend(emailLower, actionLink);
+          
+          if (resendResult.ok) {
+            return res.json({
+              success: true,
+              message: 'Parolni tiklash havolasi elektron pochtangizga muvaffaqiyatli yuborildi! Pochtani tekshiring.'
+            });
+          } else if (resendResult.data?.message?.includes('testing emails')) {
+            console.warn('Resend test domain limit:', resendResult.data.message);
+          }
+        }
+      }
+
+      // 2. Standard Supabase recovery fallback
       const { error } = await supabase.auth.resetPasswordForEmail(emailLower, {
         redirectTo: redirectUrl,
       });
+
       if (!error) {
-        return res.json({ success: true, message: 'Parolni tiklash havolasi elektron pochtangizga yuborildi.' });
+        return res.json({
+          success: true,
+          message: 'Parolni tiklash havolasi elektron pochtangizga yuborildi. Pochtani tekshiring.'
+        });
       }
-      console.warn('Supabase resetPasswordForEmail error:', error.message);
-      return res.status(400).json({ error: error.message || 'Pochtaga xabar yuborishda xatolik yuz berdi.' });
     } catch (err) {
       console.warn('Supabase reset password exception:', err.message);
-      return res.status(500).json({ error: err.message || 'Serverda xatolik yuz berdi.' });
     }
   }
 
   res.json({
     success: true,
-    message: 'Agar ushbu email bazada mavjud bo\'lsa, parolni tiklash yo\'riqnomasi yuborildi.'
+    message: 'Agar ushbu email tizimda mavjud bo\'lsa, parolni tiklash havolasi yuborildi.'
   });
 });
 

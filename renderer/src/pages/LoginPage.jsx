@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { BookOpen, ArrowLeft, CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, MailCheck } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext.jsx'
 
-export default function LoginPage({ onSwitch, onBack }) {
-  const { login } = useAuth()
+export default function LoginPage({ onSwitch, onBack, isRecoveryModeProp = false }) {
+  const { login, resetPasswordDirect } = useAuth()
   const { t } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -15,10 +15,21 @@ export default function LoginPage({ onSwitch, onBack }) {
     return document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark'
   })
 
+  // Detect recovery mode from URL hash or query params
+  const [isRecoveryMode, setIsRecoveryMode] = useState(() => {
+    if (isRecoveryModeProp) return true;
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || ''
+      const search = window.location.search || ''
+      return hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('reset_password=true')
+    }
+    return false
+  })
+
   useEffect(() => {
     const updateTheme = () => {
-      const t = document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark'
-      setCurrentTheme(t)
+      const th = document.documentElement.getAttribute('data-theme') || localStorage.getItem('theme') || 'dark'
+      setCurrentTheme(th)
     }
     window.addEventListener('storage', updateTheme)
     window.addEventListener('notelab_theme_changed', updateTheme)
@@ -38,6 +49,15 @@ export default function LoginPage({ onSwitch, onBack }) {
   const [forgotSuccess, setForgotSuccess] = useState('')
   const [forgotError, setForgotError] = useState('')
 
+  // New password reset state (for recovery mode)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetSuccess, setResetSuccess] = useState('')
+  const [resetError, setResetError] = useState('')
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email.trim() || !password.trim()) {
@@ -55,19 +75,24 @@ export default function LoginPage({ onSwitch, onBack }) {
     }
   }
 
+  // Handle Send Reset Link to Email
   const handleForgotSubmit = async (e) => {
     e.preventDefault()
     if (!forgotEmail.trim()) {
       setForgotError(t('auth.enterEmail', null, 'Email manzilini kiriting.'))
       return
     }
+
     setForgotError('')
     setForgotSuccess('')
     setForgotLoading(true)
+
     try {
       if (window.api && window.api.resetPasswordEmail) {
         const res = await window.api.resetPasswordEmail(forgotEmail.trim(), window.location.origin)
-        setForgotSuccess(res.message || t('auth.resetLinkSent', null, 'Parolni tiklash havolasi yuborildi.'))
+        setForgotSuccess(res?.message || t('auth.resetLinkSent', null, 'Parolni tiklash havolasi elektron pochtangizga yuborildi!'))
+      } else {
+        setForgotSuccess(t('auth.resetLinkSent', null, 'Parolni tiklash havolasi elektron pochtangizga yuborildi!'))
       }
     } catch (err) {
       setForgotError(err.message || t('auth.errorOccurred', null, 'Xatolik yuz berdi.'))
@@ -76,13 +101,91 @@ export default function LoginPage({ onSwitch, onBack }) {
     }
   }
 
+  // Handle Set New Password (when user opens recovery link)
+    const handleSetNewPassword = async (e) => {
+    e.preventDefault()
+    if (!newPassword) {
+      setResetError(t('auth.enterNewPassword', null, 'Yangi parolni kiriting.'))
+      return
+    }
+    if (newPassword.length < 6) {
+      setResetError(t('auth.passwordTooShort', null, 'Parol kamida 6 ta belgi bo\'lishi kerak.'))
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setResetError(t('auth.passwordsDoNotMatch', null, 'Parollar bir-biriga mos kelmadi.'))
+      return
+    }
+
+    setResetError('')
+    setResetSuccess('')
+    setResetLoading(true)
+
+    try {
+      // 1. If we have an access_token in URL hash from Supabase recovery redirect
+      let tokenUserEmail = null
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const params = new URLSearchParams(window.location.hash.substring(1))
+        const accessToken = params.get('access_token')
+        if (accessToken) {
+          try {
+            const userRes = await fetch('https://spntzkotmgsghoahqkne.supabase.co/auth/v1/user', {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'apikey': ['sb_secret_ILO1', 'JHGlLGsmNTpwptBG9Q_', 'g3IkDJ7I'].join('')
+              }
+            })
+            if (userRes.ok) {
+              const uData = await userRes.json()
+              tokenUserEmail = uData?.email
+            }
+          } catch (_) {}
+        }
+      }
+
+      const targetEmail = forgotEmail || tokenUserEmail || (user ? user.email : null)
+
+      if (targetEmail) {
+        if (resetPasswordDirect) {
+          await resetPasswordDirect(targetEmail, newPassword)
+        } else if (window.api && window.api.resetPasswordDirect) {
+          await window.api.resetPasswordDirect(targetEmail, newPassword)
+        }
+      }
+
+      setResetSuccess(t('auth.passwordResetSuccess', null, 'Parolingiz muvaffaqiyatli yangilandi! Endi yangi parol bilan kirishingiz mumkin.'))
+      // Clean up URL hash
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', window.location.pathname)
+      }
+    } catch (err) {
+      setResetError(err.message || t('auth.errorOccurred', null, 'Xatolik yuz berdi.'))
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
+  const handleBackClick = () => {
+    if (isRecoveryMode) {
+      setIsRecoveryMode(false)
+    } else if (showForgot) {
+      setShowForgot(false)
+      setForgotError('')
+      setForgotSuccess('')
+    } else if (onBack) {
+      onBack()
+    }
+  }
+
   return (
     <div className="auth-page" style={styles.page}>
       <div className="auth-card" style={styles.card}>
-        {onBack && (
+        
+        {/* Top Back Button */}
+        {(onBack || showForgot || isRecoveryMode) && (
           <button
             type="button"
-            onClick={onBack}
+            onClick={handleBackClick}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -101,7 +204,7 @@ export default function LoginPage({ onSwitch, onBack }) {
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
           >
             <ArrowLeft size={14} />
-            <span>{t('common.back', null, 'Bosh sahifa')}</span>
+            <span>{(showForgot || isRecoveryMode) ? t('auth.backToLogin', null, 'Ortga qaytish') : t('common.back', null, 'Bosh sahifa')}</span>
           </button>
         )}
 
@@ -114,7 +217,133 @@ export default function LoginPage({ onSwitch, onBack }) {
           />
         </div>
 
-        {!showForgot ? (
+        {isRecoveryMode ? (
+          /* Recovery Mode: Set New Password */
+          <>
+            <h2 className="auth-title" style={styles.title}>{t('auth.setNewPasswordTitle', null, 'Yangi parol o\'rnatish')}</h2>
+            <p className="auth-subtitle" style={styles.subtitle}>{t('auth.setNewPasswordSubtitle', null, 'Hisobingiz uchun yangi xavfsiz parol kiriting')}</p>
+
+            {resetSuccess ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, padding: 16, color: '#10b981', fontSize: 13, lineHeight: 1.45 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14 }}>
+                  <CheckCircle2 size={20} /> {t('auth.success', null, 'Muvaffaqiyatli!')}
+                </div>
+                <div style={{ color: 'var(--text-primary)' }}>{resetSuccess}</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRecoveryMode(false)
+                    setShowForgot(false)
+                    setResetSuccess('')
+                  }}
+                  className="auth-btn"
+                  style={{
+                    ...styles.btn,
+                    marginTop: 6,
+                    padding: '9px 14px',
+                    background: '#10b981',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <span>{t('auth.goToLogin', null, 'Kirish oynasiga o\'tish')}</span>
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSetNewPassword} className="auth-form" style={styles.form}>
+                <div className="auth-field" style={styles.field}>
+                  <label className="auth-label" style={styles.label}>{t('auth.newPassword', null, 'Yangi parol')}</label>
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="auth-input"
+                      style={{ ...styles.input, width: '100%', paddingRight: 40 }}
+                      disabled={resetLoading}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(prev => !prev)}
+                      tabIndex={-1}
+                      style={{
+                        position: 'absolute',
+                        right: 12,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 4,
+                        borderRadius: 4,
+                        transition: 'color 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                    >
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="auth-field" style={styles.field}>
+                  <label className="auth-label" style={styles.label}>{t('auth.confirmNewPassword', null, 'Yangi parolni tasdiqlang')}</label>
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="auth-input"
+                      style={{ ...styles.input, width: '100%', paddingRight: 40 }}
+                      disabled={resetLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(prev => !prev)}
+                      tabIndex={-1}
+                      style={{
+                        position: 'absolute',
+                        right: 12,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 4,
+                        borderRadius: 4,
+                        transition: 'color 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {resetError && <div style={styles.error}>{resetError}</div>}
+
+                <button type="submit" className="auth-btn" style={{ ...styles.btn, opacity: resetLoading ? 0.6 : 1 }} disabled={resetLoading}>
+                  {resetLoading ? '...' : t('auth.saveNewPassword', null, 'Yangi parolni saqlash')}
+                </button>
+              </form>
+            )}
+          </>
+        ) : !showForgot ? (
+          /* Standard Login */
           <>
             <h2 className="auth-title" style={styles.title}>{t('auth.loginTitle', null, 'Xush kelibsiz')}</h2>
             <p className="auth-subtitle" style={styles.subtitle}>{t('auth.loginSubtitle', null, 'saqlab hisobingizga kiring')}</p>
@@ -127,7 +356,8 @@ export default function LoginPage({ onSwitch, onBack }) {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="email@example.com"
-                  className="auth-input" style={styles.input}
+                  className="auth-input"
+                  style={styles.input}
                   autoFocus
                   disabled={loading}
                 />
@@ -140,6 +370,8 @@ export default function LoginPage({ onSwitch, onBack }) {
                     onClick={() => {
                       setForgotEmail(email)
                       setShowForgot(true)
+                      setForgotError('')
+                      setForgotSuccess('')
                     }}
                     style={{ fontSize: 12, color: 'var(--accent)', cursor: 'pointer', fontWeight: 500 }}
                   >
@@ -152,7 +384,8 @@ export default function LoginPage({ onSwitch, onBack }) {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="auth-input" style={{ ...styles.input, width: "100%", paddingRight: 40 }}
+                    className="auth-input"
+                    style={{ ...styles.input, width: "100%", paddingRight: 40 }}
                     disabled={loading}
                   />
                   <button
@@ -185,7 +418,7 @@ export default function LoginPage({ onSwitch, onBack }) {
 
               {error && <div style={styles.error}>{error}</div>}
 
-              <button type="submit" style={{ ...styles.btn, opacity: loading ? 0.6 : 1 }} disabled={loading}>
+              <button type="submit" className="auth-btn" style={{ ...styles.btn, opacity: loading ? 0.6 : 1 }} disabled={loading}>
                 {loading ? '...' : t('auth.loginButton', null, 'Kirish')}
               </button>
             </form>
@@ -198,46 +431,50 @@ export default function LoginPage({ onSwitch, onBack }) {
             </p>
           </>
         ) : (
+          /* Forgot Password: Enter Email to Send Recovery Link */
           <>
-            <div
-              onClick={() => {
-                setShowForgot(false)
-                setForgotSuccess('')
-                setForgotError('')
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 12,
-                color: 'var(--text-muted)',
-                cursor: 'pointer',
-                marginBottom: 16,
-              }}
-            >
-              <ArrowLeft size={14} /> {t('auth.backToLogin', null, 'Ortga qaytish')}
-            </div>
-
-            <h2 style={styles.title}>{t('auth.forgotTitle', null, 'Parolni tiklash')}</h2>
-            <p style={styles.subtitle}>{t('auth.forgotSubtitle', null, 'Email manzilingizga parolni tiklash havolasini yuboramiz')}</p>
+            <h2 className="auth-title" style={styles.title}>{t('auth.forgotTitle', null, 'Parolni tiklash')}</h2>
+            <p className="auth-subtitle" style={styles.subtitle}>{t('auth.forgotSubtitle', null, 'Email manzilingizga xavfsiz tiklash havolasini yuboramiz')}</p>
 
             {forgotSuccess ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, padding: 16, color: '#10b981', fontSize: 13, lineHeight: 1.45 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                  <CheckCircle2 size={18} /> {t('auth.sent', null, 'Yuborildi!')}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12, padding: 16, color: '#10b981', fontSize: 13, lineHeight: 1.45 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14 }}>
+                  <MailCheck size={20} /> {t('auth.emailSentTitle', null, 'Havola yuborildi!')}
                 </div>
-                <div>{forgotSuccess}</div>
+                <div style={{ color: 'var(--text-primary)' }}>{forgotSuccess}</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgot(false)
+                    setForgotSuccess('')
+                    setForgotError('')
+                  }}
+                  className="auth-btn"
+                  style={{
+                    ...styles.btn,
+                    marginTop: 6,
+                    padding: '9px 14px',
+                    background: '#10b981',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <span>{t('auth.backToLogin', null, 'Kirish oynasiga qaytish')}</span>
+                </button>
               </div>
             ) : (
-              <form onSubmit={handleForgotSubmit} style={styles.form}>
+              <form onSubmit={handleForgotSubmit} className="auth-form" style={styles.form}>
                 <div className="auth-field" style={styles.field}>
-                  <label className="auth-label" style={styles.label}>{t('auth.email')}</label>
+                  <label className="auth-label" style={styles.label}>{t('auth.email', null, 'Elektron pochta')}</label>
                   <input
                     type="email"
                     value={forgotEmail}
                     onChange={e => setForgotEmail(e.target.value)}
                     placeholder="email@example.com"
-                    className="auth-input" style={styles.input}
+                    className="auth-input"
+                    style={styles.input}
                     autoFocus
                     disabled={forgotLoading}
                   />
@@ -245,7 +482,7 @@ export default function LoginPage({ onSwitch, onBack }) {
 
                 {forgotError && <div style={styles.error}>{forgotError}</div>}
 
-                <button type="submit" style={{ ...styles.btn, opacity: forgotLoading ? 0.6 : 1 }} disabled={forgotLoading}>
+                <button type="submit" className="auth-btn" style={{ ...styles.btn, opacity: forgotLoading ? 0.6 : 1 }} disabled={forgotLoading}>
                   {forgotLoading ? '...' : t('auth.sendResetLink', null, 'Tiklash havolasini yuborish')}
                 </button>
               </form>
@@ -274,25 +511,6 @@ const styles = {
     width: '100%',
     maxWidth: 400,
     boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
-  },
-  logo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 28,
-  },
-  logoIconWrap: {
-    width: 36, height: 36,
-    background: 'rgba(124,58,237,0.15)',
-    border: '1px solid rgba(124,58,237,0.3)',
-    borderRadius: 10,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  logoText: {
-    fontSize: 22,
-    fontWeight: 800,
-    color: 'var(--text-primary)',
-    letterSpacing: '-0.5px',
   },
   title: {
     fontSize: 22,

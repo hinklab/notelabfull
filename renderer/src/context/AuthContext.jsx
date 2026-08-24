@@ -176,6 +176,44 @@ export function AuthProvider({ children }) {
     }
   }
 
+  
+  const resetPasswordDirect = async (email, newPassword) => {
+    const emailLower = email.toLowerCase().trim()
+    try {
+      const data = await fetchJSON(`${API_BASE}/auth/reset-password-direct`, {
+        method: 'POST',
+        body: JSON.stringify({ email: emailLower, new_password: newPassword }),
+      })
+      return data
+    } catch (err) {
+      console.warn('API reset password failed, attempting direct Supabase Cloud fallback:', err.message)
+      const passHash = await sha256(newPassword)
+      const res = await fetch(`${SUPABASE_REST_URL}/users?email=ilike.${encodeURIComponent(emailLower)}&select=id,email`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        }
+      })
+      if (!res.ok) throw new Error(err.message || 'Xatolik yuz berdi.')
+      const users = await res.json()
+      if (!Array.isArray(users) || users.length === 0) {
+        throw new Error('Ushbu email bilan ro\'yxatdan o\'tgan foydalanuvchi topilmadi.')
+      }
+      const u = users[0]
+      const updateRes = await fetch(`${SUPABASE_REST_URL}/users?id=eq.${encodeURIComponent(u.id)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`
+        },
+        body: JSON.stringify({ password_hash: passHash })
+      })
+      if (!updateRes.ok) throw new Error('Parolni yangilashda xatolik yuz berdi.')
+      return { success: true, message: 'Parolingiz muvaffaqiyatli yangilandi! Endi yangi parolingiz bilan kirishingiz mumkin.' }
+    }
+  }
+
   const logout = () => {
     setUser(null)
     setIsNewRegistration(false)
@@ -191,7 +229,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, isNewRegistration, setIsNewRegistration, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, isNewRegistration, setIsNewRegistration, login, register, logout, updateUser, resetPasswordDirect }}>
       {children}
     </AuthContext.Provider>
   )

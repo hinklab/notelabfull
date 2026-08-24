@@ -63,6 +63,44 @@ export default function App() {
     )
   }
 
+  // Detect recovery mode from URL hash (#type=recovery or #access_token=...) or query params
+  const [isRecoveryFlow, setIsRecoveryFlow] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || ''
+      const search = window.location.search || ''
+      return hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('reset_password=true')
+    }
+    return false
+  })
+
+  // Listen for hash change
+  useEffect(() => {
+    const checkHash = () => {
+      const hash = window.location.hash || ''
+      const search = window.location.search || ''
+      if (hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('reset_password=true')) {
+        setIsRecoveryFlow(true)
+      }
+    }
+    window.addEventListener('hashchange', checkHash)
+    return () => window.removeEventListener('hashchange', checkHash)
+  }, [])
+
+  // If user opens a recovery link from email, ALWAYS show Reset Password view
+  if (isRecoveryFlow) {
+    return (
+      <LoginPage
+        isRecoveryModeProp={true}
+        onSwitch={() => setAuthPage('login')}
+        onBack={() => {
+          setIsRecoveryFlow(false)
+          window.location.hash = ''
+          setAuthPage('login')
+        }}
+      />
+    )
+  }
+
   // Auth guard — landing / kirish / ro'yxat sahifalari
   if (!user) {
     if (authPage === 'login') {

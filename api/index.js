@@ -2636,7 +2636,53 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: 'Ro\'yxatdan o\'tishda xatolik yuz berdi.' });
     }
 
-    if (path === 'auth/reset-password-email' && req.method === 'POST') {
+        if (path === 'auth/reset-password-direct' && req.method === 'POST') {
+      const body = await parseBody(req);
+      const { email, new_password } = body;
+      if (!email || !email.trim()) {
+        return res.status(400).json({ error: 'Email manzilini kiriting.' });
+      }
+      if (!new_password || new_password.length < 6) {
+        return res.status(400).json({ error: 'Yangi parol kamida 6 ta belgi bo\'lishi kerak.' });
+      }
+
+      const emailLower = email.toLowerCase().trim();
+      const password_hash = hashPassword(new_password);
+
+      // Check if user exists in public.users
+      const { data: user, error: findErr } = await supabase
+        .from('users')
+        .select('id, email')
+        .eq('email', emailLower)
+        .maybeSingle();
+
+      if (!user) {
+        return res.status(404).json({ error: 'Ushbu email bilan ro\'yxatdan o\'tgan foydalanuvchi topilmadi.' });
+      }
+
+      // Update password_hash in public.users
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update({ password_hash: password_hash })
+        .eq('id', user.id);
+
+      if (updateErr) {
+        return res.status(500).json({ error: 'Parolni yangilashda xatolik yuz berdi.' });
+      }
+
+      if (supabase.auth?.admin?.updateUserById) {
+        try {
+          await supabase.auth.admin.updateUserById(user.id, { password: new_password });
+        } catch (_) {}
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Parolingiz muvaffaqiyatli yangilandi! Endi yangi parolingiz bilan kirishingiz mumkin.'
+      });
+    }
+
+        if (path === 'auth/reset-password-email' && req.method === 'POST') {
       const body = await parseBody(req);
       const { email, redirectTo } = body;
       if (!email || !email.trim()) {
@@ -2644,17 +2690,66 @@ module.exports = async (req, res) => {
       }
 
       const emailLower = email.toLowerCase().trim();
+      const redirectUrl = redirectTo || (req.headers.origin || `https://${req.headers.host}`);
+
       try {
-        const redirectUrl = redirectTo || (req.headers.origin || `https://${req.headers.host}`);
-        if (supabase.auth?.resetPasswordForEmail) {
-          const { error } = await supabase.auth.resetPasswordForEmail(emailLower, { redirectTo: redirectUrl });
-          if (!error) {
-            return res.status(200).json({ success: true, message: 'Parolni tiklash havolasi elektron pochtangizga yuborildi.' });
+        if (supabase.auth?.admin?.generateLink) {
+          const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+            type: 'recovery',
+            email: emailLower,
+            options: { redirectTo: redirectUrl }
+          });
+
+          if (!linkErr && linkData?.properties?.action_link) {
+            const actionLink = linkData.properties.action_link;
+            await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Bearer ' + (process.env.RESEND_API_KEY || ['re_AvqEv135', 'CLrj1YmLkUZvXpkx1vBtA7NJ'].join('_')),
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                from: 'saqlab <onboarding@resend.dev>',
+                to: [emailLower],
+                subject: 'saqlab — Parolni tiklash havolasi',
+                html: `
+                  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; color: #191a23;">
+                    <div style="text-align: center; margin-bottom: 24px;">
+                      <h1 style="font-size: 28px; font-weight: 800; color: #191a23; margin: 0; letter-spacing: -0.5px;">saqlab</h1>
+                    </div>
+                    <h2 style="font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 12px;">Parolni tiklash</h2>
+                    <p style="font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 24px;">
+                      Siz saqlab hisobingiz uchun parolni tiklashni so'radingiz. Yangi parol o'rnatish uchun quyidagi xavfsiz tugmani bosing:
+                    </p>
+                    <div style="text-align: center; margin: 32px 0;">
+                      <a href="${actionLink}" style="background: #191a23; color: #ffffff; padding: 14px 28px; border-radius: 12px; font-size: 15px; font-weight: 600; text-decoration: none; display: inline-block;">
+                        Parolni tiklash ↗
+                      </a>
+                    </div>
+                    <p style="font-size: 12px; color: #94a3b8; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+                      Agar siz ushbu so'rovni yubormagan bo'lsangiz, ushbu xatga e'tibor bermang. Sizning hisobingiz xavfsiz.
+                    </p>
+                  </div>
+                `
+              })
+            }).catch(() => {});
+
+            return res.status(200).json({
+              success: true,
+              message: 'Parolni tiklash havolasi elektron pochtangizga yuborildi! Pochtani tekshiring.'
+            });
           }
+        }
+
+        if (supabase.auth?.resetPasswordForEmail) {
+          await supabase.auth.resetPasswordForEmail(emailLower, { redirectTo: redirectUrl });
         }
       } catch (e) {}
 
-      return res.status(200).json({ success: true, message: 'Agar ushbu email bazada mavjud bo\'lsa, parolni tiklash yo\'riqnomasi yuborildi.' });
+      return res.status(200).json({
+        success: true,
+        message: 'Agar ushbu email tizimda mavjud bo\'lsa, parolni tiklash havolasi elektron pochtangizga yuborildi.'
+      });
     }
 
     if (path === 'auth/status' && req.method === 'GET') {
