@@ -12,15 +12,71 @@ async function sha256(str) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-function getRecoveryToken() {
-  if (typeof window === 'undefined') return null
-  const hash = window.location.hash || ''
-  if (!hash) return null
-  const params = new URLSearchParams(hash.substring(1))
-  if (params.get('type') === 'recovery') {
-    return params.get('access_token') || null
+function parseJwt(token) {
+  if (!token) return null
+  try {
+    const base64Url = token.split('.')[1]
+    if (!base64Url) return null
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch {
+    return null
   }
-  return null
+}
+
+function getRecoveryInfo() {
+  if (typeof window === 'undefined') return { token: null, email: null }
+  
+  let token = null
+  let email = null
+  
+  // 1. Check URL hash (#access_token=...&type=recovery)
+  const hash = window.location.hash || ''
+  if (hash) {
+    const hashParams = new URLSearchParams(hash.substring(1))
+    token = hashParams.get('access_token') || hashParams.get('token')
+    if (hashParams.get('email')) email = hashParams.get('email')
+  }
+  
+  // 2. Check URL search query (?access_token=... or ?token=... or ?email=...)
+  if (!token || !email) {
+    const search = window.location.search || ''
+    if (search) {
+      const searchParams = new URLSearchParams(search)
+      if (!token) token = searchParams.get('access_token') || searchParams.get('token')
+      if (!email) email = searchParams.get('email')
+    }
+  }
+  
+  // 3. Extract email directly from JWT token payload synchronously
+  if (token && !email) {
+    const jwt = parseJwt(token)
+    if (jwt?.email) email = jwt.email
+  }
+  
+  // 4. SessionStorage cache fallback (persists across multiple form attempts & re-renders)
+  if (!token) {
+    try { token = sessionStorage.getItem('saqlab_recovery_token') } catch {}
+  }
+  if (!email) {
+    try { email = sessionStorage.getItem('saqlab_recovery_email') } catch {}
+  }
+  
+  // Persist if found
+  if (token) {
+    try { sessionStorage.setItem('saqlab_recovery_token', token) } catch {}
+  }
+  if (email) {
+    try { sessionStorage.setItem('saqlab_recovery_email', email) } catch {}
+  }
+  
+  return { token, email }
 }
 
 export default function LoginPage({ onSwitch, onBack, isRecoveryModeProp = false }) {
@@ -57,8 +113,8 @@ export default function LoginPage({ onSwitch, onBack, isRecoveryModeProp = false
 
   // Recovery
   const [isRecoveryMode, setIsRecoveryMode] = useState(isRecoveryModeProp)
-  const [recoveryToken] = useState(() => getRecoveryToken())
-  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [recoveryToken, setRecoveryToken] = useState(() => getRecoveryInfo().token)
+  const [recoveryEmail, setRecoveryEmail] = useState(() => getRecoveryInfo().email)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showNewPassword, setShowNewPassword] = useState(false)
@@ -67,16 +123,27 @@ export default function LoginPage({ onSwitch, onBack, isRecoveryModeProp = false
   const [resetSuccess, setResetSuccess] = useState('')
   const [resetError, setResetError] = useState('')
 
+  // If email is still not loaded, fetch from Supabase user endpoint as fallback
   useEffect(() => {
-    if (isRecoveryMode && recoveryToken && !recoveryEmail) {
+    const info = getRecoveryInfo()
+    if (!recoveryToken && info.token) setRecoveryToken(info.token)
+    if (!recoveryEmail && info.email) setRecoveryEmail(info.email)
+
+    const tok = recoveryToken || info.token
+    if (isRecoveryMode && tok && !recoveryEmail) {
       fetch(`${SUPABASE_URL}/auth/v1/user`, {
-        headers: { 'Authorization': `Bearer ${recoveryToken}`, 'apikey': SUPABASE_KEY }
+        headers: { 'Authorization': `Bearer ${tok}`, 'apikey': SUPABASE_KEY }
       })
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data?.email) setRecoveryEmail(data.email) })
+        .then(data => {
+          if (data?.email) {
+            setRecoveryEmail(data.email)
+            try { sessionStorage.setItem('saqlab_recovery_email', data.email) } catch {}
+          }
+        })
         .catch(() => {})
     }
-  }, [isRecoveryMode, recoveryToken])
+  }, [isRecoveryMode, recoveryToken, recoveryEmail])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -121,45 +188,77 @@ export default function LoginPage({ onSwitch, onBack, isRecoveryModeProp = false
     setResetLoading(true)
 
     try {
-      const targetEmail = recoveryEmail || forgotEmail
+      const currentToken = recoveryToken || getRecoveryInfo().token
+      const targetEmail = recoveryEmail || forgotEmail || (currentToken ? parseJwt(currentToken)?.email : null) || getRecoveryInfo().email
 
-      if (recoveryToken) {
-        const updateRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${recoveryToken}`,
-            'apikey': SUPABASE_KEY
-          },
-          body: JSON.stringify({ password: newPassword })
-        })
-        if (updateRes.ok) {
-          if (targetEmail) {
-            const hash = await sha256(newPassword)
-            fetch(`${SUPABASE_URL}/rest/v1/users?email=ilike.${encodeURIComponent(targetEmail)}`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`
-              },
-              body: JSON.stringify({ password_hash: hash })
-            }).catch(() => {})
+      let updated = false
+      let lastErrorMessage = ''
+
+      // 1. Update Supabase Auth API
+      if (currentToken) {
+        try {
+          const updateRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${currentToken}`,
+              'apikey': SUPABASE_KEY
+            },
+            body: JSON.stringify({ password: newPassword })
+          })
+
+          const updateData = await updateRes.json()
+          if (updateRes.ok) {
+            updated = true
+          } else {
+            lastErrorMessage = updateData.msg || updateData.message || updateData.error_description || updateData.error || ''
           }
-          setResetSuccess("Parolingiz muvaffaqiyatli yangilandi! Endi yangi parol bilan kirishingiz mumkin.")
-          if (typeof window !== 'undefined') window.history.replaceState(null, '', window.location.pathname)
-          return
+        } catch (authErr) {
+          lastErrorMessage = authErr.message
         }
       }
 
+      // 2. Synchronize password_hash in public.users
       if (targetEmail) {
-        await resetPasswordDirect(targetEmail, newPassword)
+        try {
+          const hash = await sha256(newPassword)
+          await fetch(`${SUPABASE_URL}/rest/v1/users?email=ilike.${encodeURIComponent(targetEmail)}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`
+            },
+            body: JSON.stringify({ password_hash: hash })
+          })
+
+          if (resetPasswordDirect) {
+            await resetPasswordDirect(targetEmail, newPassword)
+          } else if (api?.resetPasswordDirect) {
+            await api.resetPasswordDirect(targetEmail, newPassword)
+          }
+
+          updated = true
+        } catch (dbErr) {
+          if (!updated) lastErrorMessage = dbErr.message
+        }
+      }
+
+      if (updated) {
         setResetSuccess("Parolingiz muvaffaqiyatli yangilandi! Endi yangi parol bilan kirishingiz mumkin.")
+        try {
+          sessionStorage.removeItem('saqlab_recovery_token')
+          sessionStorage.removeItem('saqlab_recovery_email')
+        } catch {}
         if (typeof window !== 'undefined') window.history.replaceState(null, '', window.location.pathname)
         return
       }
 
-      setResetError("Email aniqlanmadi. Iltimos qayta tiklash havolasini so'rang.")
+      if (lastErrorMessage) {
+        setResetError(lastErrorMessage)
+      } else {
+        setResetError("Email aniqlanmadi. Iltimos qayta tiklash havolasini so'rang.")
+      }
     } catch (err) {
       setResetError(err.message || 'Xatolik yuz berdi.')
     } finally {
@@ -202,7 +301,7 @@ export default function LoginPage({ onSwitch, onBack, isRecoveryModeProp = false
           <>
             <h2 className="auth-title" style={styles.title}>Yangi parol o'rnatish</h2>
             <p className="auth-subtitle" style={styles.subtitle}>
-              {recoveryEmail ? `${recoveryEmail} uchun yangi parol kiriting` : 'Hisobingiz uchun yangi xavfsiz parol kiriting'}
+              {recoveryEmail ? `${recoveryEmail} hisobi uchun yangi parol kiriting` : 'Hisobingiz uchun yangi xavfsiz parol kiriting'}
             </p>
             {resetSuccess ? (
               <div style={styles.successBox}>

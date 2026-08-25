@@ -35,7 +35,7 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash || ''
       const search = window.location.search || ''
-      return hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('reset_password=true')
+      return hash.includes('type=recovery') || hash.includes('access_token') || search.includes('type=recovery') || search.includes('reset_password=true')
     }
     return false
   })
@@ -45,7 +45,7 @@ export default function App() {
     const checkHash = () => {
       const hash = window.location.hash || ''
       const search = window.location.search || ''
-      if (hash.includes('type=recovery') || search.includes('type=recovery') || search.includes('reset_password=true')) {
+      if (hash.includes('type=recovery') || hash.includes('access_token') || search.includes('type=recovery') || search.includes('reset_password=true')) {
         setIsRecoveryFlow(true)
       }
     }
