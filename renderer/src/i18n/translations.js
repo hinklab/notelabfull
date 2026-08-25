@@ -15,6 +15,7 @@ export const translations = {
       "search": "Qidirish...",
       "back": "Orqaga",
       "all": "Barchasi",
+      "more": "Yana",
       "add": "Qo'shish",
       "retry": "Qayta urinish",
       "open": "Ochish"
@@ -285,6 +286,7 @@ export const translations = {
       "search": "Поиск...",
       "back": "Назад",
       "all": "Все",
+      "more": "Ещё",
       "add": "Добавить",
       "retry": "Повторить",
       "open": "Открыть"
@@ -555,6 +557,7 @@ export const translations = {
       "search": "Search...",
       "back": "Back",
       "all": "All",
+      "more": "More",
       "add": "Add",
       "retry": "Retry",
       "open": "Open"

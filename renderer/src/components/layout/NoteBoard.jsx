@@ -1891,7 +1891,7 @@ onSaveRating,
           >
             {shouldCollapse ? (
               <>
-                <span>{t('common.all')} ({items.length})</span>
+                <span>{t('common.more') || 'Yana'} ({Math.max(1, items.length - visibleCardsTarget)})</span>
                 <ChevronDown size={14} />
               </>
             ) : (
