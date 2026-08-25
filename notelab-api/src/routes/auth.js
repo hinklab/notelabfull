@@ -360,7 +360,7 @@ async function sendRecoveryEmailViaResend(toEmail, actionLink) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'saqlab <onboarding@resend.dev>',
+        from: 'saqlab <noreply@saqlab.uz>',
         to: [toEmail],
         subject: 'saqlab — Parolni tiklash havolasi',
         html: `

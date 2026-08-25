@@ -2725,7 +2725,7 @@ module.exports = async (req, res) => {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                from: 'saqlab <onboarding@resend.dev>',
+                from: 'saqlab <noreply@saqlab.uz>',
                 to: [emailLower],
                 subject: 'saqlab — Parolni tiklash havolasi',
                 html: `
