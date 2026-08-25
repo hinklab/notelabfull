@@ -181,61 +181,47 @@ function RatingStars10({ value, onChange }) {
 
 export function sortMoviesForSection(moviesList, sectionKey) {
   const isFutured = sectionKey === 'futured' || String(sectionKey) === '1' || String(sectionKey) === 'g_futured'
-  const isDone = sectionKey === 'done' || String(sectionKey) === '4' || String(sectionKey) === 'g_done'
 
-  return [...moviesList].sort((a, b) => {
-    const movieA = a._movie || a
-    const movieB = b._movie || b
-
-    if (isFutured) {
-      // 1. Futured ONLY: nearest release date first -> furthest release date last (eng yaqin chiqish > eng oxirgi chiqish)
-      const parseDate = (d) => {
-        if (!d || d === '-' || d === 'null' || d === 'undefined') return Infinity
-        const ts = new Date(d).getTime()
-        return isNaN(ts) ? Infinity : ts
-      }
+  if (isFutured) {
+    // 1. Futured ONLY: nearest release date first -> furthest release date last (eng yaqin chiqish > eng oxirgi chiqish)
+    const parseDate = (d) => {
+      if (!d || d === '-' || d === 'null' || d === 'undefined') return Infinity
+      const ts = new Date(d).getTime()
+      return isNaN(ts) ? Infinity : ts
+    }
+    return [...moviesList].sort((a, b) => {
+      const movieA = a._movie || a
+      const movieB = b._movie || b
       const dateA = parseDate(movieA.release_date)
       const dateB = parseDate(movieB.release_date)
       if (dateA !== dateB) return dateA - dateB
 
-      // Fallback if release dates are identical or missing: newest added first
-      const timeA = new Date(movieA.created_at || movieA.updated_at || 0).getTime()
-      const timeB = new Date(movieB.created_at || movieB.updated_at || 0).getTime()
+      const timeA = new Date(movieA.created_at || 0).getTime()
+      const timeB = new Date(movieB.created_at || 0).getTime()
+      return timeB - timeA
+    })
+  }
+
+  // 2. All other sections (To Do, Going, Done, custom):
+  // User's manual position order is strictly preserved
+  return [...moviesList].sort((a, b) => {
+    const movieA = a._movie || a
+    const movieB = b._movie || b
+
+    const posA = typeof movieA.position === 'number' ? movieA.position : (typeof a.position === 'number' ? a.position : null)
+    const posB = typeof movieB.position === 'number' ? movieB.position : (typeof b.position === 'number' ? b.position : null)
+
+    if (posA !== null && posB !== null && posA !== posB) {
+      return posA - posB
+    }
+
+    const timeA = new Date(movieA.created_at || 0).getTime()
+    const timeB = new Date(movieB.created_at || 0).getTime()
+    if (timeA && timeB && timeA !== timeB) {
       return timeB - timeA
     }
 
-    if (isDone) {
-      // 2. Done ONLY: Most recently added / completed movies at the top
-      const posA = typeof movieA.position === 'number' ? movieA.position : 0
-      const posB = typeof movieB.position === 'number' ? movieB.position : 0
-      if (posA !== posB) return posA - posB
-
-      const timeA = new Date(movieA.created_at || movieA.updated_at || 0).getTime()
-      const timeB = new Date(movieB.created_at || movieB.updated_at || 0).getTime()
-      return timeB - timeA
-    }
-
-    // 3. To Do and Doing (Going):
-    // If movies belong to the SAME franchise / chronology universe,
-    // the earlier chapter/movie in the chronology order MUST be above the later one!
-    const fA = getMovieFranchiseInfo(movieA)
-    const fB = getMovieFranchiseInfo(movieB)
-
-    if (fA && fB && fA.universe_key === fB.universe_key) {
-      if (fA.chronology_index !== fB.chronology_index) {
-        return fA.chronology_index - fB.chronology_index
-      }
-    }
-
-    // Otherwise (different franchises or standalone movies):
-    // Position if explicitly reordered, else newest added first
-    const posA = typeof movieA.position === 'number' ? movieA.position : 0
-    const posB = typeof movieB.position === 'number' ? movieB.position : 0
-    if (posA !== posB) return posA - posB
-
-    const timeA = new Date(movieA.created_at || movieA.updated_at || 0).getTime()
-    const timeB = new Date(movieB.created_at || movieB.updated_at || 0).getTime()
-    return timeB - timeA
+    return 0
   })
 }
 
@@ -382,14 +368,15 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         for (const g of validGroups) {
           const secMovies = validMovies.filter(m => m.section === g.section_key)
           map[g.id] = sortMoviesForSection(secMovies, g.section_key)
-            .map(m => ({
+            .map((m, idx) => ({
               id: m.id, group_id: g.id, title: m.title,
               subtitle: [m.genre, m.director].filter(Boolean).join(' · '),
               cover_url: m.poster_path || null,
               note: m.note || '',
+              position: typeof m.position === 'number' ? m.position : idx,
               user_rating: m.user_rating || null,
               avg_user_rating: m.avg_user_rating || m.user_rating || null,
-              _movie: m,
+              _movie: { ...m, position: typeof m.position === 'number' ? m.position : idx },
             }))
         }
         setItemsByGroup(map)
@@ -528,11 +515,15 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
 
     setItemsByGroup(prev => {
       const existing = prev[groupId] || []
-      const combined = [tempItem, ...existing]
-      const sorted = isMovieNote ? sortMoviesForSection(combined, sectionKey) : combined
+      const combined = [tempItem, ...existing].map((item, idx) => ({
+        ...item,
+        position: idx,
+        _movie: item._movie ? { ...item._movie, position: idx } : item._movie
+      }))
+      const finalList = (isMovieNote && sectionKey === 'futured') ? sortMoviesForSection(combined, 'futured') : combined
       return {
         ...prev,
-        [groupId]: sorted
+        [groupId]: finalList
       }
     })
     setAddItemGroup(null)
@@ -576,8 +567,8 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
               }
               return item
             })
-            const sortedList = isMovieNote ? sortMoviesForSection(list, sectionKey) : list
-            return { ...prev, [groupId]: sortedList }
+            const finalList = (isMovieNote && sectionKey === 'futured') ? sortMoviesForSection(list, 'futured') : list
+            return { ...prev, [groupId]: finalList }
           })
         }
 
@@ -745,11 +736,21 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
 
         const finalTargetItems = (isMovieNote && toSection === 'futured')
           ? sortMoviesForSection(targetItems, 'futured')
-          : targetItems
+          : targetItems.map((item, idx) => ({
+              ...item,
+              position: idx,
+              _movie: item._movie ? { ...item._movie, position: idx } : item._movie
+            }))
+
+        const finalSourceItems = sourceItems.map((item, idx) => ({
+          ...item,
+          position: idx,
+          _movie: item._movie ? { ...item._movie, position: idx } : item._movie
+        }))
 
         return {
           ...prev,
-          [fromGroupId]: sourceItems,
+          [fromGroupId]: finalSourceItems,
           [toGroupId]: finalTargetItems,
         }
       })
@@ -793,7 +794,13 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       const insertIdx = position === 'before' ? target : target + 1
       currentList.splice(Math.max(0, insertIdx), 0, moved)
 
-      return { ...prev, [groupId]: currentList }
+      const updatedList = currentList.map((item, idx) => ({
+        ...item,
+        position: idx,
+        _movie: item._movie ? { ...item._movie, position: idx } : item._movie
+      }))
+
+      return { ...prev, [groupId]: updatedList }
     })
 
     // 2. Perform API call in background

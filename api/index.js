@@ -2869,8 +2869,8 @@ module.exports = async (req, res) => {
         const posA = typeof a.position === 'number' ? a.position : 0;
         const posB = typeof b.position === 'number' ? b.position : 0;
         if (posA !== posB) return posA - posB;
-        const timeA = new Date(a.created_at || a.updated_at || 0).getTime();
-        const timeB = new Date(b.created_at || b.updated_at || 0).getTime();
+        const timeA = new Date(a.created_at || 0).getTime();
+        const timeB = new Date(b.created_at || 0).getTime();
         return timeB - timeA;
       });
       return res.status(200).json(movies);
