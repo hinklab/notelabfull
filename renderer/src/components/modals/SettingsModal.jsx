@@ -99,7 +99,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
           background: 'var(--bg-surface, #161616)',
           border: '1px solid var(--border, #2a2a2a)',
           borderRadius: 16,
-          width: 'min(540px, 94vw)',
+          width: 'min(640px, 94vw)',
           maxHeight: '85vh',
           overflow: 'hidden',
           boxShadow: '0 25px 70px rgba(0,0,0,0.6)',
@@ -146,6 +146,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
             background: 'var(--bg-base, #0b0b0b)',
             padding: '4px 12px 0 12px',
             gap: 4,
+            overflowX: 'auto',
           }}
         >
           {tabs.map(tab => {
@@ -163,19 +164,23 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                   borderRight: active ? '1px solid var(--border, #2a2a2a)' : '1px solid transparent',
                   borderBottom: active ? '1px solid var(--bg-surface, #161616)' : 'none',
                   borderRadius: '8px 8px 0 0',
-                  padding: '10px 18px',
+                  padding: '10px 14px',
                   fontSize: 13,
                   fontWeight: active ? 600 : 400,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 8,
+                  justifyContent: 'center',
+                  gap: 6,
+                  whiteSpace: 'nowrap',
+                  flex: '1 1 0',
+                  minWidth: 'max-content',
                   transition: 'all 0.2s ease',
                   marginBottom: -1,
                 }}
               >
-                <Icon size={15} color={active ? (tab.color || 'var(--accent)') : undefined} />
-                <span>{tab.label}</span>
+                <Icon size={15} color={active ? (tab.color || 'var(--accent)') : undefined} style={{ flexShrink: 0 }} />
+                <span style={{ whiteSpace: 'nowrap' }}>{tab.label}</span>
               </button>
             )
           })}

@@ -126,7 +126,7 @@ export const translations = {
       "telegramNotConnected": "Ulanmagan",
       "connectTelegram": "Telegramni ulash",
       "disconnectTelegram": "Ulanishni uzish",
-      "contact": "Biz bilan bog'lanish",
+      "contact": "Bog'lanish",
       "contactDesc": "Savollar, takliflar va kino tavsiyalari bo'yicha rasmiy sahifalarimizga yozing",
       "telegramChannel": "Telegram kanal & Guruh",
       "telegramUsername": "@saqlab_uz",
@@ -134,7 +134,7 @@ export const translations = {
       "instagramPage": "Instagram sahifa",
       "instagramUsername": "@saqlab.uz",
       "instagramAction": "Instagram'da ochish",
-      "logout": "Hisobdan chiqish",
+      "logout": "Chiqish",
       "version": "Versiya"
     },
     "notifications": {
@@ -396,7 +396,7 @@ export const translations = {
       "telegramNotConnected": "Не подключено",
       "connectTelegram": "Подключить Telegram",
       "disconnectTelegram": "Отключить Telegram",
-      "contact": "Связаться с нами",
+      "contact": "Связь",
       "contactDesc": "По вопросам, предложениям и рекомендациям пишите в наши официальные каналы",
       "telegramChannel": "Telegram канал и группа",
       "telegramUsername": "@saqlab_uz",
@@ -404,7 +404,7 @@ export const translations = {
       "instagramPage": "Instagram страница",
       "instagramUsername": "@saqlab.uz",
       "instagramAction": "Открыть в Instagram",
-      "logout": "Выйти из аккаунта",
+      "logout": "Выйти",
       "version": "Версия"
     },
     "notifications": {
@@ -666,7 +666,7 @@ export const translations = {
       "telegramNotConnected": "Not connected",
       "connectTelegram": "Connect Telegram",
       "disconnectTelegram": "Disconnect Telegram",
-      "contact": "Contact Us",
+      "contact": "Contact",
       "contactDesc": "Reach out to us on our official social channels for support, feedback, and movie suggestions",
       "telegramChannel": "Telegram Channel & Group",
       "telegramUsername": "@saqlab_uz",
@@ -674,7 +674,7 @@ export const translations = {
       "instagramPage": "Instagram Page",
       "instagramUsername": "@saqlab.uz",
       "instagramAction": "Open in Instagram",
-      "logout": "Log out of account",
+      "logout": "Log out",
       "version": "Version"
     },
     "notifications": {
