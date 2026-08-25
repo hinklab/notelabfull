@@ -1375,7 +1375,7 @@ function MovieCard({
                 >
                   <Star size={10} fill="#60a5fa" color="#60a5fa" /> {Number(effectiveUserRating).toFixed(1).replace(/\.0$/, '')}
                 </span>
-              ) : (currentSection === 'done' || movie.section === 'done') ? (
+              ) : (
                 <span
                   onClick={(e) => {
                     e.preventDefault()
@@ -1401,7 +1401,7 @@ function MovieCard({
                 >
                   <Star size={10} color="#93c5fd" /> Baholash
                 </span>
-              ) : null}
+              )}
             </div>
 
             {/* Watch Online & Nearby Cinemas Action Bar */}

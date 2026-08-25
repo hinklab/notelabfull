@@ -680,7 +680,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
                 user_rating: newRating,
                 avg_rating: newRating,
                 avg_user_rating: newRating,
-                _movie: item._movie ? { ...item._movie, section: 'done', user_rating: newRating, avg_user_rating: newRating } : { section: 'done', user_rating: newRating, avg_user_rating: newRating }
+                _movie: item._movie
+                  ? { ...item._movie, user_rating: newRating, avg_user_rating: newRating }
+                  : { ...item, user_rating: newRating, avg_user_rating: newRating }
               }
             }
             return item
@@ -694,7 +696,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     setTimeout(() => setToastMessage(null), 2200)
 
     try {
-      await window.api.updateMovie(movieId, { user_rating: newRating, section: 'done' })
+      await window.api.updateMovie(movieId, { user_rating: newRating })
     } catch (err) {
       console.error('Failed to update movie rating:', err)
     }
