@@ -2851,7 +2851,8 @@ module.exports = async (req, res) => {
 
       let movies = data || [];
       if (query.note_id && movies.length > 0) {
-        const filtered = movies.filter(m => String(m.note_id) === String(query.note_id));
+        const targetNoteId = parseInt(query.note_id);
+        const filtered = movies.filter(m => !m.note_id || parseInt(m.note_id) === targetNoteId);
         if (filtered.length > 0) {
           movies = filtered;
         }
