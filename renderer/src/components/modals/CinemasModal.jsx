@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import ReactDOM from 'react-dom'
 import { Film, MapPin, ExternalLink, Ticket, X, Navigation, Search, Calendar, Globe, Sparkles } from 'lucide-react'
 import { api } from '../../config/api.js'
 import { useLanguage } from '../../context/LanguageContext.jsx'
@@ -192,7 +193,7 @@ export default function CinemasModal({ movie, onClose }) {
     })
   }, [cinemas, searchQuery, selectedCity])
 
-  return (
+  return ReactDOM.createPortal(
     <div
       onClick={onClose}
       style={{
@@ -617,6 +618,7 @@ export default function CinemasModal({ movie, onClose }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

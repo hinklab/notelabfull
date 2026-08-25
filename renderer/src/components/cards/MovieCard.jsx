@@ -665,6 +665,16 @@ function MovieCard({
     return () => { active = false }
   }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, movie?.title, movie?.seasons])
 
+  useEffect(() => {
+    const handleCinemaOpen = (e) => {
+      if (e.detail && e.detail !== movie.id) {
+        setShowCinemasModal(false)
+      }
+    }
+    window.addEventListener('notelab_open_cinema_modal', handleCinemaOpen)
+    return () => window.removeEventListener('notelab_open_cinema_modal', handleCinemaOpen)
+  }, [movie.id])
+
   const handleRate = async (newRating) => {
     setUserRating(newRating)
     if (movie) movie.user_rating = newRating
@@ -1436,6 +1446,7 @@ function MovieCard({
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
+                    window.dispatchEvent(new CustomEvent('notelab_open_cinema_modal', { detail: movie.id }))
                     setShowCinemasModal(true)
                   }}
                   style={{
