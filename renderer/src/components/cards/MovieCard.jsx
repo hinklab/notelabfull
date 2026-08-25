@@ -843,7 +843,7 @@ function MovieCard({
       ref={cardRef}
       data-closing={isClosing ? 'true' : undefined}
       className={isClosing ? 'movie-card-closing' : (isVisuallyExpanded ? 'movie-card-expanded' : '')}
-      draggable={false}
+      draggable={!isCardExpanded && !noDrag}
       onDragStart={noDrag || isCardExpanded ? undefined : handleDragStart}
       onDragEnd={noDrag || isCardExpanded ? undefined : handleDragEnd}
       onContextMenu={onContextMenu ? (e) => {
@@ -862,7 +862,7 @@ function MovieCard({
         border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px dashed var(--accent, #a78bfa)' : '1px solid var(--border)'),
         borderRadius: 14,
         boxShadow: 'none',
-        cursor: isCardExpanded ? 'default' : 'pointer',
+        cursor: isCardExpanded ? 'default' : (isTouchDragging ? 'grabbing' : 'pointer'),
         overflow: 'hidden',
         maxHeight: renderExpanded ? (isVisuallyExpanded ? 1100 : 116) : 'none',
         transition: 'max-height 0.28s cubic-bezier(0.05, 0.9, 0.1, 1), border-color 0.18s ease, background 0.18s ease, box-shadow 0.2s ease',
@@ -897,6 +897,8 @@ function MovieCard({
           {onDelete && (
             <button
               type="button"
+              draggable={false}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
@@ -1010,6 +1012,8 @@ function MovieCard({
                 </div>
                 {effectiveUserRating ? (
                   <div
+                    draggable={false}
+                    onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
