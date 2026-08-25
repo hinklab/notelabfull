@@ -3431,18 +3431,147 @@ module.exports = async (req, res) => {
         return res.status(200).json({ cinemas: [], count: 0, radius_km: radiusKm, ticket_url: '' });
       }
 
+      const UZ_FALLBACK_CINEMAS = [
+        {
+          id: 'uz_magic',
+          name: 'Magic Cinema',
+          mall: 'Magic City',
+          city: 'Tashkent',
+          address: "Bobur ko'chasi, Magic City",
+          distance_km: 0.8,
+          website: 'https://magiccinema.uz',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/magic-cinema/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Magic+Cinema+Tashkent'
+        },
+        {
+          id: 'uz_riviera',
+          name: 'Cinema City / iMax',
+          mall: 'Riviera Mall',
+          city: 'Tashkent',
+          address: "Nurafshon ko'chasi, 5, Riviera Mall 3-qavat",
+          distance_km: 1.1,
+          website: 'https://cinemacity.uz',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/riviera-cinema/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Cinema+City+Riviera+Mall+Tashkent'
+        },
+        {
+          id: 'uz_next',
+          name: 'Next Cinema',
+          mall: 'Next Mall',
+          city: 'Tashkent',
+          address: "Bobur ko'chasi, 6, Next Mall 3-qavat",
+          distance_km: 1.5,
+          website: 'https://next.uz',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/next-cinema/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Next+Cinema+Tashkent'
+        },
+        {
+          id: 'uz_drive',
+          name: 'Drive Cinema',
+          mall: 'Tashkent City Mall',
+          city: 'Tashkent',
+          address: 'Tashkent City Mall 4-qavat',
+          distance_km: 1.6,
+          website: 'https://tashkentcitymall.uz',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/drive-cinema/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Drive+Cinema+Tashkent+City+Mall'
+        },
+        {
+          id: 'uz_panorama',
+          name: 'Alisher Navoiy (Panorama)',
+          mall: 'Kino Saroyi',
+          city: 'Tashkent',
+          address: "Navoiy shoh ko'chasi, 15",
+          distance_km: 1.8,
+          website: 'https://www.afisha.uz/uz/cinema/panoramnyy/',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/panoramnyy/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Panorama+Alisher+Navoiy+Tashkent'
+        },
+        {
+          id: 'uz_parus',
+          name: 'Parus Cinema',
+          mall: 'Parus Mall',
+          city: 'Tashkent',
+          address: "Qatortol ko'chasi, 60, Parus Mall 4-qavat",
+          distance_km: 2.3,
+          website: 'https://www.afisha.uz/uz/cinema/parus-cinema/',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/parus-cinema/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Parus+Cinema+Tashkent'
+        },
+        {
+          id: 'uz_premier',
+          name: 'Premier Hall Cinema',
+          mall: 'Premier Hall',
+          city: 'Tashkent',
+          address: "Shota Rustaveli ko'chasi, 22",
+          distance_km: 2.8,
+          website: 'https://www.afisha.uz/uz/cinema/premier-hall/',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/premier-hall/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Premier+Hall+Tashkent'
+        },
+        {
+          id: 'uz_compass',
+          name: 'Compass Cinema',
+          mall: 'Compass Mall',
+          city: 'Tashkent',
+          address: "Toshkent halqa avtomobil yo'li, 17, Compass Mall",
+          distance_km: 9.5,
+          website: 'https://compassmall.uz',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/compass-cinema/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Compass+Cinema+Tashkent'
+        },
+        {
+          id: 'uz_salom',
+          name: 'Salom Cinema',
+          mall: 'Salom',
+          city: 'Tashkent',
+          address: "Buyuk Ipak Yo'li ko'chasi, 158",
+          distance_km: 6.2,
+          website: 'https://www.afisha.uz/uz/cinema/salom-cinema/',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/salom-cinema/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Salom+Cinema+Tashkent'
+        },
+        {
+          id: 'uz_asia',
+          name: 'Asia Cinema',
+          mall: 'Samarqand Darvoza',
+          city: 'Tashkent',
+          address: "Qoratosh ko'chasi, 5A, Samarqand Darvoza 4-qavat",
+          distance_km: 2.5,
+          website: 'https://www.afisha.uz/uz/cinema/samarqand-darvoza/',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/samarqand-darvoza/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Asia+Cinema+Samarqand+Darvoza'
+        },
+        {
+          id: 'uz_family_samarkand',
+          name: 'Yulduz Cinema',
+          mall: 'Family Park',
+          city: 'Samarqand',
+          address: "Narpay ko'chasi, Family Park Mall",
+          distance_km: 4.0,
+          website: 'https://www.afisha.uz/uz/cinema/',
+          afisha_url: 'https://www.afisha.uz/uz/cinema/',
+          maps_url: 'https://www.google.com/maps/search/?api=1&query=Family+Park+Cinema+Samarkand'
+        }
+      ];
+
+      const cleanTitle = (title || '').trim();
+      const afishaUrl = countryCode === 'UZ'
+        ? (cleanTitle ? `https://www.afisha.uz/uz/search/?query=${encodeURIComponent(cleanTitle)}` : 'https://www.afisha.uz/uz/cinema/')
+        : null;
+      const iticketUrl = countryCode === 'UZ' ? 'https://iticket.uz/uz/events/cinema' : null;
+      const googleShowtimesUrl = `https://www.google.com/search?q=${encodeURIComponent((cleanTitle || '') + ' ' + (city || '') + ' kinoteatr seanslar')}`;
+      const ticketUrl = afishaUrl || googleShowtimesUrl;
+
       if (!lat || !lon || isNaN(latitude) || isNaN(longitude)) {
         return res.status(200).json({
-          cinemas: [],
-          count: 0,
+          cinemas: countryCode === 'UZ' ? UZ_FALLBACK_CINEMAS : [],
+          count: countryCode === 'UZ' ? UZ_FALLBACK_CINEMAS.length : 0,
           radius_km: radiusKm,
-          ticket_url: countryCode === 'UZ'
-            ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
-            : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' cinema showtimes tickets')}`,
-          afisha_url: countryCode === 'UZ'
-            ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
-            : null,
-          google_showtimes_url: `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar')}`
+          ticket_url: ticketUrl,
+          afisha_url: afishaUrl,
+          iticket_url: iticketUrl,
+          google_showtimes_url: googleShowtimesUrl
         });
       }
 
@@ -3455,10 +3584,10 @@ module.exports = async (req, res) => {
         if (Date.now() - cached.timestamp < 1000 * 60 * 30) {
           return res.status(200).json({
             ...cached.data,
-            ticket_url: countryCode === 'UZ'
-              ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
-              : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' cinema showtimes tickets')}`,
-            google_showtimes_url: `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar')}`
+            ticket_url: ticketUrl,
+            afisha_url: afishaUrl,
+            iticket_url: iticketUrl,
+            google_showtimes_url: googleShowtimesUrl
           });
         }
       }
@@ -3475,17 +3604,16 @@ module.exports = async (req, res) => {
       let cinemas = [];
       const overpassEndpoints = [
         'https://overpass-api.de/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter',
-        'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+        'https://overpass.kumi.systems/api/interpreter'
       ];
 
-      const overpassQuery = `[out:json][timeout:10];(node["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude});way["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude});relation["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude}););out center;`;
+      const overpassQuery = `[out:json][timeout:3];(node["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude});way["amenity"="cinema"](around:${radiusKm * 1000},${latitude},${longitude}););out center;`;
 
       for (const endpoint of overpassEndpoints) {
         try {
           const overpassUrl = `${endpoint}?data=${encodeURIComponent(overpassQuery)}`;
           const r = await fetch(overpassUrl, {
-            signal: AbortSignal.timeout(5000),
+            signal: AbortSignal.timeout(1500),
             headers: { 'User-Agent': 'SaqlabApp/1.0' }
           });
           if (r.ok) {
@@ -3506,13 +3634,18 @@ module.exports = async (req, res) => {
               const distance = getDistKm(latitude, longitude, cLat, cLon);
               if (distance > radiusKm) return;
               const cinemaCity = tags['addr:city'] || city || '';
+              const street = tags['addr:street'] || '';
+              const housenumber = tags['addr:housenumber'] || '';
+              const address = [street, housenumber, cinemaCity].filter(Boolean).join(', ');
               cinemas.push({
                 id: item.id,
                 name: clean,
                 distance_km: distance,
                 lat: cLat,
                 lon: cLon,
+                address: address || null,
                 city: cinemaCity || null,
+                website: tags.website || tags['contact:website'] || null,
                 maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(clean + ' ' + cinemaCity)}`,
                 yandex_maps_url: `https://yandex.com/maps/?text=${encodeURIComponent(clean + ' ' + cinemaCity)}&ll=${cLon},${cLat}&z=15`
               });
@@ -3523,41 +3656,17 @@ module.exports = async (req, res) => {
         } catch (e) {}
       }
 
-      // If all Overpass mirrors fail and user is in Uzbekistan, fallback to known Tashkent cinemas
+      // If all Overpass mirrors fail or return nothing and user is in Uzbekistan, fallback to known cinemas
       if (cinemas.length === 0 && countryCode === 'UZ') {
-        const fallbacks = [
-          { name: 'Magic Cinema', distance_km: 0.8 },
-          { name: 'iMax / Cinema City', distance_km: 1.1 },
-          { name: 'Next Cinema', distance_km: 1.6 },
-          { name: 'Panorama / Alisher Navoiy', distance_km: 1.8 },
-          { name: 'Premier Hall', distance_km: 2.8 },
-          { name: 'Compass Cinema', distance_km: 10.9 }
-        ];
-        cinemas = fallbacks.map((f, i) => ({
-          id: 'fb_' + i,
-          name: f.name,
-          distance_km: f.distance_km,
-          city: city || 'Toshkent',
-          maps_url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(f.name + ' Toshkent')}`,
-          yandex_maps_url: `https://yandex.com/maps/?text=${encodeURIComponent(f.name + ' Toshkent')}`
-        }));
+        cinemas = UZ_FALLBACK_CINEMAS;
       }
-
-      const ticketUrl = countryCode === 'UZ'
-        ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
-        : `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' cinema showtimes tickets')}`;
-
-      const afishaUrl = countryCode === 'UZ'
-        ? `https://www.afisha.uz/cinema/search?q=${encodeURIComponent(title || '')}`
-        : null;
-
-      const googleShowtimesUrl = `https://www.google.com/search?q=${encodeURIComponent((title || '') + ' ' + (city || '') + ' kinoteatr seanslar')}`;
 
       const dataToCache = {
         cinemas,
         count: cinemas.length,
         radius_km: radiusKm,
         afisha_url: afishaUrl,
+        iticket_url: iticketUrl,
         google_showtimes_url: googleShowtimesUrl
       };
 
