@@ -836,6 +836,7 @@ function MovieCard({
   }
 
   const currentSection = movie.section || sectionKey || 'todo'
+  const isDone = currentSection === 'done' || movie.section === 'done' || String(sectionKey) === '4' || String(sectionKey) === 'g_done'
   const isVisuallyExpanded = isOpen && !isClosing
 
   return (
@@ -1010,7 +1011,7 @@ function MovieCard({
                     <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
                   ) : null}
                 </div>
-                {effectiveUserRating ? (
+                {isDone && effectiveUserRating ? (
                   <div
                     draggable={false}
                     onMouseDown={(e) => e.stopPropagation()}
@@ -1343,64 +1344,72 @@ function MovieCard({
                   <Star size={10} fill={movie.rating ? "#fbbf24" : "none"} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} /> {movie.rating ? movie.rating : '0/10'}
                 </span>
               )}
-              {effectiveUserRating ? (
-                <span
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setShowRatingModal(true)
-                  }}
-                  title={`Sizning bahoyingiz: ${effectiveUserRating}/10 (O'zgartirish uchun bosing)`}
-                  style={{
-                    background: '#0c213d',
-                    color: '#60a5fa',
-                    border: '1px solid rgba(96, 165, 250, 0.45)',
-                    borderRadius: 6,
-                    padding: '3px 8px',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = '#60a5fa'
-                    e.currentTarget.style.transform = 'scale(1.05)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'rgba(96, 165, 250, 0.45)'
-                    e.currentTarget.style.transform = 'scale(1)'
-                  }}
-                >
-                  <Star size={10} fill="#60a5fa" color="#60a5fa" /> {Number(effectiveUserRating).toFixed(1).replace(/\.0$/, '')}
-                </span>
-              ) : (
-                <span
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    setShowRatingModal(true)
-                  }}
-                  title="Baholash (1-10)"
-                  style={{
-                    background: 'rgba(59, 130, 246, 0.08)',
-                    color: '#93c5fd',
-                    border: '1px dashed rgba(59, 130, 246, 0.35)',
-                    borderRadius: 6,
-                    padding: '3px 8px',
-                    fontWeight: 500,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = '#60a5fa'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.35)'}
-                >
-                  <Star size={10} color="#93c5fd" /> Baholash
-                </span>
+              {isDone && (
+                effectiveUserRating ? (
+                  <span
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setShowRatingModal(true)
+                    }}
+                    title={`Sizning bahoyingiz: ${effectiveUserRating}/10 (O'zgartirish uchun bosing)`}
+                    style={{
+                      background: '#0c213d',
+                      color: '#60a5fa',
+                      border: '1px solid rgba(96, 165, 250, 0.45)',
+                      borderRadius: 6,
+                      padding: '3px 8px',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = '#60a5fa'
+                      e.currentTarget.style.transform = 'scale(1.05)'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'rgba(96, 165, 250, 0.45)'
+                      e.currentTarget.style.transform = 'scale(1)'
+                    }}
+                  >
+                    <Star size={10} fill="#60a5fa" color="#60a5fa" /> {Number(effectiveUserRating).toFixed(1).replace(/\.0$/, '')}
+                  </span>
+                ) : (
+                  <span
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setShowRatingModal(true)
+                    }}
+                    title="Baholash (1-10)"
+                    style={{
+                      background: 'rgba(59, 130, 246, 0.08)',
+                      color: '#93c5fd',
+                      border: '1px dashed rgba(59, 130, 246, 0.35)',
+                      borderRadius: 6,
+                      padding: '3px 8px',
+                      fontWeight: 500,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = '#60a5fa'
+                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.35)'
+                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.08)'
+                    }}
+                  >
+                    <Star size={10} color="#93c5fd" /> Baholash
+                  </span>
+                )
               )}
             </div>
 
@@ -1651,7 +1660,7 @@ function MovieCard({
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
                 <Star size={12} fill="#eab308" color="#eab308" />
                 <span style={{ fontWeight: 700, color: '#eab308' }}>{Number(movie.vote_average).toFixed(1)}</span>
-                {effectiveUserRating && (
+                {isDone && effectiveUserRating && (
                   <span style={{ marginLeft: 6, background: '#3b82f6', color: '#fff', fontSize: 10.5, fontWeight: 700, padding: '1px 5px', borderRadius: 4 }}>
                     ★ {effectiveUserRating}
                   </span>
