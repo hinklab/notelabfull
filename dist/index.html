@@ -4,18 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>saqlab</title>
-    <link rel="icon" type="image/png" href="/colba-w.png" media="(prefers-color-scheme: dark)" id="favicon-dark" />
-    <link rel="icon" type="image/png" href="/colba-b.png" media="(prefers-color-scheme: light)" id="favicon-light" />
-    <link rel="icon" type="image/png" href="/colba-w.png" id="favicon-default" />
-    <link rel="apple-touch-icon" href="/colba-w.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=4" />
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=4" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/colba-w.png?v=4" media="(prefers-color-scheme: dark)" id="favicon-dark" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/colba-b.png?v=4" media="(prefers-color-scheme: light)" id="favicon-light" />
+    <link rel="icon" type="image/png" href="/colba-w.png?v=4" id="favicon-default" />
+    <link rel="apple-touch-icon" href="/colba-w.png?v=4" />
     <script>
       (function() {
         function updateFavicon() {
           var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var fav = document.getElementById('favicon-default') || document.querySelector('link[rel="icon"]');
-          if (fav) {
-            fav.href = isDark ? '/colba-w.png' : '/colba-b.png';
-          }
+          var targetHref = isDark ? '/colba-w.png?v=4' : '/colba-b.png?v=4';
+          var favs = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]');
+          favs.forEach(function(el) {
+            el.href = targetHref;
+          });
         }
         updateFavicon();
         if (window.matchMedia) {
