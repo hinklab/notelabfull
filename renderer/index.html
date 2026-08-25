@@ -4,7 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>saqlab</title>
-    <link rel="icon" type="image/png" href="/saqlab-logo-w.png" />
+    <link rel="icon" type="image/png" href="/colba-w.png" media="(prefers-color-scheme: dark)" id="favicon-dark" />
+    <link rel="icon" type="image/png" href="/colba-b.png" media="(prefers-color-scheme: light)" id="favicon-light" />
+    <link rel="icon" type="image/png" href="/colba-w.png" id="favicon-default" />
+    <link rel="apple-touch-icon" href="/colba-w.png" />
+    <script>
+      (function() {
+        function updateFavicon() {
+          var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var fav = document.getElementById('favicon-default') || document.querySelector('link[rel="icon"]');
+          if (fav) {
+            fav.href = isDark ? '/colba-w.png' : '/colba-b.png';
+          }
+        }
+        updateFavicon();
+        if (window.matchMedia) {
+          try {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateFavicon);
+          } catch(e) {
+            window.matchMedia('(prefers-color-scheme: dark)').addListener(updateFavicon);
+          }
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://www.youtube-nocookie.com" />
