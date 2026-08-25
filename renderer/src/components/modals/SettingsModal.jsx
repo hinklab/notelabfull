@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import ReactDOM from 'react-dom'
-import { User, Sun, Moon, LogOut, X, Check, Globe, MapPin, RefreshCw } from 'lucide-react'
+import { User, Sun, Moon, LogOut, X, Check, Globe, MapPin, RefreshCw, MessageCircle, ExternalLink } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getStoredUserLocation, storeUserLocation, requestBrowserGeolocation } from '../../services/geo.js'
+import { TelegramIcon, InstagramIcon } from '../common/SocialIcons.jsx'
 
 export default function SettingsModal({ onClose, onOpenSurvey }) {
   const { user, updateUser, logout } = useAuth()
@@ -69,12 +70,13 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
   }
 
   const tabs = [
-    { id: 'profile', label: t('settings.profile'), icon: User },
-    { id: 'appearance', label: t('settings.appearance'), icon: theme === 'dark' ? Moon : Sun },
-    { id: 'logout', label: t('settings.logout'), icon: LogOut, color: '#ef4444' },
+    { id: 'profile', label: t('settings.profile', null, 'Profil'), icon: User },
+    { id: 'appearance', label: t('settings.appearance', null, "Ko'rinish"), icon: theme === 'dark' ? Moon : Sun },
+    { id: 'contact', label: t('settings.contact', null, "Bog'lanish"), icon: MessageCircle, color: '#38bdf8' },
+    { id: 'logout', label: t('settings.logout', null, 'Chiqish'), icon: LogOut, color: '#ef4444' },
   ]
 
-  const tabIndexMap = { profile: 0, appearance: 1, logout: 2 }
+  const tabIndexMap = { profile: 0, appearance: 1, contact: 2, logout: 3 }
   const activeIndex = tabIndexMap[activeTab] ?? 0
 
   return ReactDOM.createPortal(
@@ -514,7 +516,152 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
             </div>
           )}
 
-          {/* TAB 3: Chiqish */}
+          {/* TAB 3: Biz bilan bog'lanish */}
+          {activeTab === 'contact' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <MessageCircle size={16} color="#38bdf8" />
+                  <span>{t('settings.contact', null, "Biz bilan bog'lanish")}</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  {t('settings.contactDesc', null, "Savollar, takliflar va kino tavsiyalari bo'yicha rasmiy sahifalarimizga yozing:")}
+                </div>
+              </div>
+
+              {/* Telegram Card */}
+              <div style={{
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: '16px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                transition: 'border-color 0.2s',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 10,
+                    background: 'rgba(34, 158, 217, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <TelegramIcon size={22} color="#229ED9" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>Telegram</span>
+                      <span style={{ fontSize: 11, background: 'rgba(34, 158, 217, 0.2)', color: '#38bdf8', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                        @saqlab_uz
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {t('settings.telegramChannel', null, "Rasmiy kanal & Guruh")}
+                    </div>
+                  </div>
+                </div>
+
+                <a
+                  href="https://t.me/saqlab_uz"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: '#229ED9',
+                    color: '#ffffff',
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    flexShrink: 0,
+                    transition: 'opacity 0.15s',
+                    boxShadow: '0 2px 8px rgba(34, 158, 217, 0.3)',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >
+                  <span>{t('settings.telegramAction', null, "Ochish")}</span>
+                  <ExternalLink size={13} />
+                </a>
+              </div>
+
+              {/* Instagram Card */}
+              <div style={{
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: '16px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                transition: 'border-color 0.2s',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 10,
+                    background: 'linear-gradient(45deg, rgba(240, 148, 51, 0.15), rgba(220, 39, 67, 0.15))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <InstagramIcon size={22} color="#e1306c" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>Instagram</span>
+                      <span style={{ fontSize: 11, background: 'rgba(225, 48, 108, 0.18)', color: '#f43f5e', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                        @saqlab.uz
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {t('settings.instagramPage', null, "Rasmiy Instagram sahifamiz")}
+                    </div>
+                  </div>
+                </div>
+
+                <a
+                  href="https://www.instagram.com/saqlab.uz/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                    color: '#ffffff',
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    flexShrink: 0,
+                    transition: 'opacity 0.15s',
+                    boxShadow: '0 2px 8px rgba(220, 39, 67, 0.3)',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                >
+                  <span>{t('settings.instagramAction', null, "Ochish")}</span>
+                  <ExternalLink size={13} />
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: Chiqish */}
           {activeTab === 'logout' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>

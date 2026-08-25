@@ -2,6 +2,7 @@ import React from 'react';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import { ArrowUpRight, Clapperboard } from 'lucide-react';
 import { MarvelLogo, DCLogo, StarWarsLogo, NetflixLogo, WarnerBrosLogo, HBOLogo } from '../components/landing/BrandLogos.jsx';
+import { TelegramIcon, InstagramIcon } from '../components/common/SocialIcons.jsx';
 
 export default function LandingPage({ onNavigate }) {
   const { language, setLanguage, t } = useLanguage();
@@ -666,6 +667,96 @@ export default function LandingPage({ onNavigate }) {
           </div>
         </div>
 
+        {/* ═══════════════════════════════════════════════ */}
+        {/* 6.5. COMMUNITY & SOCIAL MEDIA                   */}
+        {/* ═══════════════════════════════════════════════ */}
+        <div id="boglanish" style={{ marginTop: 64 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+            <span style={{
+              background: '#b9ff66',
+              color: '#191a23',
+              fontSize: 24,
+              fontWeight: 800,
+              padding: '3px 12px',
+              borderRadius: 8
+            }}>
+              {t('landing.communityBadge', "Biz bilan bog'lanish")}
+            </span>
+          </div>
+
+          <div style={{
+            background: '#f8fafc',
+            border: '2px solid #191a23',
+            boxShadow: '0 6px 0px #191a23',
+            borderRadius: 28,
+            padding: '36px 40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 24
+          }}>
+            <div>
+              <h3 style={{ fontSize: 22, fontWeight: 800, color: '#191a23', margin: '0 0 8px 0' }}>
+                {t('landing.communityTitle', "saqlab hamjamiyatiga qo'shiling")}
+              </h3>
+              <p style={{ fontSize: 14, color: '#64748b', margin: 0, lineHeight: 1.5, maxWidth: 520 }}>
+                {t('landing.communityDesc', "Eng so'nggi yangiliklar, kinolar xronologiyasi, savollar va takliflar uchun rasmiy sahifalarimizga a'zo bo'ling.")}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <a
+                href="https://t.me/saqlab_uz"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  background: '#229ED9',
+                  color: '#ffffff',
+                  padding: '12px 22px',
+                  borderRadius: 14,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  textDecoration: 'none',
+                  border: '2px solid #191a23',
+                  boxShadow: '0 4px 0px #191a23',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                }}
+              >
+                <TelegramIcon size={20} color="#ffffff" />
+                <span>Telegram: @saqlab_uz</span>
+              </a>
+
+              <a
+                href="https://www.instagram.com/saqlab.uz/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                  color: '#ffffff',
+                  padding: '12px 22px',
+                  borderRadius: 14,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  textDecoration: 'none',
+                  border: '2px solid #191a23',
+                  boxShadow: '0 4px 0px #191a23',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                }}
+              >
+                <InstagramIcon size={20} color="#ffffff" />
+                <span>Instagram: @saqlab.uz</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       {/* ═══════════════════════════════════════════════ */}
@@ -685,23 +776,80 @@ export default function LandingPage({ onNavigate }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 20,
           paddingBottom: 32,
           borderBottom: '1px solid #334155'
         }}>
-          <img src="/saqlab-logo-w.png" alt="saqlab" style={{ height: 22, width: 'auto', objectFit: 'contain' }} />
+          <img src="/saqlab-logo-w.png" alt="saqlab" style={{ height: 24, width: 'auto', objectFit: 'contain' }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, fontSize: 14, fontWeight: 600 }}>
+          {/* Social Media Links */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <a
+              href="https://t.me/saqlab_uz"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="landing-social-btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid #334155',
+                borderRadius: 12,
+                padding: '8px 16px',
+                color: '#ffffff',
+                textDecoration: 'none',
+                fontSize: 13,
+                fontWeight: 600,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#229ED9'; e.currentTarget.style.borderColor = '#229ED9'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.borderColor = '#334155'; }}
+            >
+              <TelegramIcon size={18} color="#ffffff" />
+              <span>Telegram</span>
+            </a>
+
+            <a
+              href="https://www.instagram.com/saqlab.uz/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="landing-social-btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid #334155',
+                borderRadius: 12,
+                padding: '8px 16px',
+                color: '#ffffff',
+                textDecoration: 'none',
+                fontSize: 13,
+                fontWeight: 600,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)'; e.currentTarget.style.borderColor = '#dc2743'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.borderColor = '#334155'; }}
+            >
+              <InstagramIcon size={18} color="#ffffff" />
+              <span>Instagram</span>
+            </a>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 14, fontWeight: 600 }}>
             <button
               type="button"
               onClick={() => onNavigate('login')}
-              style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer' }}
+              style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer', fontWeight: 600 }}
             >
               {t('landing.login', 'Kirish')}
             </button>
             <button
               type="button"
               onClick={() => onNavigate('register')}
-              style={{ background: 'transparent', border: 'none', color: '#cbd5e1', cursor: 'pointer' }}
+              style={{ background: '#b9ff66', border: 'none', color: '#191a23', padding: '8px 16px', borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}
             >
               {t('landing.signUp', "Ro'yxatdan o'tish")}
             </button>
