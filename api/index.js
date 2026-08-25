@@ -2705,6 +2705,7 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Email manzilini kiriting.' });
       }
 
+      const emailLower = email.toLowerCase().trim();
       let redirectUrl = redirectTo || (req.headers.origin || `https://${req.headers.host}`);
       if (redirectUrl.includes('://saqlab.uz')) {
         redirectUrl = redirectUrl.replace('://saqlab.uz', '://www.saqlab.uz');
@@ -2718,9 +2719,13 @@ module.exports = async (req, res) => {
             options: { redirectTo: redirectUrl }
           });
 
+          if (linkErr) {
+            console.error('Supabase generateLink error:', linkErr);
+          }
+
           if (!linkErr && linkData?.properties?.action_link) {
             const actionLink = linkData.properties.action_link;
-            await fetch('https://api.resend.com/emails', {
+            const resendRes = await fetch('https://api.resend.com/emails', {
               method: 'POST',
               headers: {
                 'Authorization': 'Bearer ' + (process.env.RESEND_API_KEY || ['re_AvqEv135', 'CLrj1YmLkUZvXpkx1vBtA7NJ'].join('_')),
@@ -2750,19 +2755,26 @@ module.exports = async (req, res) => {
                   </div>
                 `
               })
-            }).catch(() => {});
-
-            return res.status(200).json({
-              success: true,
-              message: 'Parolni tiklash havolasi elektron pochtangizga yuborildi! Pochtani tekshiring.'
             });
+
+            if (resendRes.ok) {
+              return res.status(200).json({
+                success: true,
+                message: 'Parolni tiklash havolasi elektron pochtangizga yuborildi! Pochtani tekshiring.'
+              });
+            } else {
+              const resendErr = await resendRes.json();
+              console.error('Resend API error:', resendErr);
+            }
           }
         }
 
         if (supabase.auth?.resetPasswordForEmail) {
           await supabase.auth.resetPasswordForEmail(emailLower, { redirectTo: redirectUrl });
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Reset password email exception:', e);
+      }
 
       return res.status(200).json({
         success: true,
