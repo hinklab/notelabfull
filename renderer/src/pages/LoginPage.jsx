@@ -112,7 +112,18 @@ export default function LoginPage({ onSwitch, onBack, isRecoveryModeProp = false
   const [forgotError, setForgotError] = useState('')
 
   // Recovery
-  const [isRecoveryMode, setIsRecoveryMode] = useState(isRecoveryModeProp)
+  const [isRecoveryMode, setIsRecoveryMode] = useState(() => {
+    if (isRecoveryModeProp) return true
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash || ''
+      const search = window.location.search || ''
+      if (hash.includes('type=recovery') || hash.includes('access_token') || search.includes('type=recovery') || search.includes('reset_password=true')) {
+        return true
+      }
+    }
+    const info = getRecoveryInfo()
+    return !!info.token
+  })
   const [recoveryToken, setRecoveryToken] = useState(() => getRecoveryInfo().token)
   const [recoveryEmail, setRecoveryEmail] = useState(() => getRecoveryInfo().email)
   const [newPassword, setNewPassword] = useState('')
@@ -168,7 +179,9 @@ export default function LoginPage({ onSwitch, onBack, isRecoveryModeProp = false
     setForgotSuccess('')
     setForgotLoading(true)
     try {
-      const redirectTo = typeof window !== 'undefined' ? window.location.origin : 'https://saqlab.uz'
+      const redirectTo = typeof window !== 'undefined'
+        ? (window.location.hostname === 'localhost' ? window.location.origin : 'https://www.saqlab.uz')
+        : 'https://www.saqlab.uz'
       const res = await api.resetPasswordEmail(forgotEmail.trim(), redirectTo)
       setForgotSuccess(res?.message || 'Parolni tiklash havolasi elektron pochtangizga yuborildi! Pochtani tekshiring.')
     } catch (err) {

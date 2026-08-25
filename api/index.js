@@ -2705,8 +2705,10 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Email manzilini kiriting.' });
       }
 
-      const emailLower = email.toLowerCase().trim();
-      const redirectUrl = redirectTo || (req.headers.origin || `https://${req.headers.host}`);
+      let redirectUrl = redirectTo || (req.headers.origin || `https://${req.headers.host}`);
+      if (redirectUrl.includes('://saqlab.uz')) {
+        redirectUrl = redirectUrl.replace('://saqlab.uz', '://www.saqlab.uz');
+      }
 
       try {
         if (supabase.auth?.admin?.generateLink) {

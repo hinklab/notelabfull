@@ -403,7 +403,10 @@ router.post('/reset-password-email', async (req, res) => {
 
   if (supabase) {
     try {
-      const redirectUrl = redirectTo || 'https://saqlab.uz';
+      let redirectUrl = redirectTo || 'https://www.saqlab.uz';
+      if (redirectUrl.includes('://saqlab.uz')) {
+        redirectUrl = redirectUrl.replace('://saqlab.uz', '://www.saqlab.uz');
+      }
       
       // 1. Generate secure cryptographic link using Supabase Admin
       if (supabase.auth?.admin?.generateLink) {
