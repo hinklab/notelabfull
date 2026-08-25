@@ -2491,10 +2491,26 @@ function cors(res) {
 
 function parseBody(req) {
   return new Promise((resolve) => {
-    if (req.body) return resolve(req.body);
+    // Vercel pre-parses req.body as a plain object when Content-Type is application/json.
+    // If it's already a non-null plain object (and not a Buffer/string), use it directly.
+    if (req.body !== null && req.body !== undefined) {
+      if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+        return resolve(req.body);
+      }
+      // Buffer or string from Vercel's raw body parsing
+      if (Buffer.isBuffer(req.body)) {
+        try { return resolve(JSON.parse(req.body.toString('utf8'))); } catch { return resolve({}); }
+      }
+      if (typeof req.body === 'string' && req.body.trim()) {
+        try { return resolve(JSON.parse(req.body)); } catch { return resolve({}); }
+      }
+    }
+    // Fallback: read raw stream (local Express dev server)
     let data = '';
     req.on('data', c => data += c);
     req.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve({}); } });
+    // If the stream never fires (e.g. body already consumed), resolve empty after tick
+    req.on('error', () => resolve({}));
   });
 }
 
