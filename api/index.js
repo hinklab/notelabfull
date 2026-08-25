@@ -2866,7 +2866,21 @@ module.exports = async (req, res) => {
           avg_user_rating: uRating,
         };
       });
-      movies.sort((a, b) => {
+      // Deduplicate movies by tmdb_id or id
+      const seenMap = new Map();
+      for (const m of movies) {
+        const key = m.tmdb_id ? `tmdb_${m.tmdb_id}` : `id_${m.id}`;
+        const existing = seenMap.get(key);
+        if (!existing) {
+          seenMap.set(key, m);
+        } else {
+          if (m.user_rating != null && existing.user_rating == null) {
+            seenMap.set(key, m);
+          }
+        }
+      }
+      const uniqueMovies = Array.from(seenMap.values());
+      uniqueMovies.sort((a, b) => {
         const posA = typeof a.position === 'number' ? a.position : 0;
         const posB = typeof b.position === 'number' ? b.position : 0;
         if (posA !== posB) return posA - posB;
@@ -2874,7 +2888,7 @@ module.exports = async (req, res) => {
         const timeB = new Date(b.created_at || 0).getTime();
         return timeB - timeA;
       });
-      return res.status(200).json(movies);
+      return res.status(200).json(uniqueMovies);
     }
 
     if (path === 'movies' && req.method === 'POST') {
