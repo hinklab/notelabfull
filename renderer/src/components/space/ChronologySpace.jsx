@@ -502,7 +502,7 @@ const SpaceNodeCard = React.memo(function SpaceNodeCard({
   )
 })
 
-export default function ChronologySpace({ targetTmdbId = null, targetMediaType = null }) {
+export default function ChronologySpace({ targetTmdbId = null, targetMediaType = null, noteId = null, onMovieAdded = null }) {
   const { language, t } = useLanguage()
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 300, y: 120 })
@@ -803,9 +803,13 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
         release_date: movieToAdd.release_date,
         release_year: movieToAdd.release_year,
         seasons: movieToAdd.seasons || '-',
-        section
+        section,
+        note_id: noteId || 6
       }
       const created = await window.api.createMovie(payload)
+
+      if (onMovieAdded) onMovieAdded(created)
+      window.dispatchEvent(new CustomEvent('notelab_movie_added', { detail: created }))
 
       // Update in universeData
       setUniverseData(prev => {

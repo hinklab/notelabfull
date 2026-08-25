@@ -420,6 +420,16 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     return () => window.removeEventListener('click', close)
   }, [])
 
+  useEffect(() => {
+    const handleRemoteMovieAdded = (e) => {
+      if (e.detail && e.detail.id) {
+        loadGroups()
+      }
+    }
+    window.addEventListener('notelab_movie_added', handleRemoteMovieAdded)
+    return () => window.removeEventListener('notelab_movie_added', handleRemoteMovieAdded)
+  }, [loadGroups])
+
   const reloadGroup = async (groupId) => {
     if (isMovieNote) {
       await loadGroups()

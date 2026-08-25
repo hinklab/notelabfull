@@ -2878,15 +2878,34 @@ module.exports = async (req, res) => {
 
     if (path === 'movies' && req.method === 'POST') {
       const body = await parseBody(req);
-      // Deduplication
+      const section = body.section || 'todo';
+      let noteId = body.note_id || null;
+
+      if (!noteId) {
+        try {
+          const { data: userNotes } = await supabase.from('notes').select('id, type, is_movie').eq('user_id', userId).limit(5);
+          if (userNotes && userNotes.length > 0) {
+            const mNote = userNotes.find(n => n.is_movie || n.type === 'movie');
+            if (mNote) noteId = mNote.id;
+          }
+        } catch (e) {}
+        if (!noteId) noteId = 6;
+      }
+
+      // Deduplication: If already exists for this user, update its section / note_id and return it
       if (body.tmdb_id) {
         const { data: existing } = await supabase.from('movies').select('*')
           .eq('user_id', userId).eq('tmdb_id', body.tmdb_id).limit(1);
-        if (existing && existing.length > 0) return res.status(200).json(existing[0]);
+        if (existing && existing.length > 0) {
+          const targetSection = section || existing[0].section || 'todo';
+          const targetNoteId = noteId != null ? parseInt(noteId) : (existing[0].note_id || null);
+          const { data: updatedMovie } = await supabase.from('movies')
+            .update({ section: targetSection, note_id: targetNoteId, updated_at: new Date().toISOString() })
+            .eq('id', existing[0].id)
+            .select().single();
+          return res.status(200).json(updatedMovie || existing[0]);
+        }
       }
-
-      const noteId = body.note_id || null;
-      const section = body.section || 'todo';
 
       // Always put new movies at the VERY TOP of the column (lowest position value)
       let position = 0;

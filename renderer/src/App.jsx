@@ -258,7 +258,12 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
       {activeView === 'movies' ? (
         <GroupBoard note={activeNote} refreshTrigger={boardKey} search={search} onSearch={setSearch} onOpenChronology={handleOpenChronology} />
       ) : (
-        <ChronologySpace targetTmdbId={spaceTargetTmdbId} targetMediaType={spaceTargetMediaType} />
+        <ChronologySpace
+          noteId={activeNote?.id}
+          targetTmdbId={spaceTargetTmdbId}
+          targetMediaType={spaceTargetMediaType}
+          onMovieAdded={() => setBoardKey(k => k + 1)}
+        />
       )}
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} onOpenSurvey={onOpenSurvey} />}
