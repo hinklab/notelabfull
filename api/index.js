@@ -2906,10 +2906,11 @@ module.exports = async (req, res) => {
         })();
       }
 
-      // Deduplicate movies by tmdb_id or id
+      // Deduplicate movies by tmdb_id + season or id
       const seenMap = new Map();
       for (const m of movies) {
-        const key = m.tmdb_id ? `tmdb_${m.tmdb_id}` : `id_${m.id}`;
+        const titlePart = (m.title || '').replace(/\s*[-—]\s*Season\s*(\d+)/i, '_s$1').trim().toLowerCase();
+        const key = m.tmdb_id ? `tmdb_${m.tmdb_id}_${titlePart}` : `id_${m.id}`;
         const existing = seenMap.get(key);
         if (!existing) {
           seenMap.set(key, m);
@@ -2947,10 +2948,14 @@ module.exports = async (req, res) => {
         if (!noteId) noteId = 6;
       }
 
-      // Deduplication: If already exists for this user, update its section / note_id and return it
+      // Deduplication: If exact same season or movie already exists for this user, update its section / note_id and return it
       if (body.tmdb_id) {
-        const { data: existing } = await supabase.from('movies').select('*')
-          .eq('user_id', userId).eq('tmdb_id', body.tmdb_id).limit(1);
+        const cleanTitle = (body.title || '').trim();
+        let queryBuilder = supabase.from('movies').select('*').eq('user_id', userId).eq('tmdb_id', body.tmdb_id);
+        if (cleanTitle.includes('— Season')) {
+          queryBuilder = queryBuilder.eq('title', cleanTitle);
+        }
+        const { data: existing } = await queryBuilder.limit(1);
         if (existing && existing.length > 0) {
           const targetSection = section || existing[0].section || 'todo';
           const targetNoteId = noteId != null ? parseInt(noteId) : (existing[0].note_id || null);
@@ -3007,14 +3012,90 @@ module.exports = async (req, res) => {
             }
             if (d.created_by?.length && (director === '-' || !director)) director = d.created_by.map(c => c.name).join(', ');
             if (d.overview) overview = d.overview;
-            if (d.number_of_seasons) {
-              media_type = 'tv';
-              seasons = `${d.number_of_seasons} seasons · ${d.number_of_episodes || 10} ep`;
-            } else if (d.runtime) {
-              seasons = `${d.runtime} min`;
-            }
           }
         } catch (e) { console.warn('TMDB enrich error:', e.message); }
+      }
+
+      // Multi-season TV Show Detection & Auto-Splitting
+      if (body.tmdb_id && TMDB_KEY && (media_type === 'tv' || body.media_type === 'tv' || (body.seasons && /season/i.test(body.seasons))) && !body.title.includes('— Season')) {
+        try {
+          const tvUrl = `https://api.themoviedb.org/3/tv/${body.tmdb_id}?api_key=${TMDB_KEY}&language=en-US`;
+          const tvRes = await fetch(tvUrl, { signal: AbortSignal.timeout(3000) });
+          if (tvRes.ok) {
+            const d = await tvRes.json();
+            const rawSeasons = (d.seasons || []).filter(s => s.season_number > 0);
+            if (rawSeasons.length > 1) {
+              const seriesBaseName = d.name || body.title;
+              const seriesPoster = d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : (poster_path || null);
+              const defaultEpRuntime = (d.episode_run_time && d.episode_run_time[0]) || 45;
+              const createdSeasons = [];
+              const genreStr = d.genres?.map(g => g.name).join(', ') || genre || '-';
+
+              for (let sIdx = 0; sIdx < rawSeasons.length; sIdx++) {
+                const s = rawSeasons[sIdx];
+                const sNum = s.season_number;
+                let seasonPoster = s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : seriesPoster;
+                let seasonAirDate = s.air_date || d.first_air_date || release_date;
+                let seasonReleaseYear = seasonAirDate ? seasonAirDate.split('-')[0] : release_year;
+                let epCount = s.episode_count || 1;
+                let totalMinutes = 0;
+                let exactCount = 0;
+
+                try {
+                  const sDetailRes = await fetch(`https://api.themoviedb.org/3/tv/${body.tmdb_id}/season/${sNum}?api_key=${TMDB_KEY}&language=en-US`, { signal: AbortSignal.timeout(2500) });
+                  if (sDetailRes.ok) {
+                    const sDetail = await sDetailRes.json();
+                    if (sDetail.poster_path) seasonPoster = `https://image.tmdb.org/t/p/w500${sDetail.poster_path}`;
+                    if (sDetail.air_date) {
+                      seasonAirDate = sDetail.air_date;
+                      seasonReleaseYear = seasonAirDate.split('-')[0];
+                    }
+                    if (Array.isArray(sDetail.episodes) && sDetail.episodes.length > 0) {
+                      epCount = sDetail.episodes.length;
+                      sDetail.episodes.forEach(ep => {
+                        if (ep.runtime && ep.runtime > 0) {
+                          totalMinutes += ep.runtime;
+                          exactCount++;
+                        }
+                      });
+                    }
+                  }
+                } catch (e) {}
+
+                if (exactCount === 0) totalMinutes = epCount * defaultEpRuntime;
+                const humanDuration = formatDurationUz(totalMinutes, exactCount === 0);
+                const seasonStr = `Season ${sNum} · ${epCount} ep · ${humanDuration} (${totalMinutes} min)`;
+                const seasonTitle = `${seriesBaseName} — Season ${sNum}`;
+
+                const sPayload = {
+                  user_id: userId, note_id: noteId, title: seasonTitle, section, position: position + sIdx,
+                  tmdb_id: body.tmdb_id, imdb_id: body.imdb_id || null, media_type: 'tv',
+                  poster_path: seasonPoster, rating: s.vote_average ? Number(s.vote_average.toFixed(1)) : (rating || null),
+                  vote_count: s.vote_count || (vote_count || 0), genre: genreStr,
+                  director: director || '-', overview: s.overview || d.overview || overview || '',
+                  release_date: seasonAirDate, release_year: seasonReleaseYear, seasons: seasonStr,
+                  note: body.note || '', created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+                };
+
+                const { data: insRow } = await supabase.from('movies').insert([sPayload]).select().single();
+                if (insRow) createdSeasons.push(insRow);
+              }
+
+              if (createdSeasons.length > 0) {
+                // Cleanup recommendations
+                try {
+                  const { data: notifs } = await supabase.from('notifications').select('id, type, title, movie_data').eq('user_id', userId);
+                  const toDelete = (notifs || []).filter(n => n.type === 'recommendation' && (String(n.movie_data?.tmdb_id) === String(body.tmdb_id) || (n.movie_data?.title || '').toLowerCase().includes(seriesBaseName.toLowerCase())));
+                  for (const d of toDelete) await supabase.from('notifications').delete().eq('id', d.id).catch(() => {});
+                } catch (e) {}
+
+                return res.status(200).json(createdSeasons[0]);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Multi-season TV add error:', e.message);
+        }
       }
 
       const nowIso = new Date().toISOString();

@@ -2,9 +2,69 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffe
 import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard, { prefetchTrailer } from '../cards/MovieCard.jsx'
+import SeriesGroupCard from '../cards/SeriesGroupCard.jsx'
 import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getMovieFranchiseInfo } from '../../config/chronologyData.js'
+
+function groupColumnItems(items) {
+  if (!Array.isArray(items)) return []
+
+  const seriesKeyMap = new Map()
+  const itemKeyMap = new Map()
+
+  for (const item of items) {
+    const m = item._movie || item
+    const isTv = m.media_type === 'tv' || (m.title && /—\s*Season\s*\d+/i.test(m.title)) || (m.title && /-\s*Season\s*\d+/i.test(m.title))
+    if (isTv && m.tmdb_id) {
+      const baseSeriesName = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase()
+      const seriesKey = `tv_${m.tmdb_id}_${baseSeriesName}`
+      itemKeyMap.set(item.id, seriesKey)
+      if (!seriesKeyMap.has(seriesKey)) {
+        seriesKeyMap.set(seriesKey, [])
+      }
+      seriesKeyMap.get(seriesKey).push(item)
+    }
+  }
+
+  const groupedResult = []
+  const processedSeries = new Set()
+
+  for (const item of items) {
+    const sKey = itemKeyMap.get(item.id)
+    const seriesItems = sKey ? seriesKeyMap.get(sKey) : null
+
+    if (seriesItems && seriesItems.length > 1) {
+      if (!processedSeries.has(sKey)) {
+        processedSeries.add(sKey)
+        const sortedSeasons = [...seriesItems].sort((a, b) => {
+          const mA = a._movie || a
+          const mB = b._movie || b
+          const numA = parseInt((mA.title?.match(/[-—]\s*Season\s*(\d+)/i) || [])[1] || '1', 10)
+          const numB = parseInt((mB.title?.match(/[-—]\s*Season\s*(\d+)/i) || [])[1] || '1', 10)
+          return numA - numB
+        })
+        const firstMovie = sortedSeasons[0]._movie || sortedSeasons[0]
+        const seriesBaseTitle = (firstMovie.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim()
+        groupedResult.push({
+          type: 'series_group',
+          id: `group_${sKey}`,
+          seriesTitle: seriesBaseTitle,
+          tmdbId: firstMovie.tmdb_id,
+          seasons: sortedSeasons
+        })
+      }
+    } else {
+      groupedResult.push({
+        type: 'single',
+        id: item.id,
+        item: item
+      })
+    }
+  }
+
+  return groupedResult
+}
 
 function hexToRgba(hex, alpha) {
   if (!hex || hex.length < 7) return `rgba(124,58,237,${alpha})`
@@ -1807,48 +1867,73 @@ onSaveRating,
           WebkitMaskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 65px), transparent 100%)' : 'none',
         }}
       >
-        {items.map(item => (
-          <div key={item.id} data-item-id={item.id} style={{ position: 'relative' }}>
-            {dragMarker?.targetId === item.id && dragMarker.position === 'before' && (
-              <div className="drag-marker-line" style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
-            )}
-            {item._movie ? (
-              <MovieCard
-                movie={item._movie}
-                sectionKey={group.section_key}
-                isExpanded={expandedMovieId != null && (String(expandedMovieId) === String(item.id) || (item._movie && String(expandedMovieId) === String(item._movie.id)))}
-                onToggleExpand={() => onToggleExpandMovie?.(item.id)}
-                onClose={() => onToggleExpandMovie?.(null)}
-                onMoveSection={(targetSectionKey) => onMoveMovieSection?.(item, targetSectionKey)}
-                onRate={(newRating) => onSaveRating?.(item.id, newRating)}
-                onContextMenu={(e) => onItemContextMenu(e, item)}
-                onDelete={() => onItemDelete?.(item)}
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('itemId', String(item.id))
-                  e.dataTransfer.setData('fromGroup', String(group.id))
-                  e.dataTransfer.effectAllowed = 'move'
-                }}
-                onTouchDragStart={(movie, x, y) => handleTouchDragStart?.(item, x, y)}
-                onTouchDragMove={(movie, x, y) => handleTouchDragMove(item, x, y)}
-                onTouchDragEnd={(movie, x, y) => handleTouchDragEnd(item, x, y)}
+        {groupColumnItems(items).map(entry => {
+          if (entry.type === 'series_group') {
+            return (
+              <SeriesGroupCard
+                key={entry.id}
+                seriesTitle={entry.seriesTitle}
+                seasons={entry.seasons}
+                group={group}
+                expandedMovieId={expandedMovieId}
+                onToggleExpandMovie={onToggleExpandMovie}
+                onMoveMovieSection={onMoveMovieSection}
+                onSaveRating={onSaveRating}
+                onItemContextMenu={onItemContextMenu}
+                onItemDelete={onItemDelete}
+                handleTouchDragStart={handleTouchDragStart}
+                handleTouchDragMove={handleTouchDragMove}
+                handleTouchDragEnd={handleTouchDragEnd}
                 onOpenChronology={onOpenChronology}
+                dragMarker={dragMarker}
               />
-            ) : (
-              <NoteItemCard
-                item={item}
-                groupId={group.id}
-                accentColor={color}
-                onClick={() => onItemClick(item)}
-                onContextMenu={(e) => onItemContextMenu(e, item)}
-                onTouchDragMove={(itm, x, y) => handleTouchDragMove(item, x, y)}
-                onTouchDragEnd={(itm, x, y) => handleTouchDragEnd(item, x, y)}
-              />
-            )}
-            {dragMarker?.targetId === item.id && dragMarker.position === 'after' && (
-              <div className="drag-marker-line" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
-            )}
-          </div>
-        ))}
+            )
+          }
+
+          const item = entry.item
+          return (
+            <div key={item.id} data-item-id={item.id} style={{ position: 'relative' }}>
+              {dragMarker?.targetId === item.id && dragMarker.position === 'before' && (
+                <div className="drag-marker-line" style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
+              )}
+              {item._movie ? (
+                <MovieCard
+                  movie={item._movie}
+                  sectionKey={group.section_key}
+                  isExpanded={expandedMovieId != null && (String(expandedMovieId) === String(item.id) || (item._movie && String(expandedMovieId) === String(item._movie.id)))}
+                  onToggleExpand={() => onToggleExpandMovie?.(item.id)}
+                  onClose={() => onToggleExpandMovie?.(null)}
+                  onMoveSection={(targetSectionKey) => onMoveMovieSection?.(item, targetSectionKey)}
+                  onRate={(newRating) => onSaveRating?.(item.id, newRating)}
+                  onContextMenu={(e) => onItemContextMenu(e, item)}
+                  onDelete={() => onItemDelete?.(item)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('itemId', String(item.id))
+                    e.dataTransfer.setData('fromGroup', String(group.id))
+                    e.dataTransfer.effectAllowed = 'move'
+                  }}
+                  onTouchDragStart={(movie, x, y) => handleTouchDragStart?.(item, x, y)}
+                  onTouchDragMove={(movie, x, y) => handleTouchDragMove(item, x, y)}
+                  onTouchDragEnd={(movie, x, y) => handleTouchDragEnd(item, x, y)}
+                  onOpenChronology={onOpenChronology}
+                />
+              ) : (
+                <NoteItemCard
+                  item={item}
+                  groupId={group.id}
+                  accentColor={color}
+                  onClick={() => onItemClick(item)}
+                  onContextMenu={(e) => onItemContextMenu(e, item)}
+                  onTouchDragMove={(itm, x, y) => handleTouchDragMove(item, x, y)}
+                  onTouchDragEnd={(itm, x, y) => handleTouchDragEnd(item, x, y)}
+                />
+              )}
+              {dragMarker?.targetId === item.id && dragMarker.position === 'after' && (
+                <div className="drag-marker-line" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
+              )}
+            </div>
+          )
+        })}
         {items.length === 0 && (
           <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: '20px 0', opacity: 0.4 }}>{t('board.emptyColumn')}</div>
         )}
