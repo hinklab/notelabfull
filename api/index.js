@@ -3012,6 +3012,27 @@ module.exports = async (req, res) => {
       }
 
       if (!inserted) throw lastError || new Error('Failed to insert movie');
+
+      // Auto-cleanup corresponding recommendation notification if present
+      if (inserted && (inserted.tmdb_id || inserted.title)) {
+        try {
+          const { data: notifs } = await supabase.from('notifications').select('id, type, title, movie_data').eq('user_id', userId);
+          const toDelete = (notifs || []).filter(n => {
+            if (n.type !== 'recommendation') return false;
+            const nTmdb = n.movie_data?.tmdb_id ? String(n.movie_data.tmdb_id) : null;
+            const mTmdb = inserted.tmdb_id ? String(inserted.tmdb_id) : null;
+            if (nTmdb && mTmdb && nTmdb === mTmdb) return true;
+            const nTitle = (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim();
+            const mTitle = (inserted.title || '').toLowerCase().trim();
+            if (nTitle && mTitle && (nTitle === mTitle || nTitle.includes(mTitle) || mTitle.includes(nTitle))) return true;
+            return false;
+          });
+          for (const d of toDelete) {
+            await supabase.from('notifications').delete().eq('id', d.id).catch(() => {});
+          }
+        } catch (e) {}
+      }
+
       return res.status(200).json(inserted);
     }
 
@@ -4141,7 +4162,156 @@ module.exports = async (req, res) => {
     // ═══════════════════════════════════════
     // NOTIFICATIONS
     // ═══════════════════════════════════════
+    const NOTIF_GENRE_MAP = {
+      'action': 28, 'adventure': 12, 'animation': 16, 'comedy': 35,
+      'crime': 80, 'documentary': 99, 'drama': 18, 'family': 10751,
+      'fantasy': 14, 'history': 36, 'horror': 27, 'music': 10402,
+      'mystery': 9648, 'romance': 10749, 'science fiction': 878, 'sci-fi': 878,
+      'tv movie': 10770, 'thriller': 53, 'war': 10752, 'western': 37,
+      'jangari': 28, 'sarguzasht': 12, 'animatsiya': 16, 'multfilm': 16,
+      'komediya': 35, 'kriminal': 80, 'jinoyat': 80, 'hujjatli': 99,
+      'drama': 18, 'dramatik': 18, 'oila': 10751, 'oilaviy': 10751,
+      'fantastika': 14, 'tarixiy': 36, 'tarix': 36, "qo'rqinchli": 27,
+      "qorqinchli": 27, 'daxshat': 27, 'musiqiy': 10402, 'detektiv': 9648,
+      'romantika': 10749, 'melodrama': 10749, 'ilmiy-fantastik': 878,
+      'triller': 53, 'harbiy': 10752, 'urush': 10752
+    };
+
+    const notifLastRunMap = global.__notifLastRunMap || (global.__notifLastRunMap = new Map());
+
+    async function runSmartNotifications(targetUserId) {
+      if (!targetUserId || !TMDB_KEY) return;
+      const now = Date.now();
+      const lastRun = notifLastRunMap.get(targetUserId) || 0;
+      // Rate-limit smart check to once every 20 minutes per user session
+      if (now - lastRun < 20 * 60 * 1000) return;
+      notifLastRunMap.set(targetUserId, now);
+
+      try {
+        const [{ data: userMovies }, { data: existingNotifs }, { data: userPref }] = await Promise.all([
+          supabase.from('movies').select('*').eq('user_id', targetUserId),
+          supabase.from('notifications').select('*').eq('user_id', targetUserId).order('created_at', { ascending: false }).limit(60),
+          supabase.from('user_preferences').select('*').eq('id', targetUserId).maybeSingle().catch(() => ({ data: null }))
+        ]);
+
+        const movies = userMovies || [];
+        const notifs = existingNotifs || [];
+
+        const existingTmdbIds = new Set(movies.map(m => m.tmdb_id ? String(m.tmdb_id) : null).filter(Boolean));
+        const existingTitles = new Set(movies.map(m => (m.title || '').toLowerCase().trim()).filter(Boolean));
+
+        const notifTmdbIds = new Set(notifs.map(n => n.movie_data?.tmdb_id ? String(n.movie_data.tmdb_id) : null).filter(Boolean));
+        const notifTitles = new Set(notifs.map(n => (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim()).filter(Boolean));
+
+        const newNotifsToInsert = [];
+
+        // 1. Release Alerts: For movies with release_date <= today that user hasn't been alerted about
+        const todayIso = new Date().toISOString().split('T')[0];
+        const futuredMovies = movies.filter(m => m.release_date && m.release_date <= todayIso && (m.section === 'futured' || m.section === 'todo'));
+        for (const fm of futuredMovies) {
+          const fmId = fm.tmdb_id ? String(fm.tmdb_id) : null;
+          const fmTitle = (fm.title || '').toLowerCase().trim();
+          const alreadyAlerted = notifs.some(n => n.type === 'release_alert' && ((fmId && n.movie_data?.tmdb_id && String(n.movie_data.tmdb_id) === fmId) || (n.movie_data?.title || '').toLowerCase().trim() === fmTitle));
+          if (!alreadyAlerted) {
+            newNotifsToInsert.push({
+              user_id: targetUserId,
+              type: 'release_alert',
+              title: `${fm.title} chiqdi!`,
+              message: `"${fm.title}" filmining premyerasi bo'lib o'tdi. Tomosha qilish uchun tayyor!`,
+              movie_data: {
+                tmdb_id: fm.tmdb_id || null,
+                imdb_id: fm.imdb_id || null,
+                title: fm.title,
+                poster_path: fm.poster_path || null,
+                rating: fm.rating || null,
+                release_date: fm.release_date || null,
+                media_type: fm.media_type || 'movie'
+              },
+              is_read: false
+            });
+          }
+        }
+
+        // 2. AI Recommendations: If user has < 3 unread recommendations, discover new trending movies matching genres
+        const unreadRecs = notifs.filter(n => n.type === 'recommendation' && !n.is_read);
+        if (unreadRecs.length < 3) {
+          let favoriteGenres = [];
+          if (userPref && userPref.favorite_genres) {
+            favoriteGenres = Array.isArray(userPref.favorite_genres) ? userPref.favorite_genres : String(userPref.favorite_genres).split(',').map(s => s.trim());
+          }
+          if (favoriteGenres.length === 0 && movies.length > 0) {
+            const genreCounts = {};
+            for (const m of movies) {
+              if (m.genre && m.genre !== '-') {
+                m.genre.split(',').forEach(g => {
+                  const clean = g.trim().toLowerCase();
+                  if (clean) genreCounts[clean] = (genreCounts[clean] || 0) + 1;
+                });
+              }
+            }
+            favoriteGenres = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(e => e[0]);
+          }
+
+          const genreIds = favoriteGenres.map(g => {
+            const str = String(g).trim().toLowerCase();
+            return NOTIF_GENRE_MAP[str] || (/^\d+$/.test(str) ? parseInt(str, 10) : null);
+          }).filter(Boolean);
+
+          let discoverUrl = `https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_KEY}&sort_by=popularity.desc&vote_count.gte=100&language=en-US&page=1`;
+          if (genreIds.length > 0) {
+            discoverUrl += `&with_genres=${genreIds.slice(0, 3).join('|')}`;
+          }
+
+          const discRes = await fetch(discoverUrl, { signal: AbortSignal.timeout(3500) });
+          if (discRes.ok) {
+            const discData = await discRes.json();
+            const results = discData.results || [];
+            const candidates = results.filter(item => {
+              const itemId = String(item.id);
+              const itemTitle = (item.title || '').toLowerCase().trim();
+              if (existingTmdbIds.has(itemId) || notifTmdbIds.has(itemId)) return false;
+              if (existingTitles.has(itemTitle) || notifTitles.has(itemTitle)) return false;
+              return true;
+            }).slice(0, 3);
+
+            for (const item of candidates) {
+              newNotifsToInsert.push({
+                user_id: targetUserId,
+                type: 'recommendation',
+                title: `Tavsiya: ${item.title}`,
+                message: item.overview ? (item.overview.length > 130 ? item.overview.slice(0, 130) + '...' : item.overview) : 'Siz yoqtirgan janrlar asosida tavsiya qilindi.',
+                movie_data: {
+                  tmdb_id: item.id,
+                  title: item.title,
+                  poster_path: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
+                  rating: item.vote_average ? Number(item.vote_average.toFixed(1)) : null,
+                  vote_count: item.vote_count || 0,
+                  release_date: item.release_date || null,
+                  media_type: 'movie'
+                },
+                is_read: false
+              });
+            }
+          }
+        }
+
+        if (newNotifsToInsert.length > 0) {
+          for (const notifItem of newNotifsToInsert) {
+            await supabase.from('notifications').insert([notifItem]).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.warn('Smart notification generation error:', err.message);
+      }
+    }
+
     if (path === 'notifications' && req.method === 'GET') {
+      try {
+        await runSmartNotifications(userId);
+      } catch (e) {
+        console.warn('Error running smart notifications:', e.message);
+      }
+
       const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
       const list = data || [];
       const seen = new Set();
@@ -4154,6 +4324,12 @@ module.exports = async (req, res) => {
         }
       }
       return res.status(200).json(unique);
+    }
+    if (path === 'notifications/refresh' && req.method === 'POST') {
+      notifLastRunMap.delete(userId);
+      await runSmartNotifications(userId);
+      const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
+      return res.status(200).json(data || []);
     }
     const notifReadMatch = path.match(/^notifications\/([^/]+)\/read$/);
     if (notifReadMatch && req.method === 'PATCH') {
