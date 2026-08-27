@@ -1,5 +1,5 @@
 ﻿import React, { useState } from "react"
-import { Tv, ChevronDown, ChevronUp, Layers, Star, Film, Clock, Sparkles } from "lucide-react"
+import { Tv, ChevronDown, ChevronUp, Layers, Star, Film } from "lucide-react"
 import MovieCard from "./MovieCard.jsx"
 import { useLanguage } from "../../context/LanguageContext.jsx"
 
@@ -42,7 +42,7 @@ export default function SeriesGroupCard({
   const [isDraggingGroup, setIsDraggingGroup] = useState(false)
   const [touchDragActive, setTouchDragActive] = useState(false)
 
-  // Sort seasons by season number ascending (S1, S2, S3...)
+  // Sort seasons ascending by season number (S1, S2, S3...)
   const sortedSeasons = [...seasons].sort((a, b) => {
     const mA = a._movie || a
     const mB = b._movie || b
@@ -110,6 +110,9 @@ export default function SeriesGroupCard({
         onTouchStart={handleGroupTouchStart}
         onTouchMove={handleGroupTouchMove}
         onTouchEnd={handleGroupTouchEnd}
+        onClick={() => {
+          if (!isDraggingGroup && !touchDragActive) onToggleExpandMovie?.(firstSeason.id)
+        }}
         onContextMenu={(e) => onItemContextMenu?.(e, firstSeason)}
         style={{
           background: "var(--bg-surface)",
