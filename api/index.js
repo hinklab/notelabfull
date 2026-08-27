@@ -2866,6 +2866,46 @@ module.exports = async (req, res) => {
           avg_user_rating: uRating,
         };
       });
+
+      // Auto-move movies from 'futured' to 'todo' if release_date has arrived (<= today)
+      const todayIso = new Date().toISOString().split('T')[0];
+      const releasedFromFutured = [];
+      movies.forEach(m => {
+        if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
+          m.section = 'todo';
+          releasedFromFutured.push(m);
+        }
+      });
+
+      if (releasedFromFutured.length > 0) {
+        (async () => {
+          try {
+            for (const rm of releasedFromFutured) {
+              await supabase.from('movies').update({ section: 'todo', updated_at: new Date().toISOString() }).eq('id', rm.id);
+              // Insert release_alert notification
+              await supabase.from('notifications').insert([{
+                user_id: userId,
+                type: 'release_alert',
+                title: `${rm.title} chiqdi!`,
+                message: `"${rm.title}" filmining premyerasi bo'lib o'tdi. Film 'To Do' bo'limiga o'tkazildi!`,
+                movie_data: {
+                  tmdb_id: rm.tmdb_id,
+                  imdb_id: rm.imdb_id,
+                  title: rm.title,
+                  poster_path: rm.poster_path,
+                  rating: rm.rating,
+                  release_date: rm.release_date,
+                  genre: rm.genre
+                },
+                is_read: false
+              }]).catch(() => {});
+            }
+          } catch (e) {
+            console.warn('Auto-move futured error:', e.message);
+          }
+        })();
+      }
+
       // Deduplicate movies by tmdb_id or id
       const seenMap = new Map();
       for (const m of movies) {
