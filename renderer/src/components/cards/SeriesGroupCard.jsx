@@ -104,10 +104,32 @@ export default function SeriesGroupCard({
           e.dataTransfer.setData("itemId", String(firstSeasonId))
           e.dataTransfer.setData("fromGroup", String(group.id))
           e.dataTransfer.effectAllowed = "move"
+          
+          const el = e.currentTarget
+          setTimeout(() => {
+            if (el) el.style.opacity = '0'
+          }, 0)
           setIsDraggingGroup(true)
           e.stopPropagation()
         }}
-        onDragEnd={() => setIsDraggingGroup(false)}
+        onDragEnd={(e) => {
+          if (e.currentTarget) {
+            e.currentTarget.style.transition = 'opacity 0.2s ease'
+            e.currentTarget.style.opacity = '1'
+          }
+          setIsDraggingGroup(false)
+        }}
+        onMouseEnter={(e) => {
+          if (isDraggingGroup) return
+          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.6)'
+          e.currentTarget.style.background = 'var(--bg-card-hover)'
+          e.currentTarget.style.transform = 'translateY(-1px)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.35)'
+          e.currentTarget.style.background = 'var(--bg-surface)'
+          e.currentTarget.style.transform = 'translateY(0)'
+        }}
         onTouchStart={handleGroupTouchStart}
         onTouchMove={handleGroupTouchMove}
         onTouchEnd={handleGroupTouchEnd}
@@ -124,8 +146,7 @@ export default function SeriesGroupCard({
           position: "relative",
           cursor: isDraggingGroup ? "grabbing" : "grab",
           boxShadow: "0 3px 12px rgba(139, 92, 246, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05)",
-          opacity: isDraggingGroup ? 0.5 : 1,
-          transition: "box-shadow 0.2s, border-color 0.2s, opacity 0.15s",
+          transition: "transform 0.15s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.2s ease",
           userSelect: "none"
         }}
       >
