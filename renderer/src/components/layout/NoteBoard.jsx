@@ -1917,7 +1917,7 @@ onSaveRating,
             return (
               <div key={entry.id} data-item-id={firstSeasonId} style={{ position: 'relative' }}>
                 {dragMarker?.targetId === String(firstSeasonId) && dragMarker.position === 'before' && (
-                  <div className="drag-marker-line" style={{ position: 'absolute', top: -5, left: 4, right: 4, height: 3, background: color, borderRadius: 3, boxShadow: `0 0 8px ${color}`, zIndex: 10, pointerEvents: 'none' }} />
+                  <div className="drag-marker-line" style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
                 )}
                 <SeriesGroupCard
                   seriesTitle={entry.seriesTitle}
@@ -1936,7 +1936,7 @@ onSaveRating,
                   dragMarker={dragMarker}
                 />
                 {dragMarker?.targetId === String(firstSeasonId) && dragMarker.position === 'after' && (
-                  <div className="drag-marker-line" style={{ position: 'absolute', bottom: -5, left: 4, right: 4, height: 3, background: color, borderRadius: 3, boxShadow: `0 0 8px ${color}`, zIndex: 10, pointerEvents: 'none' }} />
+                  <div className="drag-marker-line" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
                 )}
               </div>
             )
@@ -1946,7 +1946,7 @@ onSaveRating,
           return (
             <div key={item.id} data-item-id={item.id} style={{ position: 'relative' }}>
               {dragMarker?.targetId === String(item.id) && dragMarker.position === 'before' && (
-                <div className="drag-marker-line" style={{ position: 'absolute', top: -5, left: 4, right: 4, height: 3, background: color, borderRadius: 3, boxShadow: `0 0 8px ${color}`, zIndex: 10, pointerEvents: 'none' }} />
+                <div className="drag-marker-line" style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
               )}
               {item._movie ? (
                 <MovieCard
@@ -1981,7 +1981,7 @@ onSaveRating,
                 />
               )}
               {dragMarker?.targetId === String(item.id) && dragMarker.position === 'after' && (
-                <div className="drag-marker-line" style={{ position: 'absolute', bottom: -5, left: 4, right: 4, height: 3, background: color, borderRadius: 3, boxShadow: `0 0 8px ${color}`, zIndex: 10, pointerEvents: 'none' }} />
+                <div className="drag-marker-line" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
               )}
             </div>
           )
