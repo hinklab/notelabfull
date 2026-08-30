@@ -66,6 +66,17 @@ function groupColumnItems(items) {
   return groupedResult
 }
 
+function getSeriesKey(movieOrItem) {
+  const m = movieOrItem?._movie || movieOrItem
+  if (!m) return null
+  const isTv = m.media_type === 'tv' || (m.title && /—\s*Season\s*\d+/i.test(m.title)) || (m.title && /-\s*Season\s*\d+/i.test(m.title))
+  if (isTv && m.tmdb_id) {
+    const baseSeriesName = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase()
+    return `tv_${m.tmdb_id}_${baseSeriesName}`
+  }
+  return null
+}
+
 function hexToRgba(hex, alpha) {
   if (!hex || hex.length < 7) return `rgba(124,58,237,${alpha})`
   const r = parseInt(hex.slice(1, 3), 16)
@@ -845,46 +856,74 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     }
   }
 
-  const handleReorderItem = async (itemId, targetId, position, groupId) => {
+  const handleReorderItem = async (itemId, targetId, position, groupId, isSeriesGroup = false) => {
     snapshotAllCardPositions()
-    const items = itemsByGroup[groupId] || []
-    const ids = items.map(i => i.id)
-    const fromIdx = ids.findIndex(id => String(id) === String(itemId))
-    const targetIdx = ids.findIndex(id => String(id) === String(targetId))
-    if (fromIdx === -1) return
+    const currentList = itemsByGroup[groupId] || []
+    if (currentList.length === 0) return
+
+    const movingItem = currentList.find(i => String(i.id) === String(itemId))
+    const targetItem = currentList.find(i => String(i.id) === String(targetId))
+    if (!movingItem || !targetItem) return
+
+    const movingSeriesKey = getSeriesKey(movingItem)
+    let movingItems = [movingItem]
+    if (movingSeriesKey && isSeriesGroup !== false) {
+      const seriesMembers = currentList.filter(i => getSeriesKey(i) === movingSeriesKey)
+      if (seriesMembers.length > 1) {
+        movingItems = [...seriesMembers].sort((a, b) => {
+          const mA = a._movie || a
+          const mB = b._movie || b
+          const numA = parseInt((mA.title?.match(/[-—]\s*Season\s*(\d+)/i) || [])[1] || '1', 10)
+          const numB = parseInt((mB.title?.match(/[-—]\s*Season\s*(\d+)/i) || [])[1] || '1', 10)
+          return numA - numB
+        })
+      }
+    }
+    const movingIdSet = new Set(movingItems.map(i => String(i.id)))
+
+    // Target anchoring: if targetItem is part of a series group, anchor to the top or bottom of that series group
+    const targetSeriesKey = getSeriesKey(targetItem)
+    let targetAnchorId = String(targetId)
+    if (targetSeriesKey) {
+      const targetSeriesMembers = currentList.filter(i => getSeriesKey(i) === targetSeriesKey && !movingIdSet.has(String(i.id)))
+      if (targetSeriesMembers.length > 0) {
+        if (position === 'before') {
+          targetAnchorId = String(targetSeriesMembers[0].id)
+        } else {
+          targetAnchorId = String(targetSeriesMembers[targetSeriesMembers.length - 1].id)
+        }
+      }
+    }
+
+    const remainingList = currentList.filter(i => !movingIdSet.has(String(i.id)))
+    const targetIdxInRemaining = remainingList.findIndex(i => String(i.id) === String(targetAnchorId))
+
+    let insertIdx = remainingList.length
+    if (targetIdxInRemaining !== -1) {
+      insertIdx = position === 'before' ? targetIdxInRemaining : targetIdxInRemaining + 1
+    }
+
+    const newList = [...remainingList]
+    newList.splice(Math.max(0, Math.min(insertIdx, newList.length)), 0, ...movingItems)
+
+    const updatedList = newList.map((item, idx) => ({
+      ...item,
+      position: idx,
+      _movie: item._movie ? { ...item._movie, position: idx } : item._movie
+    }))
 
     // 1. Optimistic UI update
-    setItemsByGroup(prev => {
-      const currentList = [...(prev[groupId] || [])]
-      const from = currentList.findIndex(i => String(i.id) === String(itemId))
-      const target = currentList.findIndex(i => String(i.id) === String(targetId))
-      if (from === -1 || target === -1) return prev
-
-      const [moved] = currentList.splice(from, 1)
-      const insertIdx = position === 'before' ? target : target + 1
-      currentList.splice(Math.max(0, insertIdx), 0, moved)
-
-      const updatedList = currentList.map((item, idx) => ({
-        ...item,
-        position: idx,
-        _movie: item._movie ? { ...item._movie, position: idx } : item._movie
-      }))
-
-      return { ...prev, [groupId]: updatedList }
-    })
+    setItemsByGroup(prev => ({ ...prev, [groupId]: updatedList }))
 
     // 2. Perform API call in background
     try {
-      ids.splice(fromIdx, 1)
-      const insertIdx = position === 'before' ? targetIdx : targetIdx + 1
-      ids.splice(Math.max(0, insertIdx), 0, itemId)
-
+      const newIds = updatedList.map(i => i.id)
       if (isMovieNote) {
         const targetGroup = groups.find(g => String(g.id) === String(groupId))
         const sectionKey = targetGroup?.section_key || (String(groupId) === '1' ? 'futured' : String(groupId) === '2' ? 'todo' : String(groupId) === '3' ? 'doing' : 'done')
-        await window.api.reorderMovies(sectionKey, ids)
+        await window.api.reorderMovies(sectionKey, newIds)
       } else {
-        await window.api.reorderItems(groupId, ids)
+        await window.api.reorderItems(groupId, newIds)
       }
     } catch (err) {
       console.error('Failed to reorder item:', err)
@@ -1682,13 +1721,16 @@ onSaveRating,
 
     const rawItemId = e.dataTransfer.getData('itemId')
     const rawFromGroup = e.dataTransfer.getData('fromGroup')
+    const isSeriesGroup = e.dataTransfer.getData('isSeriesGroup') === 'true'
     if (!rawItemId) {
       setTimeout(() => setDragMarker(null), 0)
       return
     }
     const dropInfo = getDropPosition(items, e.clientY, cardsRef)
     if (String(rawFromGroup) === String(group.id)) {
-      if (dropInfo.targetId != null) await onReorderItem(rawItemId, dropInfo.targetId, dropInfo.position, group.id)
+      if (dropInfo.targetId != null && String(dropInfo.targetId) !== String(rawItemId)) {
+        await onReorderItem(rawItemId, dropInfo.targetId, dropInfo.position, group.id, isSeriesGroup)
+      }
     } else {
       await onMoveItem(rawItemId, group.id, dropInfo.insertIndex)
     }
@@ -1759,10 +1801,11 @@ onSaveRating,
     if (!targetGroupId) targetGroupId = group.id
 
     const dropInfo = getDropPosition(items, clientY, cardsRef)
+    const isSeriesGroup = Boolean(item?._isSeriesGroup || item?._movie?._isSeriesGroup)
 
     if (String(targetGroupId) === String(group.id)) {
       if (dropInfo.targetId != null && String(dropInfo.targetId) !== String(item.id)) {
-        await onReorderItem(item.id, dropInfo.targetId, dropInfo.position, group.id)
+        await onReorderItem(item.id, dropInfo.targetId, dropInfo.position, group.id, isSeriesGroup)
       }
     } else {
       await onMoveItem(item.id, targetGroupId, dropInfo.insertIndex)
@@ -1869,24 +1912,33 @@ onSaveRating,
       >
         {groupColumnItems(items).map(entry => {
           if (entry.type === 'series_group') {
+            const firstSeasonItem = entry.seasons[0]
+            const firstSeasonId = firstSeasonItem?.id
             return (
-              <SeriesGroupCard
-                key={entry.id}
-                seriesTitle={entry.seriesTitle}
-                seasons={entry.seasons}
-                group={group}
-                expandedMovieId={expandedMovieId}
-                onToggleExpandMovie={onToggleExpandMovie}
-                onMoveMovieSection={onMoveMovieSection}
-                onSaveRating={onSaveRating}
-                onItemContextMenu={onItemContextMenu}
-                onItemDelete={onItemDelete}
-                handleTouchDragStart={handleTouchDragStart}
-                handleTouchDragMove={handleTouchDragMove}
-                handleTouchDragEnd={handleTouchDragEnd}
-                onOpenChronology={onOpenChronology}
-                dragMarker={dragMarker}
-              />
+              <div key={entry.id} data-item-id={firstSeasonId} style={{ position: 'relative' }}>
+                {dragMarker?.targetId === String(firstSeasonId) && dragMarker.position === 'before' && (
+                  <div className="drag-marker-line" style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
+                )}
+                <SeriesGroupCard
+                  seriesTitle={entry.seriesTitle}
+                  seasons={entry.seasons}
+                  group={group}
+                  expandedMovieId={expandedMovieId}
+                  onToggleExpandMovie={onToggleExpandMovie}
+                  onMoveMovieSection={onMoveMovieSection}
+                  onSaveRating={onSaveRating}
+                  onItemContextMenu={onItemContextMenu}
+                  onItemDelete={onItemDelete}
+                  handleTouchDragStart={handleTouchDragStart}
+                  handleTouchDragMove={handleTouchDragMove}
+                  handleTouchDragEnd={handleTouchDragEnd}
+                  onOpenChronology={onOpenChronology}
+                  dragMarker={dragMarker}
+                />
+                {dragMarker?.targetId === String(firstSeasonId) && dragMarker.position === 'after' && (
+                  <div className="drag-marker-line" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
+                )}
+              </div>
             )
           }
 

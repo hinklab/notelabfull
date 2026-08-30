@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react"
+import React, { useState } from "react"
 import { Tv, ChevronDown, ChevronUp, Layers, Star, Film } from "lucide-react"
 import MovieCard from "./MovieCard.jsx"
 import { useLanguage } from "../../context/LanguageContext.jsx"
@@ -65,17 +65,17 @@ export default function SeriesGroupCard({
   const handleGroupTouchStart = (e) => {
     if (!firstSeason) return
     setTouchDragActive(true)
-    handleTouchDragStart?.(firstSeason, e.touches[0].clientX, e.touches[0].clientY)
+    handleTouchDragStart?.({ ...firstSeason, _isSeriesGroup: true }, e.touches[0].clientX, e.touches[0].clientY)
   }
   const handleGroupTouchMove = (e) => {
     if (!touchDragActive || !firstSeason) return
     e.preventDefault()
-    handleTouchDragMove?.(firstSeason, e.touches[0].clientX, e.touches[0].clientY)
+    handleTouchDragMove?.({ ...firstSeason, _isSeriesGroup: true }, e.touches[0].clientX, e.touches[0].clientY)
   }
   const handleGroupTouchEnd = (e) => {
     if (!touchDragActive || !firstSeason) return
     const touch = e.changedTouches[0]
-    handleTouchDragEnd?.(firstSeason, touch.clientX, touch.clientY)
+    handleTouchDragEnd?.({ ...firstSeason, _isSeriesGroup: true }, touch.clientX, touch.clientY)
     setTouchDragActive(false)
   }
 
@@ -100,6 +100,7 @@ export default function SeriesGroupCard({
         draggable={!!firstSeasonId}
         onDragStart={(e) => {
           if (!firstSeasonId) { e.preventDefault(); return }
+          e.dataTransfer.setData("isSeriesGroup", "true")
           e.dataTransfer.setData("itemId", String(firstSeasonId))
           e.dataTransfer.setData("fromGroup", String(group.id))
           e.dataTransfer.effectAllowed = "move"
