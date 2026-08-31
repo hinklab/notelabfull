@@ -312,19 +312,20 @@ router.post('/', async (req, res) => {
     let media_type = data.media_type || (isTv ? 'tv' : 'movie');
     let seasons = data.seasons || '-';
 
-    const needsTmdbEnrich = data.tmdb_id && tmdbKey && (!poster_path || genre === '-');
+    const effectiveTmdbKey = tmdbKey || 'c34d44f722c298573a97a32fc4df383a';
+    const needsTmdbEnrich = data.tmdb_id && effectiveTmdbKey && (!poster_path || genre === '-' || seasons === '-' || !seasons);
     if (needsTmdbEnrich) {
       try {
         let primaryUrl = isTv
-          ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=credits&language=en-US`
-          : `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=credits&language=en-US`;
+          ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits&language=en-US`
+          : `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits&language=en-US`;
         let fallbackUrl = isTv
-          ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=credits&language=en-US`
-          : `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=credits&language=en-US`;
+          ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits&language=en-US`
+          : `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits&language=en-US`;
 
-        let res = await fetch(primaryUrl, { signal: AbortSignal.timeout(2000) });
+        let res = await fetch(primaryUrl, { signal: AbortSignal.timeout(3000) });
         if (!res.ok && res.status === 404) {
-          res = await fetch(fallbackUrl, { signal: AbortSignal.timeout(2000) });
+          res = await fetch(fallbackUrl, { signal: AbortSignal.timeout(3000) });
         }
         if (res.ok) {
           const detail = await res.json();
@@ -347,9 +348,12 @@ router.post('/', async (req, res) => {
           if (detail.overview) overview = detail.overview;
 
           if (media_type === 'tv' || detail.number_of_seasons) {
-            seasons = `${detail.number_of_seasons} seasons · ${detail.number_of_episodes || 10} ep`;
-          } else if (detail.runtime) {
+            const tvDuration = await resolveTvRuntime(data.tmdb_id, effectiveTmdbKey, detail);
+            seasons = tvDuration.text;
+          } else if (detail.runtime && detail.runtime > 0) {
             seasons = `${detail.runtime} min`;
+          } else {
+            seasons = '-';
           }
         }
       } catch (err) {

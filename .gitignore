@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 .env
 dist-electron/
 build/
@@ -7,3 +7,4 @@ renderer/dist/
 *.log
 .vscode/
 .aider*
+backups/

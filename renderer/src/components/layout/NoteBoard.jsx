@@ -7,31 +7,74 @@ import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, T
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getMovieFranchiseInfo } from '../../config/chronologyData.js'
 
+function getSeriesKey(movieOrItem) {
+  const m = movieOrItem?._movie || movieOrItem
+  if (!m) return null
+  const isTv = m.media_type === 'tv' || (m.title && /—\s*Season\s*\d+/i.test(m.title)) || (m.title && /-\s*Season\s*\d+/i.test(m.title))
+  if (isTv && m.tmdb_id) {
+    const baseSeriesName = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase()
+    return `tv_${m.tmdb_id}_${baseSeriesName}`
+  }
+  return null
+}
+
+function clusterSeriesItems(items) {
+  if (!Array.isArray(items) || items.length <= 1) return items || []
+  
+  const seriesMap = new Map()
+  items.forEach((item) => {
+    const sKey = getSeriesKey(item)
+    if (sKey) {
+      if (!seriesMap.has(sKey)) {
+        seriesMap.set(sKey, [])
+      }
+      seriesMap.get(sKey).push(item)
+    }
+  })
+
+  const result = []
+  const insertedSeries = new Set()
+
+  items.forEach((item) => {
+    const sKey = getSeriesKey(item)
+    if (sKey && seriesMap.get(sKey).length > 1) {
+      if (!insertedSeries.has(sKey)) {
+        insertedSeries.add(sKey)
+        const sorted = [...seriesMap.get(sKey)].sort((a, b) => {
+          const mA = a._movie || a
+          const mB = b._movie || b
+          const numA = parseInt((mA.title?.match(/[-—]\s*Season\s*(\d+)/i) || [])[1] || '1', 10)
+          const numB = parseInt((mB.title?.match(/[-—]\s*Season\s*(\d+)/i) || [])[1] || '1', 10)
+          return numA - numB
+        })
+        result.push(...sorted)
+      }
+    } else {
+      result.push(item)
+    }
+  })
+
+  return result
+}
+
 function groupColumnItems(items) {
   if (!Array.isArray(items)) return []
+  const clustered = clusterSeriesItems(items)
 
   const seriesKeyMap = new Map()
-  const itemKeyMap = new Map()
-
-  for (const item of items) {
-    const m = item._movie || item
-    const isTv = m.media_type === 'tv' || (m.title && /—\s*Season\s*\d+/i.test(m.title)) || (m.title && /-\s*Season\s*\d+/i.test(m.title))
-    if (isTv && m.tmdb_id) {
-      const baseSeriesName = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase()
-      const seriesKey = `tv_${m.tmdb_id}_${baseSeriesName}`
-      itemKeyMap.set(item.id, seriesKey)
-      if (!seriesKeyMap.has(seriesKey)) {
-        seriesKeyMap.set(seriesKey, [])
-      }
-      seriesKeyMap.get(seriesKey).push(item)
+  for (const item of clustered) {
+    const sKey = getSeriesKey(item)
+    if (sKey) {
+      if (!seriesKeyMap.has(sKey)) seriesKeyMap.set(sKey, [])
+      seriesKeyMap.get(sKey).push(item)
     }
   }
 
   const groupedResult = []
   const processedSeries = new Set()
 
-  for (const item of items) {
-    const sKey = itemKeyMap.get(item.id)
+  for (const item of clustered) {
+    const sKey = getSeriesKey(item)
     const seriesItems = sKey ? seriesKeyMap.get(sKey) : null
 
     if (seriesItems && seriesItems.length > 1) {
@@ -66,17 +109,6 @@ function groupColumnItems(items) {
   return groupedResult
 }
 
-function getSeriesKey(movieOrItem) {
-  const m = movieOrItem?._movie || movieOrItem
-  if (!m) return null
-  const isTv = m.media_type === 'tv' || (m.title && /—\s*Season\s*\d+/i.test(m.title)) || (m.title && /-\s*Season\s*\d+/i.test(m.title))
-  if (isTv && m.tmdb_id) {
-    const baseSeriesName = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase()
-    return `tv_${m.tmdb_id}_${baseSeriesName}`
-  }
-  return null
-}
-
 function hexToRgba(hex, alpha) {
   if (!hex || hex.length < 7) return `rgba(124,58,237,${alpha})`
   const r = parseInt(hex.slice(1, 3), 16)
@@ -89,30 +121,31 @@ const PLACEHOLDER_POSTER = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.or
 
 function getDropPosition(items, clientY, containerRef, prevMarker = null) {
   if (!containerRef.current || items.length === 0) return { targetId: null, position: 'after', insertIndex: 0 }
-  const cardEls = Array.from(containerRef.current.querySelectorAll('[data-item-id]'))
+  const cardEls = Array.from(containerRef.current.querySelectorAll(':scope > div[data-item-id]'))
   if (cardEls.length === 0) return { targetId: null, position: 'after', insertIndex: 0 }
 
   let bestIndex = 0
   let minDistance = Infinity
   let isBefore = true
 
-  cardEls.forEach((el, index) => {
+  for (let i = 0; i < cardEls.length; i++) {
+    const el = cardEls[i]
     const rect = el.getBoundingClientRect()
     const midY = rect.top + rect.height / 2
     const distance = Math.abs(clientY - midY)
 
     if (distance < minDistance) {
       minDistance = distance
-      bestIndex = index
+      bestIndex = i
       
-      // Hysteresis dead-zone: if clientY is within 6px of midpoint and we have a previous marker position, preserve previous position to prevent flickering
+      // Hysteresis dead-zone: if clientY is within 6px of midpoint and we have a previous marker position, preserve previous position to prevent rapid flickering
       if (prevMarker && Math.abs(clientY - midY) < 6 && String(prevMarker.targetId) === String(el.dataset.itemId)) {
         isBefore = prevMarker.position === 'before'
       } else {
         isBefore = clientY < midY
       }
     }
-  })
+  }
 
   const targetEl = cardEls[bestIndex]
   const targetId = String(targetEl.dataset.itemId)
@@ -354,11 +387,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
   }, [groups, itemsByGroup])
 
   const snapshotAllCardPositions = useCallback(() => {
-    const cardEls = Array.from(document.querySelectorAll('[data-item-id]'))
+    const cardEls = Array.from(document.querySelectorAll('[data-card-id], [data-item-id]'))
       .filter(el => el.offsetParent !== null && el.getBoundingClientRect().width > 0)
     const posMap = new Map()
     cardEls.forEach(el => {
-      const id = String(el.dataset.itemId)
+      const id = String(el.dataset.cardId || el.dataset.itemId)
       posMap.set(id, el.getBoundingClientRect())
     })
     boardCardPositionsRef.current = posMap
@@ -369,11 +402,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     const firstPositions = boardCardPositionsRef.current
     if (!firstPositions || firstPositions.size === 0) return
 
-    const cardElements = Array.from(document.querySelectorAll('[data-item-id]'))
+    const cardElements = Array.from(document.querySelectorAll('[data-card-id], [data-item-id]'))
       .filter(el => el.offsetParent !== null && el.getBoundingClientRect().width > 0)
 
     cardElements.forEach(el => {
-      const id = String(el.dataset.itemId)
+      const id = String(el.dataset.cardId || el.dataset.itemId)
       const rect = el.getBoundingClientRect()
 
       if (firstPositions.has(id)) {
@@ -815,15 +848,18 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         const safeIndex = insertIndex != null ? Math.min(insertIndex, targetItems.length) : targetItems.length
         targetItems.splice(Math.max(0, safeIndex), 0, updatedItem)
 
+        const clusteredSource = clusterSeriesItems(sourceItems)
+        const clusteredTarget = clusterSeriesItems(targetItems)
+
         const finalTargetItems = (isMovieNote && toSection === 'futured')
-          ? sortMoviesForSection(targetItems, 'futured')
-          : targetItems.map((item, idx) => ({
+          ? sortMoviesForSection(clusteredTarget, 'futured')
+          : clusteredTarget.map((item, idx) => ({
               ...item,
               position: idx,
               _movie: item._movie ? { ...item._movie, position: idx } : item._movie
             }))
 
-        const finalSourceItems = sourceItems.map((item, idx) => ({
+        const finalSourceItems = clusteredSource.map((item, idx) => ({
           ...item,
           position: idx,
           _movie: item._movie ? { ...item._movie, position: idx } : item._movie
@@ -1451,6 +1487,8 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
 function NoteColumn({
   group,
   items,
+  isMovieNote,
+  groups,
   maxOtherCount,
   boardCardPositionsRef,
   itemClipboard,
@@ -1468,35 +1506,31 @@ function NoteColumn({
   onItemDelete,
   onMoveItem,
   onReorderItem,
-onSaveRating,
+  onSaveRating,
   onOpenChronology,
   isDragging,
   onGroupDragStart,
-  onGroupDragEnd,
   onGroupDragOver,
-  onGroupDrop,
+  onGroupDragEnd,
+  isMobileVertical,
   onDragHoverEdge,
   onDragHoverEdgeEnd,
-  isColumnDraggingItem,
-  onItemDragStart,
-  onItemDragEnd,
-  isMobileVertical,
-  activeSection,
-  groups
+  activeSection
 }) {
   const { t } = useLanguage()
   const color = group.color || '#a78bfa'
   const bg = hexToRgba(color, 0.12)
   const border = hexToRgba(color, 0.3)
-  const [dragMarker, setDragMarker] = useState(null)
+  const [dragOverIndex, setDragOverIndex] = useState(null)
+  const [isDragOverColumn, setIsDragOverColumn] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameVal, setNameVal] = useState(group.name)
   const [headerHovered, setHeaderHovered] = useState(false)
   const [isManuallyExpanded, setIsManuallyExpanded] = useState(false)
   const cardsRef = useRef(null)
   const rafRef = useRef(null)
-  const prevItemsKeyRef = useRef('')
-  const prevPositionsRef = useRef(new Map())
+
+  const columnEntries = useMemo(() => groupColumnItems(items), [items])
 
   const [measuredHeight, setMeasuredHeight] = useState(null)
   const FOOTER_HEIGHT = 44
@@ -1507,7 +1541,6 @@ onSaveRating,
   const defaultCardsHeight = visibleCardsTarget * 126
   const collapsedHeightNumber = Math.max(defaultCardsHeight, measuredHeight || defaultCardsHeight)
 
-  // Auto-expand the column when an inner card is opened
   const autoExpandedByCard = useMemo(() => {
     if (!isCollapseEligible || !expandedMovieId) return false
     const expIdx = items.findIndex(item => (
@@ -1614,63 +1647,6 @@ onSaveRating,
     return formatTotalRuntime(totalMinutes)
   }, [totalMinutes])
 
-  useLayoutEffect(() => {
-    const container = cardsRef.current
-    if (!container) return
-
-    const cardElements = Array.from(container.querySelectorAll('[data-item-id]'))
-    const currentItemsKey = items.map(i => String(i.id)).join(',')
-    const hasItemChanges = currentItemsKey !== prevItemsKeyRef.current
-
-    if (hasItemChanges && prevItemsKeyRef.current !== '') {
-      const firstPositions = (boardCardPositionsRef && boardCardPositionsRef.current && boardCardPositionsRef.current.size > 0)
-        ? boardCardPositionsRef.current
-        : prevPositionsRef.current
-
-      cardElements.forEach(el => {
-        const id = String(el.dataset.itemId)
-        const rect = el.getBoundingClientRect()
-
-        if (firstPositions && firstPositions.has(id)) {
-          const firstRect = firstPositions.get(id)
-          const deltaY = firstRect.top - rect.top
-          const deltaX = firstRect.left - rect.left
-          if (Math.abs(deltaY) > 1 || Math.abs(deltaX) > 1) {
-            el.style.transform = `translate3d(${deltaX}px, ${deltaY}px, 0)`
-            el.style.transition = 'none'
-
-            void el.offsetHeight
-
-            requestAnimationFrame(() => {
-              el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
-              el.style.transform = 'translate3d(0, 0, 0)'
-            })
-          }
-        } else {
-          el.style.transform = 'translate3d(0, -16px, 0) scale(0.94)'
-          el.style.opacity = '0'
-          el.style.transition = 'none'
-
-          void el.offsetHeight
-
-          requestAnimationFrame(() => {
-            el.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease'
-            el.style.transform = 'translate3d(0, 0, 0) scale(1)'
-            el.style.opacity = '1'
-          })
-        }
-      })
-    }
-
-    prevItemsKeyRef.current = currentItemsKey
-
-    const newPositions = new Map(prevPositionsRef.current)
-    cardElements.forEach(el => {
-      newPositions.set(String(el.dataset.itemId), el.getBoundingClientRect())
-    })
-    prevPositionsRef.current = newPositions
-  }, [items, boardCardPositionsRef])
-
   useEffect(() => { setNameVal(group.name) }, [group.name])
 
   useEffect(() => {
@@ -1689,53 +1665,90 @@ onSaveRating,
     }
   }
 
+  const getSlotIndex = useCallback((clientY) => {
+    if (!cardsRef.current || columnEntries.length === 0) return 0
+    const cardEls = Array.from(cardsRef.current.querySelectorAll(':scope > div[data-card-id]'))
+    if (cardEls.length === 0) return 0
+
+    for (let i = 0; i < cardEls.length; i++) {
+      const rect = cardEls[i].getBoundingClientRect()
+      const midY = rect.top + rect.height / 2
+      if (clientY < midY) {
+        return i
+      }
+    }
+    return cardEls.length
+  }, [columnEntries])
+
   const updateMarker = useCallback((clientY) => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(() => {
-      setDragMarker(prev => {
-        const next = getDropPosition(items, clientY, cardsRef, prev)
-        return (prev?.targetId === next.targetId && prev?.position === next.position) ? prev : next
-      })
+      const newSlot = getSlotIndex(clientY)
+      setDragOverIndex(prev => prev === newSlot ? prev : newSlot)
     })
-  }, [items])
+  }, [getSlotIndex])
 
   const handleDragOver = (e) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
-    if (cardsRef.current) cardsRef.current.style.outline = `2px dashed ${color}`
+    setIsDragOverColumn(true)
     updateMarker(e.clientY)
   }
+
   const handleDragLeave = (e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return
-    if (cardsRef.current) cardsRef.current.style.outline = 'none'
+    setIsDragOverColumn(false)
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    setDragMarker(null)
+    setDragOverIndex(null)
   }
+
   const handleDrop = async (e) => {
     e.preventDefault()
-    if (cardsRef.current) cardsRef.current.style.outline = 'none'
+    setIsDragOverColumn(false)
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
-
-    const markerEls = cardsRef.current?.querySelectorAll('.drag-marker-line')
-    markerEls?.forEach(m => { m.style.opacity = '0'; m.style.display = 'none' })
 
     const rawItemId = e.dataTransfer.getData('itemId')
     const rawFromGroup = e.dataTransfer.getData('fromGroup')
     const isSeriesGroup = e.dataTransfer.getData('isSeriesGroup') === 'true'
-    if (!rawItemId) {
-      setTimeout(() => setDragMarker(null), 0)
-      return
-    }
-    const dropInfo = getDropPosition(items, e.clientY, cardsRef)
+    const slotIdx = getSlotIndex(e.clientY)
+    setDragOverIndex(null)
+
+    if (!rawItemId) return
+
     if (String(rawFromGroup) === String(group.id)) {
-      if (dropInfo.targetId != null && String(dropInfo.targetId) !== String(rawItemId)) {
-        await onReorderItem(rawItemId, dropInfo.targetId, dropInfo.position, group.id, isSeriesGroup)
+      if (columnEntries.length > 0) {
+        let targetId, position
+        if (slotIdx === 0) {
+          const firstEntry = columnEntries[0]
+          targetId = firstEntry.type === 'series_group' ? firstEntry.seasons[0]?.id : firstEntry.item?.id
+          position = 'before'
+        } else if (slotIdx >= columnEntries.length) {
+          const lastEntry = columnEntries[columnEntries.length - 1]
+          targetId = lastEntry.type === 'series_group' ? lastEntry.seasons[lastEntry.seasons.length - 1]?.id : lastEntry.item?.id
+          position = 'after'
+        } else {
+          const targetEntry = columnEntries[slotIdx]
+          targetId = targetEntry.type === 'series_group' ? targetEntry.seasons[0]?.id : targetEntry.item?.id
+          position = 'before'
+        }
+        if (targetId && String(targetId) !== String(rawItemId)) {
+          await onReorderItem(rawItemId, targetId, position, group.id, isSeriesGroup)
+        }
       }
     } else {
-      await onMoveItem(rawItemId, group.id, dropInfo.insertIndex)
+      let insertIndex = 0
+      if (slotIdx === 0) {
+        insertIndex = 0
+      } else if (slotIdx >= columnEntries.length) {
+        insertIndex = items.length
+      } else {
+        const targetEntry = columnEntries[slotIdx]
+        const targetItemId = targetEntry.type === 'series_group' ? targetEntry.seasons[0]?.id : targetEntry.item?.id
+        const foundIdx = items.findIndex(i => String(i.id) === String(targetItemId))
+        insertIndex = foundIdx !== -1 ? foundIdx : slotIdx
+      }
+      await onMoveItem(rawItemId, group.id, insertIndex)
     }
-
-    setTimeout(() => setDragMarker(null), 340)
   }
 
   const handleTouchDragStart = (item, clientX, clientY) => {
@@ -1744,20 +1757,17 @@ onSaveRating,
 
   const handleTouchDragMove = (item, clientX, clientY) => {
     onDragHoverEdge?.(clientX)
-    const dropInfo = getDropPosition(items, clientY, cardsRef)
     updateMarker(clientY)
   }
 
   const handleTouchDragEnd = async (item, clientX, clientY) => {
     onDragHoverEdgeEnd?.()
-    const markerEls = cardsRef.current?.querySelectorAll('.drag-marker-line')
-    markerEls?.forEach(m => { m.style.opacity = '0'; m.style.display = 'none' })
-
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    const slotIdx = getSlotIndex(clientY)
+    setDragOverIndex(null)
 
     let targetGroupId = null
 
-    // 0. In mobile vertical single-column mode, target is ALWAYS the active visible tab/column on screen!
     if (isMobileVertical) {
       const activeTabBtn = document.querySelector('.board-mobile-tab-btn.active[data-group-id]')
       if (activeTabBtn?.dataset?.groupId) {
@@ -1768,7 +1778,6 @@ onSaveRating,
       }
     }
 
-    // 1. Check all column bounding rectangles (100% reliable across landscape)
     if (!targetGroupId) {
       const allColEls = Array.from(document.querySelectorAll('.note-column[data-group-id]'))
       for (const col of allColEls) {
@@ -1780,7 +1789,6 @@ onSaveRating,
       }
     }
 
-    // 2. Check mobile tabs bounding rectangles
     if (!targetGroupId) {
       const allTabEls = Array.from(document.querySelectorAll('.board-mobile-tab-btn[data-group-id]'))
       for (const tab of allTabEls) {
@@ -1792,7 +1800,6 @@ onSaveRating,
       }
     }
 
-    // 3. Fallback: document.elementFromPoint
     if (!targetGroupId) {
       const el = document.elementFromPoint(clientX, clientY)
       targetGroupId = el?.closest('.note-column')?.dataset?.groupId || el?.closest('.board-mobile-tab-btn')?.dataset?.groupId
@@ -1800,18 +1807,42 @@ onSaveRating,
 
     if (!targetGroupId) targetGroupId = group.id
 
-    const dropInfo = getDropPosition(items, clientY, cardsRef)
     const isSeriesGroup = Boolean(item?._isSeriesGroup || item?._movie?._isSeriesGroup)
 
     if (String(targetGroupId) === String(group.id)) {
-      if (dropInfo.targetId != null && String(dropInfo.targetId) !== String(item.id)) {
-        await onReorderItem(item.id, dropInfo.targetId, dropInfo.position, group.id, isSeriesGroup)
+      if (columnEntries.length > 0) {
+        let targetId, position
+        if (slotIdx === 0) {
+          const firstEntry = columnEntries[0]
+          targetId = firstEntry.type === 'series_group' ? firstEntry.seasons[0]?.id : firstEntry.item?.id
+          position = 'before'
+        } else if (slotIdx >= columnEntries.length) {
+          const lastEntry = columnEntries[columnEntries.length - 1]
+          targetId = lastEntry.type === 'series_group' ? lastEntry.seasons[lastEntry.seasons.length - 1]?.id : lastEntry.item?.id
+          position = 'after'
+        } else {
+          const targetEntry = columnEntries[slotIdx]
+          targetId = targetEntry.type === 'series_group' ? targetEntry.seasons[0]?.id : targetEntry.item?.id
+          position = 'before'
+        }
+        if (targetId && String(targetId) !== String(item.id)) {
+          await onReorderItem(item.id, targetId, position, group.id, isSeriesGroup)
+        }
       }
     } else {
-      await onMoveItem(item.id, targetGroupId, dropInfo.insertIndex)
+      let insertIndex = 0
+      if (slotIdx === 0) {
+        insertIndex = 0
+      } else if (slotIdx >= columnEntries.length) {
+        insertIndex = items.length
+      } else {
+        const targetEntry = columnEntries[slotIdx]
+        const targetItemId = targetEntry.type === 'series_group' ? targetEntry.seasons[0]?.id : targetEntry.item?.id
+        const foundIdx = items.findIndex(i => String(i.id) === String(targetItemId))
+        insertIndex = foundIdx !== -1 ? foundIdx : slotIdx
+      }
+      await onMoveItem(item.id, targetGroupId, insertIndex)
     }
-
-    setTimeout(() => setDragMarker(null), 340)
   }
 
   return (
@@ -1826,51 +1857,113 @@ onSaveRating,
           handleDragOver(e)
         }
       }}
-      onDragLeave={handleDragLeave}
+      onDragLeave={(e) => {
+        if (!e.dataTransfer.types.includes('groupdrag')) {
+          handleDragLeave(e)
+        }
+      }}
       onDrop={(e) => {
         if (e.dataTransfer.types.includes('groupdrag')) {
           e.preventDefault()
-          onGroupDrop?.()
+          onGroupDragEnd?.()
         } else {
           handleDrop(e)
         }
       }}
-      style={{ background: 'var(--bg-surface)', borderRadius: 10, border: `1px solid ${isDragging ? color : 'var(--border)'}`, flexShrink: 0, opacity: isDragging ? 0.5 : 1, transition: 'opacity 0.15s, border-color 0.15s', position: 'relative', zIndex: isColumnDraggingItem ? 9999 : 1 }}
+      style={{
+        background: 'var(--bg-surface)',
+        borderRadius: 12,
+        border: `1px solid var(--border)`,
+        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 280,
+        maxWidth: 340,
+        flex: 1,
+        userSelect: 'none',
+        position: 'relative',
+        transition: 'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
+      }}
     >
       <div
         className="column-header-sticky"
-        style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 6, borderRadius: '10px 10px 0 0', borderTop: `3px solid ${color}`, background: 'var(--bg-surface)', flexShrink: 0 }}
-        onContextMenu={onGroupContextMenu}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', String(group.id))
+          e.dataTransfer.setData('groupdrag', 'true')
+          e.dataTransfer.effectAllowed = 'move'
+          onGroupDragStart?.(group.id)
+        }}
+        onDragEnd={() => onGroupDragEnd?.()}
+        onContextMenu={(e) => onGroupContextMenu(e, group)}
         onMouseEnter={() => setHeaderHovered(true)}
         onMouseLeave={() => setHeaderHovered(false)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '10px 14px',
+          background: 'var(--bg-surface)',
+          borderBottom: '1px solid var(--border)',
+          borderTop: `3.5px solid ${color}`,
+          borderRadius: shouldCollapse ? '12px' : '12px 12px 0 0',
+          cursor: 'grab',
+          position: 'sticky',
+          top: 0,
+          zIndex: 5,
+        }}
       >
         <div
-          draggable
-          onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('groupDrag', group.id); onGroupDragStart?.() }}
-          onDragEnd={onGroupDragEnd}
           title="Ushlab siljiting"
           style={{ cursor: 'grab', display: 'flex', flexDirection: 'column', gap: 2.5, padding: '4px 2px', flexShrink: 0, opacity: headerHovered ? 0.7 : 0.25, transition: 'opacity 0.15s' }}
         >
-          {[0,1,2].map(i => <div key={i} style={{ width: 12, height: 2, background: color, borderRadius: 1 }} />)}
+          {[0, 1, 2].map(i => <div key={i} style={{ width: 12, height: 2, background: color, borderRadius: 1 }} />)}
         </div>
 
         {editingName ? (
           <input
             autoFocus
             value={nameVal}
-            onChange={e => setNameVal(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleNameBlur(); if (e.key === 'Escape') { setEditingName(false); setNameVal(group.name) } }}
+            onChange={(e) => setNameVal(e.target.value)}
             onBlur={handleNameBlur}
-            onMouseDown={e => e.stopPropagation()}
-            draggable={false}
-            style={{ background: 'transparent', border: 'none', borderBottom: `1px solid ${color}`, color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, outline: 'none', fontFamily: 'inherit', flex: 1, userSelect: 'text', cursor: 'text' }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleNameBlur()
+              if (e.key === 'Escape') { setEditingName(false); setNameVal(group.name) }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              borderBottom: `1px solid ${color}`,
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              fontWeight: 600,
+              outline: 'none',
+              fontFamily: 'inherit',
+              flex: 1,
+              userSelect: 'text',
+              cursor: 'text',
+            }}
           />
         ) : (
           <span
             onDoubleClick={() => setEditingName(true)}
-            style={{ background: bg, color, border: `1px solid ${border}`, borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 600, cursor: 'default', flexShrink: 0 }}
-          >{t(`sections.${group.section_key}`, null, group.name)}</span>
+            style={{
+              background: bg,
+              color,
+              border: `1px solid ${border}`,
+              borderRadius: 20,
+              padding: '2px 10px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'default',
+              flexShrink: 0
+            }}
+          >
+            {t(`sections.${group.section_key}`, null, group.name)}
+          </span>
         )}
+
         {!editingName && (
           <span style={{ color: 'var(--text-muted)', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
             <span>{items.length}</span>
@@ -1887,8 +1980,8 @@ onSaveRating,
         <button
           onClick={onAdd}
           title={t('board.addMovie')}
-          style={{ background: 'transparent', border: `1px solid ${border}`, borderRadius: 6, color, width: 26, height: 26, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-        ><Plus size={14} /></button>
+          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        ><Plus size={16} /></button>
       </div>
 
       <div
@@ -1900,93 +1993,112 @@ onSaveRating,
           flexDirection: 'column',
           gap: 8,
           minHeight: 100,
-          borderRadius: shouldCollapse ? '0' : '0 0 10px 10px',
-          transition: 'max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), outline 0.1s',
+          borderRadius: shouldCollapse ? '0' : '0 0 12px 12px',
+          outline: isDragOverColumn ? `2px dashed ${color}` : 'none',
+          transition: 'max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), outline 0.1s ease',
           maxHeight: shouldCollapse ? collapsedHeight : 'none',
-          overflow: isColumnDraggingItem ? 'visible' : (shouldCollapse ? 'hidden' : 'visible'),
           overflow: shouldCollapse ? 'hidden' : 'visible',
           position: 'relative',
           maskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 65px), transparent 100%)' : 'none',
           WebkitMaskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 65px), transparent 100%)' : 'none',
         }}
       >
-        {groupColumnItems(items).map(entry => {
-          if (entry.type === 'series_group') {
-            const firstSeasonItem = entry.seasons[0]
-            const firstSeasonId = firstSeasonItem?.id
-            return (
-              <div key={entry.id} data-item-id={firstSeasonId} style={{ position: 'relative' }}>
-                {dragMarker?.targetId === String(firstSeasonId) && dragMarker.position === 'before' && (
-                  <div className="drag-marker-line" style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
-                )}
-                <SeriesGroupCard
-                  seriesTitle={entry.seriesTitle}
-                  seasons={entry.seasons}
-                  group={group}
-                  expandedMovieId={expandedMovieId}
-                  onToggleExpandMovie={onToggleExpandMovie}
-                  onMoveMovieSection={onMoveMovieSection}
-                  onSaveRating={onSaveRating}
-                  onItemContextMenu={onItemContextMenu}
-                  onItemDelete={onItemDelete}
-                  handleTouchDragStart={handleTouchDragStart}
-                  handleTouchDragMove={handleTouchDragMove}
-                  handleTouchDragEnd={handleTouchDragEnd}
-                  onOpenChronology={onOpenChronology}
-                  dragMarker={dragMarker}
+        {columnEntries.map((entry, idx) => {
+          const isSeries = entry.type === 'series_group'
+          const entryCardId = isSeries ? entry.id : `single_${entry.item.id}`
+          const entryItemId = isSeries ? entry.seasons[0]?.id : entry.item.id
+
+          return (
+            <React.Fragment key={entryCardId}>
+              {dragOverIndex === idx && (
+                <div
+                  className="drag-indicator-bar"
+                  style={{
+                    height: 3,
+                    background: color,
+                    borderRadius: 3,
+                    boxShadow: `0 0 8px ${color}`,
+                    margin: '2px 0',
+                    pointerEvents: 'none',
+                    zIndex: 10
+                  }}
                 />
-                {dragMarker?.targetId === String(firstSeasonId) && dragMarker.position === 'after' && (
-                  <div className="drag-marker-line" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
+              )}
+
+              <div
+                data-card-id={entryCardId}
+                data-item-id={entryItemId}
+                style={{ position: 'relative' }}
+              >
+                {isSeries ? (
+                  <SeriesGroupCard
+                    seriesTitle={entry.seriesTitle}
+                    seasons={entry.seasons}
+                    group={group}
+                    expandedMovieId={expandedMovieId}
+                    onToggleExpandMovie={onToggleExpandMovie}
+                    onMoveMovieSection={onMoveMovieSection}
+                    onSaveRating={onSaveRating}
+                    onItemContextMenu={onItemContextMenu}
+                    onItemDelete={onItemDelete}
+                    handleTouchDragStart={handleTouchDragStart}
+                    handleTouchDragMove={handleTouchDragMove}
+                    handleTouchDragEnd={handleTouchDragEnd}
+                    onOpenChronology={onOpenChronology}
+                  />
+                ) : entry.item._movie ? (
+                  <MovieCard
+                    movie={entry.item._movie}
+                    sectionKey={group.section_key}
+                    isExpanded={expandedMovieId != null && (String(expandedMovieId) === String(entry.item.id) || (entry.item._movie && String(expandedMovieId) === String(entry.item._movie.id)))}
+                    onToggleExpand={() => onToggleExpandMovie?.(entry.item.id)}
+                    onClose={() => onToggleExpandMovie?.(null)}
+                    onMoveSection={(targetSectionKey) => onMoveMovieSection?.(entry.item, targetSectionKey)}
+                    onRate={(newRating) => onSaveRating?.(entry.item.id, newRating)}
+                    onContextMenu={(e) => onItemContextMenu(e, entry.item)}
+                    onDelete={() => onItemDelete?.(entry.item)}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('itemId', String(entry.item.id))
+                      e.dataTransfer.setData('fromGroup', String(group.id))
+                      e.dataTransfer.effectAllowed = 'move'
+                    }}
+                    onTouchDragStart={(movie, x, y) => handleTouchDragStart?.(entry.item, x, y)}
+                    onTouchDragMove={(movie, x, y) => handleTouchDragMove(entry.item, x, y)}
+                    onTouchDragEnd={(movie, x, y) => handleTouchDragEnd(entry.item, x, y)}
+                    onOpenChronology={onOpenChronology}
+                  />
+                ) : (
+                  <NoteItemCard
+                    item={entry.item}
+                    groupId={group.id}
+                    accentColor={color}
+                    onClick={() => onItemClick(entry.item)}
+                    onContextMenu={(e) => onItemContextMenu(e, entry.item)}
+                    onTouchDragMove={(itm, x, y) => handleTouchDragMove(entry.item, x, y)}
+                    onTouchDragEnd={(itm, x, y) => handleTouchDragEnd(entry.item, x, y)}
+                  />
                 )}
               </div>
-            )
-          }
-
-          const item = entry.item
-          return (
-            <div key={item.id} data-item-id={item.id} style={{ position: 'relative' }}>
-              {dragMarker?.targetId === String(item.id) && dragMarker.position === 'before' && (
-                <div className="drag-marker-line" style={{ position: 'absolute', top: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
-              )}
-              {item._movie ? (
-                <MovieCard
-                  movie={item._movie}
-                  sectionKey={group.section_key}
-                  isExpanded={expandedMovieId != null && (String(expandedMovieId) === String(item.id) || (item._movie && String(expandedMovieId) === String(item._movie.id)))}
-                  onToggleExpand={() => onToggleExpandMovie?.(item.id)}
-                  onClose={() => onToggleExpandMovie?.(null)}
-                  onMoveSection={(targetSectionKey) => onMoveMovieSection?.(item, targetSectionKey)}
-                  onRate={(newRating) => onSaveRating?.(item.id, newRating)}
-                  onContextMenu={(e) => onItemContextMenu(e, item)}
-                  onDelete={() => onItemDelete?.(item)}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('itemId', String(item.id))
-                    e.dataTransfer.setData('fromGroup', String(group.id))
-                    e.dataTransfer.effectAllowed = 'move'
-                  }}
-                  onTouchDragStart={(movie, x, y) => handleTouchDragStart?.(item, x, y)}
-                  onTouchDragMove={(movie, x, y) => handleTouchDragMove(item, x, y)}
-                  onTouchDragEnd={(movie, x, y) => handleTouchDragEnd(item, x, y)}
-                  onOpenChronology={onOpenChronology}
-                />
-              ) : (
-                <NoteItemCard
-                  item={item}
-                  groupId={group.id}
-                  accentColor={color}
-                  onClick={() => onItemClick(item)}
-                  onContextMenu={(e) => onItemContextMenu(e, item)}
-                  onTouchDragMove={(itm, x, y) => handleTouchDragMove(item, x, y)}
-                  onTouchDragEnd={(itm, x, y) => handleTouchDragEnd(item, x, y)}
-                />
-              )}
-              {dragMarker?.targetId === String(item.id) && dragMarker.position === 'after' && (
-                <div className="drag-marker-line" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, height: 3, background: color, borderRadius: 2, zIndex: 2, pointerEvents: 'none' }} />
-              )}
-            </div>
+            </React.Fragment>
           )
         })}
-        {items.length === 0 && (
+
+        {dragOverIndex === columnEntries.length && (
+          <div
+            className="drag-indicator-bar"
+            style={{
+              height: 3,
+              background: color,
+              borderRadius: 3,
+              boxShadow: `0 0 8px ${color}`,
+              margin: '2px 0',
+              pointerEvents: 'none',
+              zIndex: 10
+            }}
+          />
+        )}
+
+        {columnEntries.length === 0 && (
           <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: '20px 0', opacity: 0.4 }}>{t('board.emptyColumn')}</div>
         )}
       </div>

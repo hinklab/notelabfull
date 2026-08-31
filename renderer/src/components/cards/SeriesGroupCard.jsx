@@ -210,10 +210,10 @@ export default function SeriesGroupCard({
                   setIsExpanded(prev => !prev)
                 }}
                 style={{
-                  background: isExpanded ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  background: isExpanded ? 'rgba(124, 58, 237, 0.18)' : 'var(--bg-input, rgba(0, 0, 0, 0.04))',
+                  border: '1px solid rgba(124, 58, 237, 0.3)',
                   borderRadius: 6,
-                  color: '#c4b5fd',
+                  color: 'var(--accent, #7c3aed)',
                   cursor: 'pointer',
                   padding: '3px 5px',
                   display: 'flex',
@@ -264,9 +264,9 @@ export default function SeriesGroupCard({
             {/* Season Count Badge */}
             <span
               style={{
-                background: 'rgba(139, 92, 246, 0.16)',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
-                color: '#c4b5fd',
+                background: 'rgba(124, 58, 237, 0.12)',
+                border: '1px solid rgba(124, 58, 237, 0.3)',
+                color: 'var(--accent, #7c3aed)',
                 fontSize: 10.5,
                 fontWeight: 600,
                 padding: '1px 6px',
@@ -295,6 +295,7 @@ export default function SeriesGroupCard({
           >
             {sortedSeasons.map((s, idx) => {
               const num = seasonNumbers[idx]
+              const isFirst = idx === 0
               return (
                 <div
                   key={s.id}
@@ -311,12 +312,12 @@ export default function SeriesGroupCard({
                     onToggleExpandMovie?.(s.id)
                   }}
                   style={{
-                    background: idx === 0 ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                    border: `1px solid ${idx === 0 ? 'rgba(139, 92, 246, 0.5)' : 'rgba(255, 255, 255, 0.12)'}`,
-                    color: idx === 0 ? '#e9d5ff' : 'var(--text-secondary)',
+                    background: isFirst ? 'rgba(124, 58, 237, 0.14)' : 'var(--bg-input, rgba(0, 0, 0, 0.04))',
+                    border: `1px solid ${isFirst ? 'rgba(124, 58, 237, 0.45)' : 'var(--border)'}`,
+                    color: isFirst ? 'var(--accent, #7c3aed)' : 'var(--text-secondary)',
                     borderRadius: 5,
-                    padding: '2px 6px',
-                    fontSize: 10,
+                    padding: '2px 7px',
+                    fontSize: 10.5,
                     fontWeight: 700,
                     cursor: 'grab',
                     whiteSpace: 'nowrap',
@@ -350,23 +351,7 @@ export default function SeriesGroupCard({
           }}
         >
           {sortedSeasons.map(seasonItem => (
-            <div key={seasonItem.id} data-item-id={seasonItem.id} style={{ position: 'relative' }}>
-              {dragMarker?.targetId === seasonItem.id && dragMarker.position === 'before' && (
-                <div
-                  className="drag-marker-line"
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    left: 0,
-                    right: 0,
-                    height: 3,
-                    background: group.color || 'var(--accent)',
-                    borderRadius: 2,
-                    zIndex: 2,
-                    pointerEvents: 'none'
-                  }}
-                />
-              )}
+            <div key={seasonItem.id} style={{ position: 'relative' }}>
               <MovieCard
                 movie={seasonItem._movie || seasonItem}
                 sectionKey={group.section_key}
@@ -391,22 +376,6 @@ export default function SeriesGroupCard({
                 onTouchDragEnd={(movie, x, y) => handleTouchDragEnd?.(seasonItem, x, y)}
                 onOpenChronology={onOpenChronology}
               />
-              {dragMarker?.targetId === seasonItem.id && dragMarker.position === 'after' && (
-                <div
-                  className="drag-marker-line"
-                  style={{
-                    position: 'absolute',
-                    bottom: -2,
-                    left: 0,
-                    right: 0,
-                    height: 3,
-                    background: group.color || 'var(--accent)',
-                    borderRadius: 2,
-                    zIndex: 2,
-                    pointerEvents: 'none'
-                  }}
-                />
-              )}
             </div>
           ))}
         </div>

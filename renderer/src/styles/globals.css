@@ -49,13 +49,13 @@ html { scrollbar-gutter: stable; }
 
 [data-theme="light"] {
   --topbar-height: 52px;
-  --bg-base: #f4f4f5;
-  --bg-surface: #ffffff;
+  --bg-base: #eef1f5;
+  --bg-surface: #f8f9fb;
   --bg-card: #ffffff;
   --bg-card-hover: #f9fafb;
-  --bg-input: #f3f4f6;
-  --border: #e4e4e7;
-  --border-hover: #d4d4d8;
+  --bg-input: #ffffff;
+  --border: #dbe0e7;
+  --border-hover: #cbd2dc;
   --text-primary: #18181b;
   --text-secondary: #52525b;
   --text-muted: #71717a;
