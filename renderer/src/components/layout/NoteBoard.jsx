@@ -2115,7 +2115,14 @@ function NoteColumn({
           borderRadius: '0 0 10px 10px',
         }}>
           <button
-            onClick={() => setIsManuallyExpanded(prev => !prev)}
+            onClick={() => {
+           if (isDoneExpanded) {
+              setIsManuallyExpanded(false)
+              onToggleExpandMovie?.(null)
+             } else {
+                setIsManuallyExpanded(true)
+              }
+            }}
             style={{
               background: 'rgba(139, 92, 246, 0.12)',
               border: '1px solid rgba(139, 92, 246, 0.3)',
