@@ -1878,7 +1878,6 @@ function NoteColumn({
         display: 'flex',
         flexDirection: 'column',
         minWidth: 280,
-        maxWidth: 340,
         flex: 1,
         userSelect: 'none',
         position: 'relative',
