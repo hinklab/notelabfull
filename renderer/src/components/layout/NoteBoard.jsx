@@ -288,16 +288,24 @@ export function sortMoviesForSection(moviesList, sectionKey) {
 
   if (isFutured) {
     // 1. Futured ONLY: nearest release date first -> furthest release date last (eng yaqin chiqish > eng oxirgi chiqish)
-    const parseDate = (d) => {
-      if (!d || d === '-' || d === 'null' || d === 'undefined') return Infinity
-      const ts = new Date(d).getTime()
-      return isNaN(ts) ? Infinity : ts
+    const parseDate = (m) => {
+      const d = m?.release_date
+      if (d && d !== '-' && d !== 'null' && d !== 'undefined') {
+        const ts = new Date(d).getTime()
+        if (!isNaN(ts)) return ts
+      }
+      const y = m?.release_year || m?.year
+      if (y && !isNaN(Number(y))) {
+        const ts = new Date(`${y}-12-31`).getTime()
+        if (!isNaN(ts)) return ts
+      }
+      return Infinity
     }
     return [...moviesList].sort((a, b) => {
       const movieA = a._movie || a
       const movieB = b._movie || b
-      const dateA = parseDate(movieA.release_date)
-      const dateB = parseDate(movieB.release_date)
+      const dateA = parseDate(movieA)
+      const dateB = parseDate(movieB)
       if (dateA !== dateB) return dateA - dateB
 
       const timeA = new Date(movieA.created_at || 0).getTime()
@@ -1908,8 +1916,8 @@ function NoteColumn({
           borderRadius: shouldCollapse ? '12px' : '12px 12px 0 0',
           cursor: 'grab',
           position: 'sticky',
-          top: 0,
-          zIndex: 5,
+          top: 'var(--topbar-height, 52px)',
+          zIndex: 20,
         }}
       >
         <div

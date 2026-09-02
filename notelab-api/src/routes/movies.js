@@ -62,6 +62,16 @@ function formatDurationUz(totalMinutes, isEstimated = false) {
   return `${prefix}${totalMinutes} daqiqa`;
 }
 
+function parseOmdbDate(omdbReleasedStr) {
+  if (!omdbReleasedStr || omdbReleasedStr === 'N/A') return null;
+  const d = new Date(omdbReleasedStr);
+  if (isNaN(d.getTime())) return null;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 async function resolveTvRuntime(tmdbId, tmdbKey, tvDetail) {
   const seasonsList = (tvDetail.seasons || []).filter(s => s.season_number > 0);
   const numberOfSeasons = tvDetail.number_of_seasons || seasonsList.length || 1;
@@ -313,15 +323,16 @@ router.post('/', async (req, res) => {
     let seasons = data.seasons || '-';
 
     const effectiveTmdbKey = tmdbKey || 'c34d44f722c298573a97a32fc4df383a';
+    const effectiveOmdbKey = omdbKey || '563e076e';
     const needsTmdbEnrich = data.tmdb_id && effectiveTmdbKey && (!poster_path || genre === '-' || seasons === '-' || !seasons);
     if (needsTmdbEnrich) {
       try {
         let primaryUrl = isTv
-          ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits&language=en-US`
-          : `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits&language=en-US`;
+          ? `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits,external_ids&language=en-US`
+          : `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits,external_ids&language=en-US`;
         let fallbackUrl = isTv
-          ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits&language=en-US`
-          : `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits&language=en-US`;
+          ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits,external_ids&language=en-US`
+          : `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits,external_ids&language=en-US`;
 
         let res = await fetch(primaryUrl, { signal: AbortSignal.timeout(3000) });
         if (!res.ok && res.status === 404) {
@@ -354,6 +365,40 @@ router.post('/', async (req, res) => {
             seasons = `${detail.runtime} min`;
           } else {
             seasons = '-';
+          }
+
+          const tmdbImdbId = detail.external_ids?.imdb_id || detail.imdb_id || data.imdb_id || null;
+          if (tmdbImdbId) {
+            data.imdb_id = tmdbImdbId;
+            try {
+              const omdbUrl = `http://www.omdbapi.com/?apikey=${encodeURIComponent(effectiveOmdbKey)}&i=${encodeURIComponent(tmdbImdbId)}&plot=short`;
+              const omdbRes = await fetch(omdbUrl, { signal: AbortSignal.timeout(2500) });
+              if (omdbRes.ok) {
+                const omdbDetail = await omdbRes.json();
+                if (omdbDetail.Response === 'True') {
+                  const omdbDate = parseOmdbDate(omdbDetail.Released);
+                  if (omdbDate) {
+                    release_date = omdbDate;
+                    release_year = omdbDate.split('-')[0];
+                  }
+                  if (section !== 'futured') {
+                    if (omdbDetail.imdbRating && omdbDetail.imdbRating !== 'N/A') {
+                      rating = parseFloat(omdbDetail.imdbRating);
+                    }
+                    if (omdbDetail.imdbVotes && omdbDetail.imdbVotes !== 'N/A') {
+                      vote_count = parseInt(omdbDetail.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+                    }
+                  }
+                }
+              }
+            } catch (omdbErr) {
+              console.warn('OMDb release date fetch error on Add:', omdbErr.message);
+            }
+          }
+
+          if (section === 'futured') {
+            rating = null;
+            vote_count = null;
           }
         }
       } catch (err) {
@@ -713,13 +758,27 @@ router.post('/refresh-all', async (req, res) => {
                 const omdbData = await omdbRes.json();
                 if (omdbData.Response !== 'False') {
                   if (omdbData.imdbID && !m.imdb_id) { m.imdb_id = omdbData.imdbID; changed = true; }
-                  if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') {
-                    const newRating = parseFloat(omdbData.imdbRating);
-                    if (m.rating !== newRating) { m.rating = newRating; changed = true; }
+                  const omdbDate = parseOmdbDate(omdbData.Released);
+                  if (omdbDate && m.release_date !== omdbDate) {
+                    m.release_date = omdbDate;
+                    m.release_year = omdbDate.split('-')[0];
+                    changed = true;
                   }
-                  if (omdbData.imdbVotes && omdbData.imdbVotes !== 'N/A') {
-                    const newVotes = parseInt(omdbData.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
-                    if (m.vote_count !== newVotes) { m.vote_count = newVotes; changed = true; }
+                  if (m.section !== 'futured') {
+                    if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') {
+                      const newRating = parseFloat(omdbData.imdbRating);
+                      if (m.rating !== newRating) { m.rating = newRating; changed = true; }
+                    }
+                    if (omdbData.imdbVotes && omdbData.imdbVotes !== 'N/A') {
+                      const newVotes = parseInt(omdbData.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+                      if (m.vote_count !== newVotes) { m.vote_count = newVotes; changed = true; }
+                    }
+                  } else {
+                    if (m.rating !== null || m.vote_count !== null) {
+                      m.rating = null;
+                      m.vote_count = null;
+                      changed = true;
+                    }
                   }
                   if (omdbData.Genre && omdbData.Genre !== 'N/A' && (!m.genre || m.genre === '-')) { m.genre = omdbData.Genre; changed = true; }
                   if (omdbData.Director && omdbData.Director !== 'N/A' && (!m.director || m.director === '-')) { m.director = omdbData.Director; changed = true; }

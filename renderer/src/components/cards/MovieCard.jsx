@@ -503,7 +503,7 @@ function MovieCard({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const trailerIframeRef = useRef(null)
   const trailerContainerRef = useRef(null)
-  const isFuture = (movie.section === 'futured' || sectionKey === 'futured') && !movie.rating
+  const isFuture = movie?.section === 'futured' || sectionKey === 'futured' || String(sectionKey) === '1' || String(sectionKey) === 'g_futured'
   const isTvSeries = movie?.media_type === 'tv' || Boolean(movie?.seasons && movie.seasons !== '-' && movie.seasons !== '—' && /season|ep/i.test(movie.seasons))
   const effectiveUserRating = userRating || movie?.user_rating || movie?.avg_user_rating
 
@@ -984,20 +984,29 @@ function MovieCard({
               )}
             </div>
 
-            {isFuture && movie.release_date ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <Calendar size={11} color="#a78bfa" />
-                <span style={{ color: '#a78bfa', fontSize: 11.5, fontWeight: 500 }}>
-                  {formatReleaseDate(movie.release_date, language)}
-                </span>
-              </div>
-            ) : isFuture && movie.release_year && movie.release_year !== '—' ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <Calendar size={11} color="#a78bfa" />
-                <span style={{ color: '#a78bfa', fontSize: 11.5, fontWeight: 500 }}>
-                  {movie.release_year}
-                </span>
-              </div>
+            {isFuture ? (
+              movie.release_date && movie.release_date !== '-' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Calendar size={11} color="#a78bfa" />
+                  <span style={{ color: '#a78bfa', fontSize: 11.5, fontWeight: 500 }}>
+                    {formatReleaseDate(movie.release_date, language)}
+                  </span>
+                </div>
+              ) : (movie.release_year && movie.release_year !== '—' && movie.release_year !== '-') ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Calendar size={11} color="#a78bfa" />
+                  <span style={{ color: '#a78bfa', fontSize: 11.5, fontWeight: 500 }}>
+                    {movie.release_year}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Calendar size={11} color="#a78bfa" />
+                  <span style={{ color: '#a78bfa', fontSize: 11.5, fontWeight: 500 }}>
+                    TBA
+                  </span>
+                </div>
+              )
             ) : null}
 
             {!isFuture && (
