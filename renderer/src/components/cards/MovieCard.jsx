@@ -5,6 +5,7 @@ import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getStoredUserLocation } from '../../services/geo.js'
 import { api } from '../../config/api.js'
 import CinemasModal from '../modals/CinemasModal.jsx'
+import { getMovieFranchiseInfo } from '../../config/chronologyData.js'
 
 function formatVotes(n) {
   if (!n) return null
@@ -13,20 +14,154 @@ function formatVotes(n) {
   return String(n)
 }
 
+function getPosterUrl(posterPath) {
+  if (!posterPath || posterPath === '-' || posterPath === '—' || posterPath === '/placeholder.jpg') return null
+  if (posterPath.startsWith('http://') || posterPath.startsWith('https://')) return posterPath
+  if (posterPath.startsWith('/')) return `https://image.tmdb.org/t/p/w500${posterPath}`
+  return posterPath
+}
+
 function formatReleaseDate(dateStr, language = 'uz') {
-  if (!dateStr) return null
+  if (!dateStr || dateStr === '-' || dateStr === '—') return null
   try {
-    const d = new Date(dateStr)
-    const localeMap = { uz: 'uz-UZ', ru: 'ru-RU', en: 'en-US' }
-    return d.toLocaleDateString(localeMap[language] || 'uz-UZ', { year: 'numeric', month: 'long', day: 'numeric' })
+    const parts = dateStr.split('-').map(Number)
+    if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return dateStr
+    const year = parts[0]
+    const month = parts[1]
+    const day = parts[2]
+
+    if (language === 'ru') {
+      const ruMonths = ['', 'янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
+      return `${day} ${ruMonths[month] || month} ${year}`
+    }
+    if (language === 'en') {
+      const enMonths = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      return `${enMonths[month] || month} ${day}, ${year}`
+    }
+    // Default: uz
+    const uzMonths = ['', 'yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek']
+    return `${day}-${uzMonths[month] || month}, ${year}`
   } catch {
     return dateStr
   }
 }
 
-function formatCardRuntime(str) {
+function getReleaseCountdown(dateStr, language = 'uz') {
+  if (!dateStr || dateStr === '-' || dateStr === '—') return null
+  try {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const parts = dateStr.split('-').map(Number)
+    if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return null
+    const targetDate = new Date(parts[0], parts[1] - 1, parts[2])
+    targetDate.setHours(0, 0, 0, 0)
+
+    const diffMs = targetDate.getTime() - today.getTime()
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
+
+    const isEn = language === 'en'
+    const isRu = language === 'ru'
+
+    if (diffDays < 0) {
+      const text = isEn ? 'Released' : isRu ? 'Вышел' : 'Chiqdi'
+      return { days: diffDays, status: 'past', text, isToday: false, isNear: false }
+    }
+    if (diffDays === 0) {
+      const text = isEn ? 'Releases today!' : isRu ? 'Выходит сегодня!' : 'Bugun chiqadi!'
+      return { days: 0, status: 'today', text, isToday: true, isNear: true }
+    }
+    if (diffDays === 1) {
+      const text = isEn ? '1 day left' : isRu ? 'Остался 1 день' : '1 kun qoldi'
+      return { days: 1, status: 'days', text, isToday: false, isNear: true }
+    }
+    if (diffDays <= 7) {
+      const text = isEn ? `${diffDays} days left` : isRu ? `Осталось ${diffDays} дн.` : `${diffDays} kun qoldi`
+      return { days: diffDays, status: 'days', text, isToday: false, isNear: true }
+    }
+    if (diffDays <= 30) {
+      const text = isEn ? `${diffDays} days left` : isRu ? `Осталось ${diffDays} дн.` : `${diffDays} kun qoldi`
+      return { days: diffDays, status: 'days', text, isToday: false, isNear: false }
+    }
+
+    const months = Math.floor(diffDays / 30)
+    const text = isEn
+      ? `${months} month${months > 1 ? 's' : ''} left`
+      : isRu
+      ? `Осталось ${months} мес.`
+      : `${months} oy qoldi`
+
+    return { days: diffDays, status: 'months', text, isToday: false, isNear: false }
+  } catch {
+    return null
+  }
+}
+
+function getCardFranchiseBrand(movie) {
+  if (!movie) return null
+  const info = getMovieFranchiseInfo(movie)
+  if (!info || !info.universe_key) return null
+  const key = String(info.universe_key).toLowerCase()
+
+  if (key === 'mcu') {
+    return { name: 'Marvel Studios', text: 'MCU', bg: '#ED1D24', color: '#ffffff' }
+  }
+  if (key === 'dcu' || key === 'dceu') {
+    return { name: 'DC Studios', text: 'DC', bg: '#0078f0', color: '#ffffff' }
+  }
+  if (key === 'star_wars') {
+    return { name: 'Star Wars', text: 'STAR WARS', bg: '#18181b', color: '#FFE81F', border: '1px solid rgba(255, 232, 31, 0.6)' }
+  }
+  if (key === 'avatar') {
+    return { name: 'Avatar', text: 'AVATAR', bg: '#0284c7', color: '#ffffff' }
+  }
+  if (key === 'dune') {
+    return { name: 'Dune Universe', text: 'DUNE', bg: '#d97706', color: '#ffffff' }
+  }
+  if (key === 'harry_potter') {
+    return { name: 'Wizarding World', text: 'HARRY POTTER', bg: '#4338ca', color: '#ffffff' }
+  }
+  if (key === 'john_wick') {
+    return { name: 'John Wick', text: 'JOHN WICK', bg: '#e11d48', color: '#ffffff' }
+  }
+  if (key === 'monsterverse') {
+    return { name: 'MonsterVerse', text: 'MONSTERVERSE', bg: '#059669', color: '#ffffff' }
+  }
+  if (key === 'transformers') {
+    return { name: 'Transformers', text: 'TRANSFORMERS', bg: '#4f46e5', color: '#ffffff' }
+  }
+  if (key === 'spider_man') {
+    return { name: 'Spider-Man', text: 'SPIDER-MAN', bg: '#dc2626', color: '#ffffff' }
+  }
+  if (key === 'batman') {
+    return { name: 'Batman', text: 'BATMAN', bg: '#27272a', color: '#e4e4e7', border: '1px solid #52525b' }
+  }
+  if (key === 'x_men') {
+    return { name: 'X-Men', text: 'X-MEN', bg: '#2563eb', color: '#ffffff' }
+  }
+
+  const formatted = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  return { name: formatted, text: formatted.toUpperCase(), bg: 'rgba(124, 58, 237, 0.2)', color: '#c4b5fd', border: '1px solid rgba(167, 139, 250, 0.4)' }
+}
+
+function formatCardRuntime(str, language = 'uz') {
   if (!str || str === '-' || str === '—') return null
-  return str.replace(/\s*\(\d+\s*min\)$/i, '')
+  let res = str.replace(/\s*\(\d+\s*min\)$/i, '')
+  if (language === 'en') {
+    res = res
+      .replace(/(\d+)\s*kun/gi, '$1d')
+      .replace(/(\d+)\s*soat/gi, '$1h')
+      .replace(/(\d+)\s*daqiqa/gi, '$1m')
+      .replace(/1\s*mavsum/gi, '1 season')
+      .replace(/(\d+)\s*mavsum/gi, '$1 seasons')
+  } else if (language === 'ru') {
+    res = res
+      .replace(/(\d+)\s*kun/gi, '$1 дн.')
+      .replace(/(\d+)\s*soat/gi, '$1 ч.')
+      .replace(/(\d+)\s*daqiqa/gi, '$1 мин.')
+      .replace(/(\d+)\s*mavsum/gi, '$1 сез.')
+  }
+  return res
 }
 
 const trailerClientCache = new Map()
@@ -501,11 +636,15 @@ function MovieCard({
   const [isVideoReady, setIsVideoReady] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [posterError, setPosterError] = useState(false)
   const trailerIframeRef = useRef(null)
   const trailerContainerRef = useRef(null)
   const isFuture = movie?.section === 'futured' || sectionKey === 'futured' || String(sectionKey) === '1' || String(sectionKey) === 'g_futured'
   const isTvSeries = movie?.media_type === 'tv' || Boolean(movie?.seasons && movie.seasons !== '-' && movie.seasons !== '—' && /season|ep/i.test(movie.seasons))
   const effectiveUserRating = userRating || movie?.user_rating || movie?.avg_user_rating
+  const countdown = isFuture ? getReleaseCountdown(movie?.release_date, language) : null
+  const cardFranchise = getCardFranchiseBrand(movie)
+  const posterSrc = !posterError ? getPosterUrl(movie?.poster_path) : null
 
   const handleToggleMute = (e) => {
     e.preventDefault()
@@ -933,22 +1072,23 @@ function MovieCard({
           )}
 
           {/* Left: Poster thumbnail */}
-          {movie.poster_path ? (
+          {posterSrc ? (
             <div className="movie-poster-thumb" style={{
               width: 82,
               minWidth: 82,
               flexShrink: 0,
               overflow: 'hidden',
               borderRadius: '13px 0 0 13px',
-              background: '#08080a',
+              background: 'var(--bg-base, #141414)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
               <img
-                src={movie.poster_path}
+                src={posterSrc}
                 alt=""
                 loading="lazy"
+                onError={() => setPosterError(true)}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -963,11 +1103,12 @@ function MovieCard({
               minWidth: 82,
               flexShrink: 0,
               borderRadius: '13px 0 0 13px',
-              background: '#141414',
+              background: 'var(--bg-base, #141414)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--text-muted)',
+              borderRight: '1px solid var(--border)'
             }}>
               <Film size={22} color="var(--text-muted)" />
             </div>
@@ -976,33 +1117,139 @@ function MovieCard({
           {/* Right: Text info */}
           <div className="movie-info-wrap" style={{ flex: 1, padding: '10px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
             <div className="movie-card-title" style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-              {displayTitle}
+              <span>{displayTitle}</span>
               {movie.year && movie.year !== '—' && (
                 <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 5, fontSize: 12.5 }}>
                   ({movie.release_year || movie.year})
+                </span>
+              )}
+              {cardFranchise && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (onOpenChronology && movie?.tmdb_id) onOpenChronology(movie.tmdb_id, movie.media_type)
+                  }}
+                  title={`${cardFranchise.name} xronologiyasini ochish`}
+                  style={{
+                    marginLeft: 6,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    padding: '0px 5px',
+                    borderRadius: 4,
+                    background: cardFranchise.bg || '#7c3aed',
+                    color: cardFranchise.color || '#fff',
+                    border: cardFranchise.border || 'none',
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    verticalAlign: 'middle',
+                    lineHeight: '15px',
+                    letterSpacing: '0.3px'
+                  }}
+                >
+                  {cardFranchise.text}
                 </span>
               )}
             </div>
 
             {isFuture ? (
               movie.release_date && movie.release_date !== '-' ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Calendar size={11} color="#a78bfa" />
-                  <span style={{ color: '#a78bfa', fontSize: 11.5, fontWeight: 500 }}>
-                    {formatReleaseDate(movie.release_date, language)}
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 1 }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Calendar size={11} color="var(--accent, #8b5cf6)" />
+                    <span style={{ color: 'var(--text-secondary)', fontSize: 11.5, fontWeight: 500 }}>
+                      {formatReleaseDate(movie.release_date, language)}
+                    </span>
+                  </div>
+
+                  {/* Countdown Badge */}
+                  {countdown && (
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: countdown.isToday ? 700 : 600,
+                        padding: '1.5px 7px',
+                        borderRadius: 5,
+                        background: countdown.isToday
+                          ? 'rgba(34, 197, 94, 0.18)'
+                          : countdown.isNear
+                          ? 'rgba(239, 68, 68, 0.14)'
+                          : 'rgba(139, 92, 246, 0.12)',
+                        color: countdown.isToday
+                          ? '#16a34a'
+                          : countdown.isNear
+                          ? '#dc2626'
+                          : '#7c3aed',
+                        border: countdown.isToday
+                          ? '1px solid rgba(34, 197, 94, 0.45)'
+                          : countdown.isNear
+                          ? '1px solid rgba(239, 68, 68, 0.35)'
+                          : '1px solid rgba(139, 92, 246, 0.28)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        lineHeight: 1.2
+                      }}
+                    >
+                      {countdown.isToday && <Sparkles size={10} color="#16a34a" />}
+                      {countdown.text}
+                    </span>
+                  )}
+
+                  {/* Compact High-Contrast Ticket Button (if <= 7 days or today and not TV series) */}
+                  {countdown?.isNear && !isTvSeries && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        window.dispatchEvent(new CustomEvent('notelab_open_cinema_modal', { detail: movie.id }))
+                        setShowCinemasModal(true)
+                      }}
+                      title={t('cinema.buyTickets', null, 'Kinoteatrlardan bilet olish')}
+                      className="card-compact-ticket-btn"
+                      style={{
+                        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                        border: 'none',
+                        color: '#ffffff',
+                        padding: '2px 8px',
+                        borderRadius: 5,
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        boxShadow: '0 2px 8px rgba(239, 68, 68, 0.35)',
+                        transition: 'all 0.15s ease',
+                        lineHeight: 1.2
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.transform = 'scale(1.06)'
+                        e.currentTarget.style.boxShadow = '0 3px 12px rgba(239, 68, 68, 0.5)'
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'scale(1)'
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.35)'
+                      }}
+                    >
+                      <Ticket size={10.5} color="#ffffff" />
+                      <span>{language === 'en' ? 'Tickets' : language === 'ru' ? 'Билеты' : 'Bilet'}</span>
+                    </button>
+                  )}
                 </div>
               ) : (movie.release_year && movie.release_year !== '—' && movie.release_year !== '-') ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Calendar size={11} color="#a78bfa" />
-                  <span style={{ color: '#a78bfa', fontSize: 11.5, fontWeight: 500 }}>
+                  <Calendar size={11} color="var(--accent, #8b5cf6)" />
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 11.5, fontWeight: 500 }}>
                     {movie.release_year}
                   </span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Calendar size={11} color="#a78bfa" />
-                  <span style={{ color: '#a78bfa', fontSize: 11.5, fontWeight: 500 }}>
+                  <Calendar size={11} color="var(--accent, #8b5cf6)" />
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 11.5, fontWeight: 500 }}>
                     TBA
                   </span>
                 </div>
@@ -1011,15 +1258,25 @@ function MovieCard({
 
             {!isFuture && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Star size={11} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} fill={movie.rating ? "#fbbf24" : "none"} />
-                  <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 11.5, fontWeight: 600 }}>
-                    {movie.rating ? movie.rating : '0/10'}
-                  </span>
-                  {movie.vote_count ? (
-                    <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
-                  ) : null}
-                </div>
+                {(movie.rating || !effectiveUserRating) && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Star size={11} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} fill={movie.rating ? "#fbbf24" : "none"} />
+                    <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 11.5, fontWeight: 600 }}>
+                      {movie.rating ? movie.rating : '—'}
+                    </span>
+                    {movie.vote_count ? (
+                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>({formatVotes(movie.vote_count)})</span>
+                    ) : null}
+                  </div>
+                )}
+                {movie.release_date && new Date(movie.release_date).getTime() > Date.now() && (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3.5, background: 'var(--bg-base, rgba(255,255,255,0.05))', padding: '1px 6px', borderRadius: 4 }}>
+                    <Calendar size={10} color="var(--accent, #8b5cf6)" />
+                    <span style={{ color: 'var(--text-secondary)', fontSize: 10.5, fontWeight: 500 }}>
+                      {formatReleaseDate(movie.release_date, language)}
+                    </span>
+                  </div>
+                )}
                 {isDone && effectiveUserRating ? (
                   <div
                     draggable={false}
@@ -1065,7 +1322,7 @@ function MovieCard({
             {movie.seasons && movie.seasons !== '—' && movie.seasons !== '-' && (
               <div style={{ color: 'var(--text-muted)', fontSize: 11, display: 'flex', alignItems: 'flex-start', gap: 5, marginTop: 1 }}>
                 <Clock size={11} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: 2 }} />
-                <span style={{ lineHeight: 1.35, wordBreak: 'break-word' }}>{formatCardRuntime(movie.seasons)}</span>
+                <span style={{ lineHeight: 1.35, wordBreak: 'break-word' }}>{formatCardRuntime(movie.seasons, language)}</span>
               </div>
             )}
           </div>
@@ -1350,7 +1607,7 @@ function MovieCard({
               )}
               {!isFuture && (
                 <span style={{ background: movie.rating ? '#2a1f00' : 'var(--bg-input)', color: movie.rating ? '#fbbf24' : 'var(--text-muted)', borderRadius: 6, padding: '3px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Star size={10} fill={movie.rating ? "#fbbf24" : "none"} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} /> {movie.rating ? movie.rating : '0/10'}
+                  <Star size={10} fill={movie.rating ? "#fbbf24" : "none"} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} /> {movie.rating ? movie.rating : '—'}
                 </span>
               )}
               {isDone && (
@@ -1462,41 +1719,60 @@ function MovieCard({
               </a>
 
               {/* Nearby Cinemas Button (Hidden for TV Series) */}
-              {!isTvSeries && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    window.dispatchEvent(new CustomEvent('notelab_open_cinema_modal', { detail: movie.id }))
-                    setShowCinemasModal(true)
-                  }}
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    color: '#f87171',
-                    padding: '7px 12px',
-                    borderRadius: 10,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 5,
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)' }}
-                >
-                  <Ticket size={13} />
-                  <span>
-                    {cinemasCount > 0
-                      ? `${t('cinema.cinemas', null, 'Kinoteatrlar')} (${cinemasCount})`
-                      : t('cinema.cinemas', null, 'Kinoteatrlar')}
-                  </span>
-                </button>
-              )}
+              {/* Nearby Cinemas Button (Hidden for TV Series) */}
+              {!isTvSeries && (() => {
+                const isNearRelease = countdown?.isNear || (isFuture && countdown?.isToday)
+                return (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      window.dispatchEvent(new CustomEvent('notelab_open_cinema_modal', { detail: movie.id }))
+                      setShowCinemasModal(true)
+                    }}
+                    style={{
+                      background: isNearRelease
+                        ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.45))'
+                        : 'rgba(239, 68, 68, 0.12)',
+                      border: isNearRelease
+                        ? '1.5px solid rgba(239, 68, 68, 0.75)'
+                        : '1px solid rgba(239, 68, 68, 0.3)',
+                      color: isNearRelease ? '#fca5a5' : '#f87171',
+                      padding: '7px 12px',
+                      borderRadius: 10,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5,
+                      boxShadow: isNearRelease ? '0 0 16px rgba(239, 68, 68, 0.45)' : 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.35)'
+                      e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.9)'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = isNearRelease
+                        ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.45))'
+                        : 'rgba(239, 68, 68, 0.12)'
+                      e.currentTarget.style.borderColor = isNearRelease
+                        ? '1.5px solid rgba(239, 68, 68, 0.75)'
+                        : '1px solid rgba(239, 68, 68, 0.3)'
+                    }}
+                  >
+                    <Ticket size={13} color={isNearRelease ? "#fca5a5" : "#f87171"} />
+                    <span>
+                      {cinemasCount > 0
+                        ? `${t('cinema.cinemas', null, 'Kinoteatrlar')} (${cinemasCount})`
+                        : t('cinema.cinemas', null, 'Kinoteatrlar')}
+                    </span>
+                  </button>
+                )
+              })()}
             </div>
 
             {/* Overview / Story Summary (Clamped to 3 lines with bottom fade gradient, click to toggle) */}

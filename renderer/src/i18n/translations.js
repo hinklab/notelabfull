@@ -18,7 +18,9 @@ export const translations = {
       "more": "Yana",
       "add": "Qo'shish",
       "retry": "Qayta urinish",
-      "open": "Ochish"
+      "open": "Ochish",
+      "seasons": "mavsum",
+      "tickets": "Chipta"
     },
     "nav": {
       "movies": "Kinolar",
@@ -289,7 +291,9 @@ export const translations = {
       "more": "Ещё",
       "add": "Добавить",
       "retry": "Повторить",
-      "open": "Открыть"
+      "open": "Открыть",
+      "seasons": "сез.",
+      "tickets": "Билеты"
     },
     "nav": {
       "movies": "Фильмы",
@@ -560,7 +564,9 @@ export const translations = {
       "more": "More",
       "add": "Add",
       "retry": "Retry",
-      "open": "Open"
+      "open": "Open",
+      "seasons": "seasons",
+      "tickets": "Tickets"
     },
     "nav": {
       "movies": "Movies",

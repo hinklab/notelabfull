@@ -334,12 +334,12 @@ router.post('/', async (req, res) => {
           ? `https://api.themoviedb.org/3/movie/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits,external_ids&language=en-US`
           : `https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&append_to_response=credits,external_ids&language=en-US`;
 
-        let res = await fetch(primaryUrl, { signal: AbortSignal.timeout(3000) });
-        if (!res.ok && res.status === 404) {
-          res = await fetch(fallbackUrl, { signal: AbortSignal.timeout(3000) });
+        let tmdbRes = await fetch(primaryUrl, { signal: AbortSignal.timeout(3000) });
+        if (!tmdbRes.ok && tmdbRes.status === 404) {
+          tmdbRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(3000) });
         }
-        if (res.ok) {
-          const detail = await res.json();
+        if (tmdbRes.ok) {
+          const detail = await tmdbRes.json();
           if (detail.first_air_date || detail.number_of_seasons) media_type = 'tv';
           else if (detail.release_date || detail.runtime) media_type = 'movie';
 
@@ -359,10 +359,105 @@ router.post('/', async (req, res) => {
           if (detail.overview) overview = detail.overview;
 
           if (media_type === 'tv' || detail.number_of_seasons) {
-            const tvDuration = await resolveTvRuntime(data.tmdb_id, effectiveTmdbKey, detail);
-            seasons = tvDuration.text;
+            const rawSeasons = (detail.seasons || []).filter(s => s.season_number > 0);
+            if (rawSeasons.length > 1 && !data.title.includes('— Season') && !data.title.includes('- Season')) {
+              const seriesBaseName = detail.name || data.title;
+              const seriesPoster = detail.poster_path ? `https://image.tmdb.org/t/p/w500${detail.poster_path}` : (poster_path || null);
+              const defaultEpRuntime = (detail.episode_run_time && detail.episode_run_time[0]) || 45;
+              const createdSeasons = [];
+
+              for (let sIdx = 0; sIdx < rawSeasons.length; sIdx++) {
+                const s = rawSeasons[sIdx];
+                const sNum = s.season_number;
+                let seasonPoster = s.poster_path ? `https://image.tmdb.org/t/p/w500${s.poster_path}` : seriesPoster;
+                let seasonAirDate = s.air_date || detail.first_air_date || release_date;
+                let seasonReleaseYear = seasonAirDate ? seasonAirDate.split('-')[0] : release_year;
+                let epCount = s.episode_count || 1;
+                let totalMinutes = 0;
+                let exactCount = 0;
+
+                try {
+                  const sDetailRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}/season/${sNum}?api_key=${encodeURIComponent(effectiveTmdbKey)}&language=en-US`, { signal: AbortSignal.timeout(2500) });
+                  if (sDetailRes.ok) {
+                    const sDetail = await sDetailRes.json();
+                    if (sDetail.poster_path) seasonPoster = `https://image.tmdb.org/t/p/w500${sDetail.poster_path}`;
+                    if (sDetail.air_date) {
+                      seasonAirDate = sDetail.air_date;
+                      seasonReleaseYear = seasonAirDate.split('-')[0];
+                    }
+                    if (Array.isArray(sDetail.episodes) && sDetail.episodes.length > 0) {
+                      epCount = sDetail.episodes.length;
+                      sDetail.episodes.forEach(ep => {
+                        if (ep.runtime && ep.runtime > 0) {
+                          totalMinutes += ep.runtime;
+                          exactCount++;
+                        }
+                      });
+                    }
+                  }
+                } catch (e) {}
+
+                if (exactCount === 0) totalMinutes = epCount * defaultEpRuntime;
+                const humanDuration = formatDurationUz(totalMinutes, exactCount === 0);
+                const seasonStr = `Season ${sNum} · ${epCount} ep · ${humanDuration} (${totalMinutes} min)`;
+                const seasonTitle = `${seriesBaseName} — Season ${sNum}`;
+
+                let seasonComputedId = nextId(db.movies);
+                if (supabase) {
+                  try {
+                    const { data: maxRow } = await supabase.from('movies').select('id').order('id', { ascending: false }).limit(1);
+                    if (maxRow && maxRow.length > 0 && typeof maxRow[0].id === 'number') {
+                      seasonComputedId = Math.max(seasonComputedId, maxRow[0].id + 1);
+                    }
+                  } catch (e) {}
+                }
+
+                const seasonMovie = {
+                  id: seasonComputedId,
+                  user_id: userId,
+                  note_id,
+                  title: seasonTitle,
+                  section,
+                  position: position + sIdx,
+                  tmdb_id: data.tmdb_id ? Number(data.tmdb_id) : null,
+                  imdb_id: data.imdb_id || null,
+                  media_type: 'tv',
+                  poster_path: seasonPoster,
+                  rating: s.vote_average ? Number(s.vote_average.toFixed(1)) : (rating || null),
+                  vote_count: s.vote_count || (vote_count || 0),
+                  genre,
+                  director,
+                  overview: s.overview || detail.overview || overview || '',
+                  release_date: seasonAirDate,
+                  release_year: seasonReleaseYear,
+                  seasons: seasonStr,
+                  note: data.note || '',
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                };
+
+                db.movies.push(seasonMovie);
+                if (supabase) {
+                  try {
+                    await supabase.from('movies').upsert([sanitizeForSupabase(seasonMovie)], { onConflict: 'id' });
+                  } catch (e) {}
+                }
+                createdSeasons.push(seasonMovie);
+              }
+
+              await writeDB(db);
+              deleteRecommendationForMovie(userId, createdSeasons[0]).catch(() => {});
+              return res.json({ ...createdSeasons[0], _multiSeason: true, count: createdSeasons.length, seasons_list: createdSeasons });
+            } else {
+              const tvDuration = await resolveTvRuntime(data.tmdb_id, effectiveTmdbKey, detail);
+              seasons = tvDuration || `${rawSeasons.length || 1} season`;
+              if (!data.title.includes('— Season') && !data.title.includes('- Season')) {
+                data.title = `${detail.name || data.title} — Season 1`;
+              }
+            }
           } else if (detail.runtime && detail.runtime > 0) {
-            seasons = `${detail.runtime} min`;
+            const humanDur = formatDurationUz(detail.runtime, false);
+            seasons = `${humanDur} (${detail.runtime} min)`;
           } else {
             seasons = '-';
           }
@@ -389,6 +484,13 @@ router.post('/', async (req, res) => {
                       vote_count = parseInt(omdbDetail.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
                     }
                   }
+                  if ((seasons === '-' || !seasons) && omdbDetail.Runtime && omdbDetail.Runtime !== 'N/A') {
+                    const mins = parseInt(omdbDetail.Runtime, 10);
+                    if (mins > 0) {
+                      const humanDur = formatDurationUz(mins, false);
+                      seasons = `${humanDur} (${mins} min)`;
+                    }
+                  }
                 }
               }
             } catch (omdbErr) {
@@ -404,12 +506,12 @@ router.post('/', async (req, res) => {
       } catch (err) {
         console.error('TMDB Enrich Error on Add:', err.message);
       }
-    } else if (data.imdb_id && omdbKey && (!poster_path || genre === '-')) {
+    } else if (data.imdb_id && omdbKey && (!poster_path || genre === '-' || seasons === '-' || !seasons)) {
       try {
         const url = `http://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&i=${encodeURIComponent(data.imdb_id)}`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const detail = await res.json();
+        const omdbFetchRes = await fetch(url);
+        if (omdbFetchRes.ok) {
+          const detail = await omdbFetchRes.json();
           if (detail.Response !== 'False') {
             if (detail.Genre && detail.Genre !== 'N/A') genre = detail.Genre;
             if (detail.Director && detail.Director !== 'N/A') director = detail.Director;
@@ -418,6 +520,13 @@ router.post('/', async (req, res) => {
             if (detail.Year && detail.Year !== 'N/A') release_year = detail.Year;
             if (detail.imdbRating && detail.imdbRating !== 'N/A') rating = parseFloat(detail.imdbRating);
             if (detail.imdbVotes && detail.imdbVotes !== 'N/A') vote_count = parseInt(detail.imdbVotes.replace(/,/g, ''));
+            if ((seasons === '-' || !seasons) && detail.Runtime && detail.Runtime !== 'N/A') {
+              const mins = parseInt(detail.Runtime, 10);
+              if (mins > 0) {
+                const humanDur = formatDurationUz(mins, false);
+                seasons = `${humanDur} (${mins} min)`;
+              }
+            }
           }
         }
       } catch (err) {
@@ -481,14 +590,24 @@ router.put('/:id', async (req, res) => {
     const db = readDB();
     const userId = req.userId || DEFAULT_USER_ID;
     const targetId = req.params.id;
-    let idx = (db.movies || []).findIndex(m => String(m.id) === String(targetId) && (m.user_id || DEFAULT_USER_ID) === userId);
+    const supabase = getSupabase();
+    if (idx === -1 && supabase) {
+      try {
+        const parsedTargetId = (typeof targetId === 'string' && !isNaN(Number(targetId))) ? Number(targetId) : targetId;
+        const { data: cloudMovie } = await supabase.from('movies').select('*').eq('id', parsedTargetId).maybeSingle();
+        if (cloudMovie) {
+          db.movies.push(cloudMovie);
+          idx = db.movies.length - 1;
+        }
+      } catch (e) {
+        console.warn('Could not sync cloud movie before update:', e.message);
+      }
+    }
     
     if (idx !== -1) {
       db.movies[idx] = { ...db.movies[idx], ...req.body };
       await writeDB(db);
     }
-
-    const supabase = getSupabase();
     if (supabase) {
       try {
         const updatePayload = sanitizeForSupabase({ ...req.body, updated_at: new Date().toISOString() });
@@ -562,11 +681,43 @@ router.post('/move', async (req, res) => {
     const userId = req.userId || DEFAULT_USER_ID;
     const { id, section, position } = req.body;
     let idx = (db.movies || []).findIndex(m => String(m.id) === String(id) && (m.user_id || DEFAULT_USER_ID) === userId);
+    const supabase = getSupabase();
+
+    if (idx === -1 && supabase) {
+      try {
+        const parsedMovieId = (typeof id === 'string' && !isNaN(Number(id))) ? Number(id) : id;
+        const { data: cloudMovie } = await supabase.from('movies').select('*').eq('id', parsedMovieId).maybeSingle();
+        if (cloudMovie) {
+          db.movies.push(cloudMovie);
+          idx = db.movies.length - 1;
+        }
+      } catch (e) {
+        console.warn('Could not sync cloud movie before move:', e.message);
+      }
+    }
     
     if (idx !== -1) {
       db.movies[idx].section = section;
-      // Preserve user_rating across section moves
       
+      // Auto-enrich runtime if moving to a non-futured section and runtime is missing
+      if (section !== 'futured' && (!db.movies[idx].seasons || db.movies[idx].seasons === '-' || db.movies[idx].seasons === '—') && db.movies[idx].tmdb_id) {
+        try {
+          const settings = getUserSettings(userId, db);
+          const effectiveTmdbKey = settings.tmdb_key || 'c34d44f722c298573a97a32fc4df383a';
+          const type = db.movies[idx].media_type === 'tv' ? 'tv' : 'movie';
+          const tmdbRes = await fetch(`https://api.themoviedb.org/3/${type}/${encodeURIComponent(db.movies[idx].tmdb_id)}?api_key=${encodeURIComponent(effectiveTmdbKey)}&language=en-US`, { signal: AbortSignal.timeout(3000) });
+          if (tmdbRes.ok) {
+            const detail = await tmdbRes.json();
+            if (detail.runtime && detail.runtime > 0) {
+              const humanDur = formatDurationUz(detail.runtime, false);
+              db.movies[idx].seasons = `${humanDur} (${detail.runtime} min)`;
+            }
+          }
+        } catch (enrichErr) {
+          console.warn('Auto-enrich runtime on move error:', enrichErr.message);
+        }
+      }
+
       if (position !== null && position !== undefined) {
         db.movies
           .filter(m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === section && String(m.id) !== String(id))
@@ -580,17 +731,19 @@ router.post('/move', async (req, res) => {
       await writeDB(db);
     }
 
-    const supabase = getSupabase();
     if (supabase) {
       try {
         const parsedMovieId = (typeof id === 'string' && !isNaN(Number(id))) ? Number(id) : id;
-        await supabase.from('movies').update({
+        const sbUpdate = {
           section,
           position: position ?? 0,
           updated_at: new Date().toISOString()
-        }).eq('id', parsedMovieId);
-
-        // Preserve user_ratings in user_settings
+        };
+        if (idx !== -1 && db.movies[idx].seasons && db.movies[idx].seasons !== '-' && db.movies[idx].seasons !== '—') {
+          sbUpdate.seasons = db.movies[idx].seasons;
+        }
+        const { error: sbErr } = await supabase.from('movies').update(sbUpdate).eq('id', parsedMovieId);
+        if (sbErr) console.error('Supabase movie move update error:', sbErr.message);
       } catch (e) {
         console.error('Supabase movie move exception:', e.message);
       }

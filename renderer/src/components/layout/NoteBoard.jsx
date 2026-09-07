@@ -57,7 +57,7 @@ function clusterSeriesItems(items) {
   return result
 }
 
-function groupColumnItems(items) {
+function groupColumnItems(items, groupId = null) {
   if (!Array.isArray(items)) return []
   const clustered = clusterSeriesItems(items)
 
@@ -91,7 +91,7 @@ function groupColumnItems(items) {
         const seriesBaseTitle = (firstMovie.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim()
         groupedResult.push({
           type: 'series_group',
-          id: `group_${sKey}`,
+          id: groupId ? `group_${groupId}_${sKey}` : `group_${sKey}`,
           seriesTitle: seriesBaseTitle,
           tmdbId: firstMovie.tmdb_id,
           seasons: sortedSeasons
@@ -158,18 +158,19 @@ function getDropPosition(items, clientY, containerRef, prevMarker = null) {
 }
 
 function parseItemMinutes(item) {
+  if (typeof item?.runtime === 'number' && item.runtime > 0) return item.runtime
   const str = item?.seasons || item?.runtime || item?._movie?.seasons || item?._movie?.runtime
   if (!str || str === '-' || str === '—') return 0
 
-  // 1. Explicit total minutes in parentheses: e.g. "(2995 min)"
+  // 1. Explicit total minutes in parentheses: e.g. "(2995 min)" or "(97 min)"
   const totalMinParenMatch = String(str).match(/\((\d+)\s*min\)/i)
   if (totalMinParenMatch) {
     return parseInt(totalMinParenMatch[1], 10) || 0
   }
 
-  // 2. Movie simple format: "142 min"
-  const singleMatch = String(str).match(/^(\d+)\s*min$/i)
-  if (singleMatch) {
+  // 2. Movie simple format: "142 min" or "142min"
+  const singleMatch = String(str).match(/(\d+)\s*min/i)
+  if (singleMatch && !String(str).includes('ep')) {
     return parseInt(singleMatch[1], 10) || 0
   }
 
@@ -193,7 +194,7 @@ function parseItemMinutes(item) {
     return totalEpisodes * epMinutes
   }
 
-  const numberMatch = String(str).match(/(\d+)/)
+  const numberMatch = String(str).match(/^(\d+)$/)
   if (numberMatch) {
     return parseInt(numberMatch[1], 10) || 0
   }
@@ -201,12 +202,18 @@ function parseItemMinutes(item) {
   return 0
 }
 
-function formatTotalRuntime(totalMinutes) {
+function formatTotalRuntime(totalMinutes, language = 'uz') {
   if (!totalMinutes || totalMinutes <= 0) return null
 
   const minutesInHour = 60
   const minutesInDay = 24 * 60
   const minutesInMonth = 30 * 24 * 60
+
+  const labels = language === 'en'
+    ? { mo: 'mo', d: 'd', h: 'h', m: 'm' }
+    : language === 'ru'
+    ? { mo: 'мес', d: 'д', h: 'ч', m: 'мин' }
+    : { mo: 'oy', d: 'k', h: 's', m: 'min' }
 
   if (totalMinutes >= minutesInMonth) {
     const months = Math.floor(totalMinutes / minutesInMonth)
@@ -215,9 +222,9 @@ function formatTotalRuntime(totalMinutes) {
     rem %= minutesInDay
     const hours = Math.floor(rem / minutesInHour)
 
-    const parts = [`${months}oy`]
-    if (days > 0) parts.push(`${days}k`)
-    if (hours > 0) parts.push(`${hours}s`)
+    const parts = [`${months}${labels.mo}`]
+    if (days > 0) parts.push(`${days}${labels.d}`)
+    if (hours > 0) parts.push(`${hours}${labels.h}`)
     return parts.join(' ')
   }
 
@@ -227,9 +234,9 @@ function formatTotalRuntime(totalMinutes) {
     const hours = Math.floor(rem / minutesInHour)
     const mins = rem % minutesInHour
 
-    const parts = [`${days}k`]
-    if (hours > 0) parts.push(`${hours}s`)
-    if (mins > 0) parts.push(`${mins}min`)
+    const parts = [`${days}${labels.d}`]
+    if (hours > 0) parts.push(`${hours}${labels.h}`)
+    if (mins > 0) parts.push(`${mins}${labels.m}`)
     return parts.join(' ')
   }
 
@@ -237,12 +244,12 @@ function formatTotalRuntime(totalMinutes) {
     const hours = Math.floor(totalMinutes / minutesInHour)
     const mins = totalMinutes % minutesInHour
 
-    const parts = [`${hours}s`]
-    if (mins > 0) parts.push(`${mins}min`)
+    const parts = [`${hours}${labels.h}`]
+    if (mins > 0) parts.push(`${mins}${labels.m}`)
     return parts.join(' ')
   }
 
-  return `${totalMinutes} min`
+  return `${totalMinutes} ${labels.m}`
 }
 
 function RatingStars10({ value, onChange }) {
@@ -390,16 +397,16 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     if (!targetGroup) return
     const currentGroupId = item.group_id || groups.find(g => g.section_key === (item.section || item._movie?.section))?.id || (groups.find(g => (itemsByGroup[g.id] || []).some(i => String(i.id) === String(item.id)))?.id)
     if (currentGroupId && targetGroup.id && String(currentGroupId) !== String(targetGroup.id)) {
-      await handleMoveItem(item.id, currentGroupId, targetGroup.id, 0)
+      await handleMoveItem(item.id, targetGroup.id, 0)
     }
   }, [groups, itemsByGroup])
 
   const snapshotAllCardPositions = useCallback(() => {
-    const cardEls = Array.from(document.querySelectorAll('[data-card-id], [data-item-id]'))
+    const cardEls = Array.from(document.querySelectorAll('[data-card-id]'))
       .filter(el => el.offsetParent !== null && el.getBoundingClientRect().width > 0)
     const posMap = new Map()
     cardEls.forEach(el => {
-      const id = String(el.dataset.cardId || el.dataset.itemId)
+      const id = String(el.dataset.cardId)
       posMap.set(id, el.getBoundingClientRect())
     })
     boardCardPositionsRef.current = posMap
@@ -410,11 +417,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     const firstPositions = boardCardPositionsRef.current
     if (!firstPositions || firstPositions.size === 0) return
 
-    const cardElements = Array.from(document.querySelectorAll('[data-card-id], [data-item-id]'))
+    const cardElements = Array.from(document.querySelectorAll('[data-card-id]'))
       .filter(el => el.offsetParent !== null && el.getBoundingClientRect().width > 0)
 
     cardElements.forEach(el => {
-      const id = String(el.dataset.cardId || el.dataset.itemId)
+      const id = String(el.dataset.cardId)
       const rect = el.getBoundingClientRect()
 
       if (firstPositions.has(id)) {
@@ -425,7 +432,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         // If card moved across columns (deltaX > 50px), animate cleanly inside its new column to avoid CSS container clipping
         const isCrossColumnMove = Math.abs(deltaX) > 50
 
-        if (deltaX !== 0 || deltaY !== 0) {
+        if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
           if (isCrossColumnMove) {
             el.style.transform = `translate3d(0, ${deltaY}px, 0) scale(0.96)`
             el.style.opacity = '0.6'
@@ -479,7 +486,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         const validMovies = movies || []
         for (const g of validGroups) {
           const secMovies = validMovies.filter(m => m.section === g.section_key)
-          map[g.id] = sortMoviesForSection(secMovies, g.section_key)
+          const sorted = sortMoviesForSection(secMovies, g.section_key)
+          const clustered = clusterSeriesItems(sorted)
+          map[g.id] = clustered
             .map((m, idx) => ({
               id: m.id, group_id: g.id, title: m.title,
               subtitle: [m.genre, m.director].filter(Boolean).join(' · '),
@@ -672,7 +681,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
           note_id: noteId,
         })
 
-        if (added && added.id) {
+        if (added && (added._multiSeason || added.media_type === 'tv' || added.seasons_list || Array.isArray(added))) {
+          await loadGroups()
+        } else if (added && added.id) {
           setItemsByGroup(prev => {
             const list = (prev[groupId] || []).map(item => {
               if (item.id === tempId) {
@@ -815,7 +826,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     }
   }, [])
 
-  const handleMoveItem = async (itemId, toGroupId, insertIndex) => {
+  const handleMoveItem = async (itemId, toGroupId, insertIndex, isSeriesGroup = false) => {
     snapshotAllCardPositions()
 
     let fromGroupId = null
@@ -831,40 +842,61 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
       const fromSection = fromGroup?.section_key
       const toSection = toGroup?.section_key || (String(toGroupId) === '1' ? 'futured' : String(toGroupId) === '2' ? 'todo' : String(toGroupId) === '3' ? 'doing' : 'done')
 
+      const sourceList = itemsByGroup[fromGroupId] || []
+      const clickedItem = sourceList.find(i => String(i.id) === String(itemId))
+      const movingSeriesKey = (isSeriesGroup || clickedItem?._isSeriesGroup || clickedItem?._movie?._isSeriesGroup) ? getSeriesKey(clickedItem) : null
+
+      let movingItems = [clickedItem].filter(Boolean)
+      if (movingSeriesKey) {
+        const allSeriesMembers = sourceList.filter(i => getSeriesKey(i) === movingSeriesKey)
+        if (allSeriesMembers.length > 0) {
+          movingItems = allSeriesMembers
+        }
+      }
+      const movingIdSet = new Set(movingItems.map(i => String(i.id)))
+
       setItemsByGroup(prev => {
         const sourceItems = [...(prev[fromGroupId] || [])]
         const targetItems = String(fromGroupId) === String(toGroupId) ? sourceItems : [...(prev[toGroupId] || [])]
 
-        const itemIdx = sourceItems.findIndex(i => String(i.id) === String(itemId))
-        if (itemIdx === -1) return prev
-        const [movedItem] = sourceItems.splice(itemIdx, 1)
+        const remainingSource = sourceItems.filter(i => !movingIdSet.has(String(i.id)))
 
-        const updatedItem = {
-          ...movedItem,
+        const updatedMovingItems = movingItems.map(mItem => ({
+          ...mItem,
+          group_id: toGroupId,
           section: toSection,
-          user_rating: movedItem.user_rating || movedItem._movie?.user_rating || null,
-          avg_rating: movedItem.avg_rating || movedItem._movie?.avg_rating || null,
-          avg_user_rating: movedItem.avg_user_rating || movedItem._movie?.avg_user_rating || null,
-          _movie: movedItem._movie ? {
-            ...movedItem._movie,
+          user_rating: mItem.user_rating || mItem._movie?.user_rating || null,
+          avg_rating: mItem.avg_rating || mItem._movie?.avg_rating || null,
+          avg_user_rating: mItem.avg_user_rating || mItem._movie?.avg_user_rating || null,
+          _movie: mItem._movie ? {
+            ...mItem._movie,
+            group_id: toGroupId,
             section: toSection,
-            user_rating: movedItem._movie.user_rating || movedItem.user_rating || null,
-            avg_user_rating: movedItem._movie.avg_user_rating || movedItem.avg_user_rating || null
+            user_rating: mItem._movie.user_rating || mItem.user_rating || null,
+            avg_user_rating: mItem._movie.avg_user_rating || mItem.avg_user_rating || null
           } : null
-        }
+        }))
 
         const safeIndex = insertIndex != null ? Math.min(insertIndex, targetItems.length) : targetItems.length
-        targetItems.splice(Math.max(0, safeIndex), 0, updatedItem)
+        targetItems.splice(Math.max(0, safeIndex), 0, ...updatedMovingItems)
 
-        const clusteredSource = clusterSeriesItems(sourceItems)
+        const clusteredSource = clusterSeriesItems(remainingSource)
         const clusteredTarget = clusterSeriesItems(targetItems)
 
         const finalTargetItems = (isMovieNote && toSection === 'futured')
-          ? sortMoviesForSection(clusteredTarget, 'futured')
+          ? sortMoviesForSection(clusteredTarget, 'futured').map((item, idx) => ({
+              ...item,
+              group_id: toGroupId,
+              section: toSection,
+              position: idx,
+              _movie: item._movie ? { ...item._movie, group_id: toGroupId, section: toSection, position: idx } : item._movie
+            }))
           : clusteredTarget.map((item, idx) => ({
               ...item,
+              group_id: toGroupId,
+              section: toSection,
               position: idx,
-              _movie: item._movie ? { ...item._movie, position: idx } : item._movie
+              _movie: item._movie ? { ...item._movie, group_id: toGroupId, section: toSection, position: idx } : item._movie
             }))
 
         const finalSourceItems = clusteredSource.map((item, idx) => ({
@@ -882,14 +914,24 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
 
       if (isMovieNote) {
         if (toSection === 'done' && fromSection !== 'done') {
-          const movedObj = (itemsByGroup[fromGroupId] || []).find(i => String(i.id) === String(itemId)) || { id: itemId }
+          const movedObj = movingItems[0] || { id: itemId }
           setRatePromptItem({ ...movedObj, section: 'done' })
         }
       }
 
       try {
         if (isMovieNote) {
-          await window.api.moveMovie(itemId, toSection, insertIndex)
+          for (let i = 0; i < movingItems.length; i++) {
+            const mId = movingItems[i].id
+            const pos = insertIndex != null ? insertIndex + i : undefined
+            const movedResult = await window.api.moveMovie(mId, toSection, pos)
+            if (movedResult && movedResult.seasons && (!movingItems[i].seasons || movingItems[i].seasons === '-' || movingItems[i].seasons === '—')) {
+              setItemsByGroup(prev => {
+                const groupItems = (prev[toGroupId] || []).map(it => String(it.id) === String(mId) ? { ...it, seasons: movedResult.seasons } : it)
+                return { ...prev, [toGroupId]: groupItems }
+              })
+            }
+          }
         } else {
           await window.api.moveItem(itemId, toGroupId, insertIndex)
         }
@@ -949,8 +991,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
 
     const newList = [...remainingList]
     newList.splice(Math.max(0, Math.min(insertIdx, newList.length)), 0, ...movingItems)
+    const clusteredNewList = clusterSeriesItems(newList)
 
-    const updatedList = newList.map((item, idx) => ({
+    const updatedList = clusteredNewList.map((item, idx) => ({
       ...item,
       position: idx,
       _movie: item._movie ? { ...item._movie, position: idx } : item._movie
@@ -1525,7 +1568,7 @@ function NoteColumn({
   onDragHoverEdgeEnd,
   activeSection
 }) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const color = group.color || '#a78bfa'
   const bg = hexToRgba(color, 0.12)
   const border = hexToRgba(color, 0.3)
@@ -1538,7 +1581,7 @@ function NoteColumn({
   const cardsRef = useRef(null)
   const rafRef = useRef(null)
 
-  const columnEntries = useMemo(() => groupColumnItems(items), [items])
+  const columnEntries = useMemo(() => groupColumnItems(items, group?.id), [items, group?.id])
 
   const [measuredHeight, setMeasuredHeight] = useState(null)
   const FOOTER_HEIGHT = 44
@@ -1652,8 +1695,8 @@ function NoteColumn({
   }, [items])
 
   const formattedRuntime = useMemo(() => {
-    return formatTotalRuntime(totalMinutes)
-  }, [totalMinutes])
+    return formatTotalRuntime(totalMinutes, language)
+  }, [totalMinutes, language])
 
   useEffect(() => { setNameVal(group.name) }, [group.name])
 
@@ -1755,7 +1798,7 @@ function NoteColumn({
         const foundIdx = items.findIndex(i => String(i.id) === String(targetItemId))
         insertIndex = foundIdx !== -1 ? foundIdx : slotIdx
       }
-      await onMoveItem(rawItemId, group.id, insertIndex)
+      await onMoveItem(rawItemId, group.id, insertIndex, isSeriesGroup)
     }
   }
 
@@ -1849,7 +1892,7 @@ function NoteColumn({
         const foundIdx = items.findIndex(i => String(i.id) === String(targetItemId))
         insertIndex = foundIdx !== -1 ? foundIdx : slotIdx
       }
-      await onMoveItem(item.id, targetGroupId, insertIndex)
+      await onMoveItem(item.id, targetGroupId, insertIndex, isSeriesGroup)
     }
   }
 

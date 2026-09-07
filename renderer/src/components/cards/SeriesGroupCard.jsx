@@ -21,6 +21,13 @@ function formatSeasonRange(seasonNumbers) {
   return `S${nums.slice(0, 2).join(', S')}...S${nums[nums.length - 1]}`
 }
 
+function getPosterUrl(posterPath) {
+  if (!posterPath || posterPath === '-' || posterPath === '—' || posterPath === '/placeholder.jpg') return null
+  if (posterPath.startsWith('http://') || posterPath.startsWith('https://')) return posterPath
+  if (posterPath.startsWith('/')) return `https://image.tmdb.org/t/p/w500${posterPath}`
+  return posterPath
+}
+
 export default function SeriesGroupCard({
   seriesTitle,
   seasons,
@@ -37,7 +44,7 @@ export default function SeriesGroupCard({
   onOpenChronology,
   dragMarker
 }) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [isExpanded, setIsExpanded] = useState(false)
   const [hovered, setHovered] = useState(false)
 
@@ -60,7 +67,10 @@ export default function SeriesGroupCard({
   const firstMovie = firstSeason?._movie || firstSeason
   const firstSeasonId = firstSeason?.id
 
-  const seasonBadgeText = `${seasons.length} ${t('common.seasons', null, 'mavsum')} (${formatSeasonRange(seasonNumbers)})`
+  const seasonWord = language === 'en'
+    ? (seasons.length === 1 ? 'season' : 'seasons')
+    : (language === 'ru' ? 'сез.' : 'mavsum')
+  const seasonBadgeText = `${seasons.length} ${seasonWord} (${formatSeasonRange(seasonNumbers)})`
 
   return (
     <div
@@ -130,11 +140,12 @@ export default function SeriesGroupCard({
             justifyContent: 'center'
           }}
         >
-          {firstMovie?.poster_path ? (
+          {getPosterUrl(firstMovie?.poster_path) ? (
             <img
-              src={firstMovie.poster_path}
+              src={getPosterUrl(firstMovie?.poster_path)}
               alt=""
               loading="lazy"
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
               style={{
                 width: '100%',
                 height: '100%',

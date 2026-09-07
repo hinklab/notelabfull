@@ -38,7 +38,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
           const seen = new Set()
           const unique = data.filter(n => {
             if (!n) return false
-            const key = `${n.type}_${n.movie_data?.tmdb_id || (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim()}`
+            const key = n.dedup_key || n.movie_data?.dedup_key || `${n.type}_${n.movie_data?.tmdb_id || (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim()}`
             if (seen.has(key)) return false
             seen.add(key)
             return true

@@ -2576,13 +2576,15 @@ module.exports = async (req, res) => {
             };
 
             // Auto-repair password_hash in public.users
-            await supabase.from('users').upsert([{
-              id: authenticatedUser.id,
-              email: emailLower,
-              password_hash,
-              first_name: authenticatedUser.first_name,
-              last_name: authenticatedUser.last_name
-            }]).catch(() => {});
+            try {
+              await supabase.from('users').upsert([{
+                id: authenticatedUser.id,
+                email: emailLower,
+                password_hash,
+                first_name: authenticatedUser.first_name,
+                last_name: authenticatedUser.last_name
+              }]);
+            } catch (_) {}
 
             return res.status(200).json({ success: true, user: authenticatedUser });
           }
@@ -2656,7 +2658,7 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: 'Ro\'yxatdan o\'tishda xatolik yuz berdi.' });
     }
 
-        if (path === 'auth/reset-password-direct' && req.method === 'POST') {
+    if (path === 'auth/reset-password-direct' && req.method === 'POST') {
       const body = await parseBody(req);
       const { email, new_password } = body;
       if (!email || !email.trim()) {
@@ -2669,30 +2671,65 @@ module.exports = async (req, res) => {
       const emailLower = email.toLowerCase().trim();
       const password_hash = hashPassword(new_password);
 
-      // Check if user exists in public.users
+      let targetUserId = null;
+      let targetUserEmail = emailLower;
+      let userFirstName = null;
+      let userLastName = null;
+
+      // 1. Check if user exists in public.users (case-insensitive)
       const { data: user, error: findErr } = await supabase
         .from('users')
-        .select('id, email')
-        .eq('email', emailLower)
+        .select('id, email, first_name, last_name')
+        .ilike('email', emailLower)
         .maybeSingle();
 
-      if (!user) {
+      if (user) {
+        targetUserId = user.id;
+        targetUserEmail = user.email;
+        userFirstName = user.first_name;
+        userLastName = user.last_name;
+      }
+
+      // 2. If not found in public.users, check auth.users
+      if (!targetUserId && supabase.auth?.admin?.listUsers) {
+        try {
+          const { data: authUsers } = await supabase.auth.admin.listUsers();
+          const authMatch = (authUsers?.users || []).find(
+            u => u.email?.toLowerCase().trim() === emailLower
+          );
+          if (authMatch) {
+            targetUserId = authMatch.id;
+            targetUserEmail = authMatch.email;
+            userFirstName = authMatch.user_metadata?.first_name || null;
+            userLastName = authMatch.user_metadata?.last_name || null;
+          }
+        } catch (_) {}
+      }
+
+      if (!targetUserId) {
         return res.status(404).json({ error: 'Ushbu email bilan ro\'yxatdan o\'tgan foydalanuvchi topilmadi.' });
       }
 
-      // Update password_hash in public.users
-      const { error: updateErr } = await supabase
-        .from('users')
-        .update({ password_hash: password_hash })
-        .eq('id', user.id);
+      // 3. Upsert / update password_hash in public.users
+      try {
+        await supabase
+          .from('users')
+          .upsert([{
+            id: targetUserId,
+            email: targetUserEmail.toLowerCase(),
+            password_hash: password_hash,
+            first_name: userFirstName,
+            last_name: userLastName
+          }]);
+      } catch (_) {}
 
-      if (updateErr) {
-        return res.status(500).json({ error: 'Parolni yangilashda xatolik yuz berdi.' });
-      }
-
+      // 4. Update password in Supabase Auth
       if (supabase.auth?.admin?.updateUserById) {
         try {
-          await supabase.auth.admin.updateUserById(user.id, { password: new_password });
+          await supabase.auth.admin.updateUserById(targetUserId, {
+            password: new_password,
+            email_confirm: true
+          });
         } catch (_) {}
       }
 
@@ -2992,14 +3029,17 @@ module.exports = async (req, res) => {
       let vote_count = body.vote_count || null, seasons = body.seasons || '-';
       let media_type = body.media_type || 'movie';
 
-      const needsTmdbEnrich = body.tmdb_id && TMDB_KEY && (!poster_path || genre === '-');
+      const needsTmdbEnrich = body.tmdb_id && TMDB_KEY && (!poster_path || genre === '-' || seasons === '-' || !seasons);
       if (needsTmdbEnrich) {
         try {
           const isTv = media_type === 'tv';
-          const tmdbUrl = `https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${body.tmdb_id}?api_key=${TMDB_KEY}&append_to_response=credits&language=en-US`;
-          const tmdbRes = await fetch(tmdbUrl, { signal: AbortSignal.timeout(2000) });
+          const tmdbUrl = `https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${body.tmdb_id}?api_key=${TMDB_KEY}&append_to_response=credits,external_ids&language=en-US`;
+          const tmdbRes = await fetch(tmdbUrl, { signal: AbortSignal.timeout(3000) });
           if (tmdbRes.ok) {
             const d = await tmdbRes.json();
+            if (d.first_air_date || d.number_of_seasons) media_type = 'tv';
+            else if (d.release_date || d.runtime) media_type = 'movie';
+
             release_date = d.release_date || d.first_air_date || release_date;
             release_year = release_date ? release_date.split('-')[0] : release_year;
             rating = d.vote_average ? Number(d.vote_average.toFixed(1)) : rating;
@@ -3012,8 +3052,54 @@ module.exports = async (req, res) => {
             }
             if (d.created_by?.length && (director === '-' || !director)) director = d.created_by.map(c => c.name).join(', ');
             if (d.overview) overview = d.overview;
+
+            if (d.runtime && d.runtime > 0) {
+              const humanDur = formatDurationUz(d.runtime, false);
+              seasons = `${humanDur} (${d.runtime} min)`;
+            }
+
+            const tmdbImdbId = d.external_ids?.imdb_id || d.imdb_id || body.imdb_id || null;
+            if (tmdbImdbId) {
+              body.imdb_id = tmdbImdbId;
+              try {
+                const omdbRes = await fetch(`http://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${encodeURIComponent(tmdbImdbId)}`);
+                if (omdbRes.ok) {
+                  const od = await omdbRes.json();
+                  if (od.Response === 'True') {
+                    if ((seasons === '-' || !seasons) && od.Runtime && od.Runtime !== 'N/A') {
+                      const mins = parseInt(od.Runtime, 10);
+                      if (mins > 0) {
+                        const humanDur = formatDurationUz(mins, false);
+                        seasons = `${humanDur} (${mins} min)`;
+                      }
+                    }
+                  }
+                }
+              } catch (e) {}
+            }
           }
         } catch (e) { console.warn('TMDB enrich error:', e.message); }
+      } else if (body.imdb_id && OMDB_KEY && (!poster_path || genre === '-' || seasons === '-' || !seasons)) {
+        try {
+          const omdbRes = await fetch(`http://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${encodeURIComponent(body.imdb_id)}`);
+          if (omdbRes.ok) {
+            const od = await omdbRes.json();
+            if (od.Response === 'True') {
+              if (od.Genre && od.Genre !== 'N/A') genre = od.Genre;
+              if (od.Director && od.Director !== 'N/A') director = od.Director;
+              if (od.Plot && od.Plot !== 'N/A') overview = od.Plot;
+              if (od.Poster && od.Poster !== 'N/A') poster_path = od.Poster;
+              if (od.Year && od.Year !== 'N/A') release_year = od.Year;
+              if ((seasons === '-' || !seasons) && od.Runtime && od.Runtime !== 'N/A') {
+                const mins = parseInt(od.Runtime, 10);
+                if (mins > 0) {
+                  const humanDur = formatDurationUz(mins, false);
+                  seasons = `${humanDur} (${mins} min)`;
+                }
+              }
+            }
+          }
+        } catch (e) {}
       }
 
       // Multi-season TV Show Detection & Auto-Splitting
@@ -3206,10 +3292,30 @@ module.exports = async (req, res) => {
     if (path === 'movies/move' && req.method === 'POST') {
       const body = await parseBody(req);
       const update = { section: body.section, position: body.position ?? 0, updated_at: new Date().toISOString() };
-      // Preserve user_rating across section moves
       const parsedId = (typeof body.id === 'string' && !isNaN(Number(body.id))) ? Number(body.id) : body.id;
+
+      // Auto-enrich runtime if moving to non-futured section and runtime is missing
+      if (body.section && body.section !== 'futured') {
+        try {
+          const { data: curMovie } = await supabase.from('movies').select('*').eq('id', parsedId).maybeSingle();
+          if (curMovie && (!curMovie.seasons || curMovie.seasons === '-' || curMovie.seasons === '—') && curMovie.tmdb_id) {
+            const isTv = curMovie.media_type === 'tv';
+            const tmdbRes = await fetch(`https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${encodeURIComponent(curMovie.tmdb_id)}?api_key=${TMDB_KEY}&language=en-US`, { signal: AbortSignal.timeout(3000) });
+            if (tmdbRes.ok) {
+              const detail = await tmdbRes.json();
+              if (detail.runtime && detail.runtime > 0) {
+                const humanDur = formatDurationUz(detail.runtime, false);
+                update.seasons = `${humanDur} (${detail.runtime} min)`;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Auto-enrich runtime on move error (Vercel):', e.message);
+        }
+      }
+
       await supabase.from('movies').update(update).eq('id', parsedId);
-      return res.status(200).json({ success: true });
+      return res.status(200).json({ success: true, ...update });
     }
 
     // POST /api/movies/reorder

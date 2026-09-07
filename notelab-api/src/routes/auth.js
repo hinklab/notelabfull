@@ -35,14 +35,13 @@ router.post('/register', async (req, res) => {
   const supabase = getSupabase();
   if (supabase) {
     try {
-      // 1. Check if user already exists in public.users table
-      const { data: existing } = await supabase
+      // 1. Check if user already exists in public.users table (case-insensitive)
+      const { data: userRows } = await supabase
         .from('users')
         .select('id')
-        .eq('email', emailLower)
-        .maybeSingle();
+        .ilike('email', emailLower);
 
-      if (existing) {
+      if (userRows && userRows.length > 0) {
         return res.status(409).json({ error: 'Bu email allaqachon ro\'yxatdan o\'tgan.' });
       }
 
@@ -199,48 +198,59 @@ router.post('/login', async (req, res) => {
   if (supabase) {
     try {
       // 1. Check public.users table (case-insensitive)
-      const { data, error } = await supabase
+      const { data: userRows, error } = await supabase
         .from('users')
         .select('id, email, first_name, last_name, created_at, password_hash')
-        .ilike('email', emailLower)
-        .maybeSingle();
+        .ilike('email', emailLower);
 
-      if (!error && data) {
-        supabaseUser = data;
+      const userRow = userRows && userRows.length > 0 ? userRows[0] : null;
+
+      if (!error && userRow) {
+        supabaseUser = userRow;
         // If password_hash matches valid SHA256 hash
-        if (data.password_hash && data.password_hash !== 'synced_session' && data.password_hash === password_hash) {
-          const { password_hash: _, ...userWithoutPass } = data;
+        if (userRow.password_hash && userRow.password_hash !== 'synced_session' && userRow.password_hash === password_hash) {
+          const { password_hash: _, ...userWithoutPass } = userRow;
           return res.json({ success: true, user: userWithoutPass });
         }
       }
 
       // 2. Try Supabase Auth signInWithPassword if hash match didn't succeed directly
       if (supabase.auth?.signInWithPassword) {
-        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-          email: emailLower,
-          password: password
-        });
-
-        if (!authErr && authData?.user) {
-          const authenticatedUser = {
-            id: authData.user.id,
-            email: authData.user.email,
-            first_name: authData.user.user_metadata?.first_name || supabaseUser?.first_name || null,
-            last_name: authData.user.user_metadata?.last_name || supabaseUser?.last_name || null,
-            created_at: authData.user.created_at
-          };
-
-          // Auto-repair password_hash in public.users
-          await supabase.from('users').upsert([{
-            id: authenticatedUser.id,
+        try {
+          const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
             email: emailLower,
-            password_hash,
-            first_name: authenticatedUser.first_name,
-            last_name: authenticatedUser.last_name
-          }]).catch(() => {});
+            password: password
+          });
 
-          return res.json({ success: true, user: authenticatedUser });
-        }
+          if (!authErr && authData?.user) {
+            const authenticatedUser = {
+              id: authData.user.id,
+              email: authData.user.email,
+              first_name: authData.user.user_metadata?.first_name || supabaseUser?.first_name || null,
+              last_name: authData.user.user_metadata?.last_name || supabaseUser?.last_name || null,
+              created_at: authData.user.created_at
+            };
+
+            // Auto-repair password_hash in public.users
+            try {
+              await supabase.from('users').upsert([{
+                id: authenticatedUser.id,
+                email: authenticatedUser.email.toLowerCase(),
+                password_hash,
+                first_name: authenticatedUser.first_name,
+                last_name: authenticatedUser.last_name
+              }]);
+            } catch (_) {}
+
+            return res.json({ success: true, user: authenticatedUser });
+          }
+        } catch (_) {}
+      }
+
+      // 3. If password was changed in public.users (SHA-256) but Supabase Auth was out of sync
+      if (supabaseUser && supabaseUser.password_hash === password_hash) {
+        const { password_hash: _, ...userWithoutPass } = supabaseUser;
+        return res.json({ success: true, user: userWithoutPass });
       }
     } catch (err) {
       console.warn('Supabase login error, falling back to local DB:', err.message);
@@ -259,20 +269,24 @@ router.post('/login', async (req, res) => {
   if (supabase) {
     try {
       if (supabase.auth?.admin?.createUser) {
-        await supabase.auth.admin.createUser({
-          id: user.id,
-          email: user.email,
-          email_confirm: true,
-          user_metadata: { first_name: user.first_name || null, last_name: user.last_name || null }
-        }).catch(() => {});
+        try {
+          await supabase.auth.admin.createUser({
+            id: user.id,
+            email: user.email,
+            email_confirm: true,
+            user_metadata: { first_name: user.first_name || null, last_name: user.last_name || null }
+          });
+        } catch (_) {}
       }
-      await supabase.from('users').upsert([{
-        id: user.id,
-        email: user.email.toLowerCase(),
-        password_hash: user.password_hash,
-        first_name: user.first_name || null,
-        last_name: user.last_name || null
-      }]).catch(() => {});
+      try {
+        await supabase.from('users').upsert([{
+          id: user.id,
+          email: user.email.toLowerCase(),
+          password_hash: user.password_hash,
+          first_name: user.first_name || null,
+          last_name: user.last_name || null
+        }]);
+      } catch (_) {}
     } catch (syncEx) {
       console.warn('Auto-sync on login exception:', syncEx.message);
     }
@@ -349,6 +363,105 @@ router.patch('/profile', async (req, res) => {
   res.json({ success: true, user: updatedUser });
 });
 
+// POST /api/auth/reset-password-direct
+router.post('/reset-password-direct', async (req, res) => {
+  const { email, new_password } = req.body;
+  if (!email || !email.trim()) {
+    return res.status(400).json({ error: 'Email manzilini kiriting.' });
+  }
+  if (!new_password || new_password.length < 6) {
+    return res.status(400).json({ error: 'Yangi parol kamida 6 ta belgi bo\'lishi kerak.' });
+  }
+
+  const emailLower = email.toLowerCase().trim();
+  const password_hash = hashPassword(new_password);
+
+  const supabase = getSupabase();
+  let targetUserId = null;
+  let targetUserEmail = emailLower;
+  let userFirstName = null;
+  let userLastName = null;
+
+  if (supabase) {
+    try {
+      // 1. Check if user exists in public.users (case-insensitive)
+      const { data: userRows } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name')
+        .ilike('email', emailLower);
+
+      if (userRows && userRows.length > 0) {
+        const user = userRows[0];
+        targetUserId = user.id;
+        targetUserEmail = user.email;
+        userFirstName = user.first_name;
+        userLastName = user.last_name;
+      }
+
+      // 2. If not found in public.users, check auth.users
+      if (!targetUserId && supabase.auth?.admin?.listUsers) {
+        try {
+          const { data: authUsers } = await supabase.auth.admin.listUsers();
+          const authMatch = (authUsers?.users || []).find(
+            u => u.email?.toLowerCase().trim() === emailLower
+          );
+          if (authMatch) {
+            targetUserId = authMatch.id;
+            targetUserEmail = authMatch.email;
+            userFirstName = authMatch.user_metadata?.first_name || null;
+            userLastName = authMatch.user_metadata?.last_name || null;
+          }
+        } catch (_) {}
+      }
+
+      if (targetUserId) {
+        // 3. Upsert / update password_hash in public.users
+        try {
+          await supabase
+            .from('users')
+            .upsert([{
+              id: targetUserId,
+              email: targetUserEmail.toLowerCase(),
+              password_hash: password_hash,
+              first_name: userFirstName,
+              last_name: userLastName
+            }]);
+        } catch (_) {}
+
+        // 4. Update password in Supabase Auth
+        if (supabase.auth?.admin?.updateUserById) {
+          try {
+            await supabase.auth.admin.updateUserById(targetUserId, {
+              password: new_password,
+              email_confirm: true
+            });
+          } catch (_) {}
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: 'Parolingiz muvaffaqiyatli yangilandi! Endi yangi parolingiz bilan kirishingiz mumkin.'
+        });
+      }
+    } catch (e) {
+      console.warn('Supabase reset-password-direct error:', e.message);
+    }
+  }
+
+  // Local JSON DB fallback
+  const db = readDB();
+  const user = (db.users || []).find(u => u.email.toLowerCase() === emailLower);
+  if (user) {
+    user.password_hash = password_hash;
+    writeDB(db);
+    return res.status(200).json({
+      success: true,
+      message: 'Parolingiz muvaffaqiyatli yangilandi! Endi yangi parolingiz bilan kirishingiz mumkin.'
+    });
+  }
+
+  return res.status(404).json({ error: 'Ushbu email bilan ro\'yxatdan o\'tgan foydalanuvchi topilmadi.' });
+});
 
 // Helper to send recovery email via Resend
 async function sendRecoveryEmailViaResend(toEmail, actionLink) {
