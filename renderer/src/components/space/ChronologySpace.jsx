@@ -518,6 +518,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   // Sidebar States
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [viewedFranchises, setViewedFranchises] = useState([])
+  const [gamificationProgress, setGamificationProgress] = useState({})
   const [sidebarSearch, setSidebarSearch] = useState('')
   const [activeTmdbId, setActiveTmdbId] = useState(targetTmdbId)
   const [hoveredNodeId, setHoveredNodeId] = useState(null)
@@ -671,6 +672,21 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
     return []
   }
 
+  // Fetch gamification completion progress for sidebar indicator
+  const fetchGamificationProgress = useCallback(async () => {
+    try {
+      const client = api || window.api
+      if (client?.getGamificationProgress) {
+        const res = await client.getGamificationProgress()
+        if (res && res.universes) {
+          setGamificationProgress(res.universes)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch gamification progress:', e)
+    }
+  }, [])
+
   // 2. Fetch specific franchise data by tmdb_id & media_type
   const loadFranchiseData = async (tmdbId, mediaType = null, lang = language) => {
     if (!tmdbId) return
@@ -774,6 +790,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   // Initial load effect
   useEffect(() => {
     (async () => {
+      fetchGamificationProgress()
       const list = await fetchViewedFranchises()
       if (targetTmdbId) {
         loadFranchiseData(targetTmdbId, targetMediaType, language)
@@ -783,7 +800,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
         loadFranchiseData(1726, 'movie', language)
       }
     })()
-  }, [targetTmdbId, targetMediaType])
+  }, [targetTmdbId, targetMediaType, fetchGamificationProgress])
 
   // Add Movie to User Board
   const handleAddMovieToBoard = async (movieToAdd, section = 'todo', e = null) => {
@@ -1307,6 +1324,9 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   const isHovered = hoveredFranchiseKey === itemKey
                   const isConfirmingDelete = confirmDeleteKey === itemKey
 
+                  const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : null))))
+                  const uProg = uKey ? gamificationProgress[uKey] : null
+
                   return (
                     <div
                       key={itemKey}
@@ -1325,8 +1345,8 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                           }
                         }}
                         style={{
-                          padding: '8px 10px',
-                          paddingRight: isHovered || isConfirmingDelete ? 36 : 10,
+                          padding: '10px 12px',
+                          paddingRight: isHovered || isConfirmingDelete ? 36 : 12,
                           borderRadius: 14,
                           width: '100%',
                           textAlign: 'left',
@@ -1345,11 +1365,41 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                           if (!isActive) e.currentTarget.style.background = 'var(--bg-card)'
                         }}
                       >
-                        <FranchiseBadge item={item} size={32} active={isActive} />
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <FranchiseBadge item={item} size={34} active={isActive} />
+                          {uProg?.highest_badge && (
+                            <span
+                              style={{
+                                position: 'absolute',
+                                bottom: -3,
+                                right: -4,
+                                fontSize: 13,
+                                lineHeight: 1,
+                                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))'
+                              }}
+                              title={`${uProg.highest_badge.toUpperCase()} Nishoni`}
+                            >
+                              {uProg.highest_badge === 'gold' ? '🥇' : (uProg.highest_badge === 'silver' ? '🥈' : '🥉')}
+                            </span>
+                          )}
+                        </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? 'var(--accent)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.name}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? 'var(--accent)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                              {item.name}
+                            </div>
+                            {uProg && (
+                              <span style={{
+                                fontSize: 10.5,
+                                fontWeight: 800,
+                                color: uProg.percent > 0 ? (uProg.percent === 100 ? '#eab308' : 'var(--accent)') : 'var(--text-muted)',
+                                flexShrink: 0
+                              }}>
+                                {uProg.percent}%
+                              </span>
+                            )}
                           </div>
+                          
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-secondary)', marginTop: 3 }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                               {item.is_universe ? (
@@ -1364,10 +1414,27 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                                 </>
                               )}
                             </span>
-                            <span style={{ background: 'var(--bg-input)', padding: '1px 6px', borderRadius: 8, color: 'var(--text-secondary)' }}>
-                              {countToDisplay} {t('space.moviesCount')}
+                            <span style={{ background: 'var(--bg-input)', padding: '1px 6px', borderRadius: 8, color: 'var(--text-secondary)', fontSize: 9.5 }}>
+                              {uProg ? `${uProg.done}/${uProg.total || countToDisplay}` : `${countToDisplay} ${t('space.moviesCount')}`}
                             </span>
                           </div>
+
+                          {/* Progress bar line */}
+                          {uProg && uProg.total > 0 && (
+                            <div style={{ width: '100%', height: 3.5, background: 'var(--bg-input)', borderRadius: 2, overflow: 'hidden', marginTop: 5 }}>
+                              <div
+                                style={{
+                                  width: `${Math.min(100, uProg.percent)}%`,
+                                  height: '100%',
+                                  background: uProg.percent === 100 
+                                    ? 'linear-gradient(90deg, #eab308, #f59e0b)' 
+                                    : (uProg.percent >= 60 ? 'linear-gradient(90deg, #3b82f6, #60a5fa)' : 'linear-gradient(90deg, var(--accent), #a78bfa)'),
+                                  borderRadius: 2,
+                                  transition: 'width 0.3s ease'
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       </button>
 
@@ -1474,13 +1541,15 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               {filteredFranchises.map((item, idx) => {
                 const itemKey = item.universe_key || item.key || (item.tmdb_id ? `movie_${item.tmdb_id}` : `idx_${idx}`)
                 const isActive = (item.universe_key && universeData?.universe_key === item.universe_key) || (item.tmdb_id && activeTmdbId === item.tmdb_id)
+                const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : null))))
+                const uProg = uKey ? gamificationProgress[uKey] : null
 
                 return (
                   <button
                     key={itemKey}
                     type="button"
                     onClick={() => loadFranchiseData(item.tmdb_id, item.media_type)}
-                    title={`${item.name} (${item.is_universe ? 'Koinot' : 'Franshiza'})`}
+                    title={`${item.name} (${item.is_universe ? 'Koinot' : 'Franshiza'})${uProg ? ` · ${uProg.percent}%` : ''}`}
                     style={{
                       background: 'transparent',
                       border: 'none',
@@ -1488,12 +1557,27 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                       cursor: 'pointer',
                       borderRadius: '50%',
                       transition: 'transform 0.15s ease',
-                      opacity: isActive ? 1 : 0.65
+                      opacity: isActive ? 1 : 0.65,
+                      position: 'relative'
                     }}
                     onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.15)'; e.currentTarget.style.opacity = '1'; }}
                     onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.opacity = isActive ? '1' : '0.65'; }}
                   >
                     <FranchiseBadge item={item} size={28} active={isActive} />
+                    {uProg?.highest_badge && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          bottom: -3,
+                          right: -3,
+                          fontSize: 10,
+                          lineHeight: 1,
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
+                        }}
+                      >
+                        {uProg.highest_badge === 'gold' ? '🥇' : (uProg.highest_badge === 'silver' ? '🥈' : '🥉')}
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -1787,8 +1871,9 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                 <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
                   <iframe
                     ref={modalTrailerIframeRef}
-                    src={`https://www.youtube-nocookie.com/embed/${modalTrailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${modalTrailer.key}&disablekb=1&widget_referrer=${window.location.origin}`}
+                    src={`https://www.youtube-nocookie.com/embed/${modalTrailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${modalTrailer.key}&disablekb=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
                     title={`${selectedMovie.title} trailer`}
+                    referrerPolicy="strict-origin-when-cross-origin"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     style={{
                       position: "absolute",

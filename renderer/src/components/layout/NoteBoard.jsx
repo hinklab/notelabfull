@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard, { prefetchTrailer } from '../cards/MovieCard.jsx'
 import SeriesGroupCard from '../cards/SeriesGroupCard.jsx'
+import BadgeCelebrationModal from '../modals/BadgeCelebrationModal.jsx'
 import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getMovieFranchiseInfo } from '../../config/chronologyData.js'
@@ -385,6 +386,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
   const [renameGroupId, setRenameGroupId] = useState(null)
   const [draggingGroupId, setDraggingGroupId] = useState(null)
   const [ratePromptItem, setRatePromptItem] = useState(null)
+  const [celebrationBadges, setCelebrationBadges] = useState(null)
   const [expandedMovieId, setExpandedMovieId] = useState(null)
   const [toastMessage, setToastMessage] = useState(null)
   const groupDragOver = useRef(null)
@@ -916,6 +918,17 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         if (toSection === 'done' && fromSection !== 'done') {
           const movedObj = movingItems[0] || { id: itemId }
           setRatePromptItem({ ...movedObj, section: 'done' })
+
+          // Check if moving this movie unlocked any franchise badges
+          if (window.api?.getGamificationProgress) {
+            window.api.getGamificationProgress()
+              .then(res => {
+                if (res && Array.isArray(res.newly_unlocked) && res.newly_unlocked.length > 0) {
+                  setCelebrationBadges(res.newly_unlocked)
+                }
+              })
+              .catch(e => console.warn('Gamification check error:', e))
+          }
         }
       }
 
@@ -1495,6 +1508,13 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
           <Star size={14} fill="#60a5fa" color="#60a5fa" />
           <span>{toastMessage}</span>
         </div>
+      )}
+
+      {celebrationBadges && (
+        <BadgeCelebrationModal
+          badges={celebrationBadges}
+          onClose={() => setCelebrationBadges(null)}
+        />
       )}
 
       {showCreateGroup && (

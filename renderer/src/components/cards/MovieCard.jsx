@@ -1355,8 +1355,9 @@ function MovieCard({
               <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
                 <iframe
                   ref={trailerIframeRef}
-                  src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${trailer.key}&disablekb=1&widget_referrer=${window.location.origin}`}
+                  src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${trailer.key}&disablekb=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
                   title={`${displayTitle} trailer`}
+                  referrerPolicy="strict-origin-when-cross-origin"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   style={{
                     position: 'absolute',

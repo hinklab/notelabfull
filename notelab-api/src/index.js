@@ -36,6 +36,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/user-preferences', require('./routes/userPreferences'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/franchises', require('./routes/franchises'));
+app.use('/api/gamification', require('./routes/gamification'));
 
 // Error handler
 app.use((err, req, res, next) => {

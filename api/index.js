@@ -4574,6 +4574,151 @@ module.exports = async (req, res) => {
     }
 
     // ═══════════════════════════════════════
+    // GAMIFICATION
+    // ═══════════════════════════════════════
+    const GAMIFICATION_BADGES = [
+      { id: 'mcu_bronze', universe_key: 'mcu', universe_name: 'Marvel Cinematic Universe', tier: 'bronze', threshold: 25, title: "MCU: Qahramonlik Yo'li", title_en: 'MCU: Path of Heroes', description: "MCU koinotidagi kamida 25% film va seriallarni ko'rdingiz.", icon: '🥉' },
+      { id: 'mcu_silver', universe_key: 'mcu', universe_name: 'Marvel Cinematic Universe', tier: 'silver', threshold: 60, title: 'MCU: Qasoskor', title_en: 'MCU: Avenger', description: "MCU koinotidagi 60% dan ortiq elementlarni ko'rib chiqdingiz.", icon: '🥈' },
+      { id: 'mcu_gold', universe_key: 'mcu', universe_name: 'Marvel Cinematic Universe', tier: 'gold', threshold: 100, title: 'MCU: Cheksizlik Sohibi', title_en: 'MCU: Master of Infinity', description: "Tabriklaymiz! MCU koinotidagi barcha film va seriallarni to'liq ko'rib tugatdingiz!", icon: '🥇' },
+      { id: 'dceu_bronze', universe_key: 'dceu', universe_name: 'DC Extended Universe', tier: 'bronze', threshold: 25, title: 'DCEU: Adolat Boshlanishi', title_en: 'DCEU: Dawn of Justice', description: "DCEU olamidagi kamida 25% filmlarni ko'rib chiqdingiz.", icon: '🥉' },
+      { id: 'dceu_silver', universe_key: 'dceu', universe_name: 'DC Extended Universe', tier: 'silver', threshold: 60, title: 'DCEU: Adolat Ligasi', title_en: 'DCEU: Justice League', description: "DCEU olamidagi 60% dan ortiq filmlarni ko'rib chiqdingiz.", icon: '🥈' },
+      { id: 'dceu_gold', universe_key: 'dceu', universe_name: 'DC Extended Universe', tier: 'gold', threshold: 100, title: 'DCEU: Multikoinot Hukmdori', title_en: 'DCEU: Multiverse Master', description: "DCEU (2013–2023) franshizasidagi barcha filmlarni 100% to'liq ko'rib chiqdingiz!", icon: '🥇' },
+      { id: 'star_wars_bronze', universe_key: 'star_wars', universe_name: 'Star Wars Universe', tier: 'bronze', threshold: 25, title: 'Star Wars: Padavan', title_en: 'Star Wars: Padawan', description: "Yulduzlar Jangi sagasining kamida 25% filmlarini ko'rdingiz.", icon: '🥉' },
+      { id: 'star_wars_silver', universe_key: 'star_wars', universe_name: 'Star Wars Universe', tier: 'silver', threshold: 60, title: 'Star Wars: Jedi Ritsari', title_en: 'Star Wars: Jedi Knight', description: "Yulduzlar Jangi olamining 60% dan ortig'ini zabt etdingiz.", icon: '🥈' },
+      { id: 'star_wars_gold', universe_key: 'star_wars', universe_name: 'Star Wars Universe', tier: 'gold', threshold: 100, title: 'Star Wars: Kuch Ustasi', title_en: 'Star Wars: Force Master', description: "Kuch siz bilan! Barcha Star Wars kanon filmlarini 100% to'liq ko'rdingiz!", icon: '🥇' },
+      { id: 'kurtlar_vadisi_bronze', universe_key: 'kurtlar_vadisi', universe_name: 'Kurtlar Vadisi Universe', tier: 'bronze', threshold: 25, title: "Kurtlar Vadisi: Bo'ri", title_en: 'Valley of the Wolves: Wolf', description: "Kurtlar Vadisi dostonining 25% qismlarini ko'rib chiqdingiz.", icon: '🥉' },
+      { id: 'kurtlar_vadisi_silver', universe_key: 'kurtlar_vadisi', universe_name: 'Kurtlar Vadisi Universe', tier: 'silver', threshold: 60, title: "Kurtlar Vadisi: Kengash A'zosi", title_en: 'Valley of the Wolves: Council Member', description: "Kurtlar Vadisi olamining 60% dan ko'prog'ini tomosha qildingiz.", icon: '🥈' },
+      { id: 'kurtlar_vadisi_gold', universe_key: 'kurtlar_vadisi', universe_name: 'Kurtlar Vadisi Universe', tier: 'gold', threshold: 100, title: 'Kurtlar Vadisi: Baron', title_en: 'Valley of the Wolves: The Baron', description: "Bu shunchaki kino emas, bu hayot! Barcha serial va filmlarini 100% to'liq ko'rdingiz!", icon: '🥇' },
+      { id: 'dcu_bronze', universe_key: 'dcu', universe_name: 'DC Universe (Gods and Monsters)', tier: 'bronze', threshold: 25, title: 'DCU: Xudolar va Maxluqlar', title_en: 'DCU: Gods and Monsters', description: "Yangi James Gunn DCU olamidagi dastlabki loyihalarni ko'rib chiqdingiz.", icon: '🥉' },
+      { id: 'dcu_silver', universe_key: 'dcu', universe_name: 'DC Universe (Gods and Monsters)', tier: 'silver', threshold: 60, title: 'DCU: Yangi Davr', title_en: 'DCU: New Chapter', description: "DCU olamidagi loyihalarning 60% dan ortig'ini tomosha qildingiz.", icon: '🥈' },
+      { id: 'dcu_gold', universe_key: 'dcu', universe_name: 'DC Universe (Gods and Monsters)', tier: 'gold', threshold: 100, title: 'DCU: Haqiqat va Adolat', title_en: 'DCU: Truth and Justice', description: "Yangi DCU olamidagi barcha loyihalarni 100% to'liq ko'rib bo'ldingiz!", icon: '🥇' }
+    ];
+
+    if ((path === 'gamification/progress' || path === 'gamification/badges') && req.method === 'GET') {
+      const { data: userMovies } = await supabase.from('movies').select('*').eq('user_id', userId);
+      const moviesList = userMovies || [];
+
+      const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu'];
+      const progressMap = {};
+
+      curatedKeys.forEach(uKey => {
+        const uCfg = FRANCHISE_UNIVERSES[uKey] || {};
+        const items = uCfg.chronological_order || [];
+        const total = items.length;
+        let inBoardCount = 0;
+        let doneCount = 0;
+
+        items.forEach(item => {
+          const rawId = typeof item === 'object' ? item.id : item;
+          const isStringId = typeof rawId === 'string' && rawId.includes('_s');
+          const baseTmdbId = (typeof item === 'object' && item.tmdb_id) ? item.tmdb_id : (isStringId ? parseInt(rawId.split('_s')[0], 10) : Number(rawId));
+          const seasonNumber = (typeof item === 'object' && item.season_number) ? item.season_number : (isStringId ? parseInt(rawId.split('_s')[1], 10) : null);
+
+          const match = moviesList.find(m => {
+            if (Number(m.tmdb_id) !== baseTmdbId) return false;
+            if (seasonNumber) {
+              const titleMatch = m.title && m.title.match(/(?:—|-|\b)\s*(?:Season|mavsum|sezon|s)\s*(\d+)\b/i);
+              if (titleMatch) return parseInt(titleMatch[1], 10) === seasonNumber;
+              return true;
+            }
+            return true;
+          });
+
+          if (match) {
+            inBoardCount++;
+            if (match.section === 'done') doneCount++;
+          }
+        });
+
+        const percent = total > 0 ? Math.min(100, Math.round((doneCount / total) * 100)) : 0;
+        let highestBadge = null;
+        if (percent === 100) highestBadge = 'gold';
+        else if (percent >= 60) highestBadge = 'silver';
+        else if (percent >= 25) highestBadge = 'bronze';
+
+        progressMap[uKey] = {
+          key: uKey,
+          name: uCfg.name || uKey,
+          total,
+          in_board: inBoardCount,
+          done: doneCount,
+          percent,
+          highest_badge: highestBadge
+        };
+      });
+
+      const { data: gData } = await supabase.from('user_settings').select('settings').eq('id', `gamification_${userId}`).maybeSingle();
+      const existingBadges = (gData?.settings?.unlocked_badges && Array.isArray(gData.settings.unlocked_badges)) ? [...gData.settings.unlocked_badges] : [];
+      const existingIds = new Set(existingBadges.map(b => b.id));
+      const newlyUnlocked = [];
+
+      GAMIFICATION_BADGES.forEach(badgeDef => {
+        const uProg = progressMap[badgeDef.universe_key];
+        if (!uProg) return;
+
+        if (uProg.percent >= badgeDef.threshold) {
+          if (!existingIds.has(badgeDef.id)) {
+            const newB = {
+              id: badgeDef.id,
+              universe_key: badgeDef.universe_key,
+              universe_name: badgeDef.universe_name,
+              tier: badgeDef.tier,
+              title: badgeDef.title,
+              description: badgeDef.description,
+              icon: badgeDef.icon,
+              threshold: badgeDef.threshold,
+              percent_achieved: uProg.percent,
+              unlocked_at: new Date().toISOString()
+            };
+            existingBadges.push(newB);
+            existingIds.add(badgeDef.id);
+            newlyUnlocked.push(newB);
+          }
+        }
+      });
+
+      if (newlyUnlocked.length > 0) {
+        await supabase.from('user_settings').upsert({
+          id: `gamification_${userId}`,
+          user_id: userId,
+          settings: { unlocked_badges: existingBadges },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      }
+
+      if (path === 'gamification/progress') {
+        return res.status(200).json({
+          universes: progressMap,
+          unlocked_badges: existingBadges,
+          newly_unlocked: newlyUnlocked
+        });
+      }
+
+      // path === 'gamification/badges'
+      const unlockedMap = new Map(existingBadges.map(b => [b.id, b]));
+      const fullCatalogue = GAMIFICATION_BADGES.map(badge => {
+        const uInfo = unlockedMap.get(badge.id);
+        const uProg = progressMap[badge.universe_key] || { percent: 0, done: 0, total: 0 };
+        return {
+          ...badge,
+          unlocked: !!uInfo,
+          unlocked_at: uInfo ? uInfo.unlocked_at : null,
+          current_percent: uProg.percent,
+          needed_percent: badge.threshold
+        };
+      });
+
+      return res.status(200).json({
+        badges: fullCatalogue,
+        universes: progressMap,
+        total_badges: GAMIFICATION_BADGES.length,
+        unlocked_count: existingBadges.length,
+        unlocked_badges: existingBadges,
+        newly_unlocked: newlyUnlocked
+      });
+    }
+
+    // ═══════════════════════════════════════
     // SETTINGS
     // ═══════════════════════════════════════
     if (path === 'settings' && req.method === 'GET') {

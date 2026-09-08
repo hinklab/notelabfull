@@ -7,9 +7,7 @@ import { AuthProvider } from './context/AuthContext.jsx'
 import { LanguageProvider } from './context/LanguageContext.jsx'
 import { AlertTriangle } from 'lucide-react'
 
-if (!window.api) {
-  window.api = api
-}
+window.api = api
 
 class ErrorBoundary extends React.Component {
   constructor(props) {

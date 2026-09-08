@@ -151,6 +151,10 @@ export const api = {
   markAllNotificationsRead: () => fetchJSON(`${API_BASE}/notifications/read-all`, { method: 'POST' }),
   deleteNotification: (id) => fetchJSON(`${API_BASE}/notifications/${id}`, { method: 'DELETE' }),
 
+  // Gamification & Badges
+  getGamificationProgress: () => fetchJSON(`${API_BASE}/gamification/progress`),
+  getGamificationBadges: () => fetchJSON(`${API_BASE}/gamification/badges`),
+
   // Agent
   agentChat: (msg, history, uiMovies, noteCtx) => fetchJSON(`${API_BASE}/agent/chat`, {
     method: 'POST',

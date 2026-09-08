@@ -110,6 +110,7 @@ export const translations = {
     },
     "settings": {
       "title": "Sozlamalar",
+      "achievements": "Yutuqlar",
       "appearance": "Ko'rinish",
       "theme": "Mavzu",
       "themeDesc": "Ilova ko'rinishi interfeysi mavzusi",
@@ -139,6 +140,17 @@ export const translations = {
       "instagramAction": "Instagram'da ochish",
       "logout": "Chiqish",
       "version": "Versiya"
+    },
+    "gamification": {
+      "achievementsTitle": "Franshizalar Yutuqlari",
+      "achievementsDesc": "5 ta katta kino koinotini tomosha qilib, maxsus nishonlarni oching",
+      "badgeUnlocked": "Yangi Yutuq Ochildi!",
+      "unlocked": "Ochilgan",
+      "tier": "Nishoni",
+      "celebrateAction": "Ajoyib!",
+      "nextBadge": "Keyingi Yutuq",
+      "unlockedStatus": "Ochilgan",
+      "needed": "talab qilinadi"
     },
     "notifications": {
       "title": "Bildirishnomalar",
@@ -383,6 +395,7 @@ export const translations = {
     },
     "settings": {
       "title": "Настройки",
+      "achievements": "Достижения",
       "appearance": "Внешний вид",
       "theme": "Тема оформления",
       "themeDesc": "Тема пользовательского интерфейса",
@@ -412,6 +425,17 @@ export const translations = {
       "instagramAction": "Открыть в Instagram",
       "logout": "Выйти",
       "version": "Версия"
+    },
+    "gamification": {
+      "achievementsTitle": "Достижения франшиз",
+      "achievementsDesc": "Смотрите фильмы и сериалы 5 великих киновселенных и собирайте значки",
+      "badgeUnlocked": "Открыто новое достижение!",
+      "unlocked": "Открыто",
+      "tier": "Значок",
+      "celebrateAction": "Отлично!",
+      "nextBadge": "Следующее достижение",
+      "unlockedStatus": "Открыто",
+      "needed": "требуется"
     },
     "notifications": {
       "title": "Уведомления",
@@ -656,6 +680,7 @@ export const translations = {
     },
     "settings": {
       "title": "Settings",
+      "achievements": "Achievements",
       "appearance": "Appearance",
       "theme": "Theme",
       "themeDesc": "Application user interface theme",
@@ -685,6 +710,17 @@ export const translations = {
       "instagramAction": "Open in Instagram",
       "logout": "Log out",
       "version": "Version"
+    },
+    "gamification": {
+      "achievementsTitle": "Franchise Achievements",
+      "achievementsDesc": "Watch movies & shows across the 5 great universes and collect badges",
+      "badgeUnlocked": "New Achievement Unlocked!",
+      "unlocked": "Unlocked",
+      "tier": "Badge",
+      "celebrateAction": "Awesome!",
+      "nextBadge": "Next Achievement",
+      "unlockedStatus": "Unlocked",
+      "needed": "required"
     },
     "notifications": {
       "title": "Notifications",

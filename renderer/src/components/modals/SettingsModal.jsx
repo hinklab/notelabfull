@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom'
-import { User, Sun, Moon, LogOut, X, Check, Globe, MapPin, RefreshCw, MessageCircle, ExternalLink } from 'lucide-react'
+import { User, Sun, Moon, LogOut, X, Check, Globe, MapPin, RefreshCw, MessageCircle, ExternalLink, Trophy, Lock, Sparkles, Award } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useLanguage } from '../../context/LanguageContext.jsx'
+import { api } from '../../config/api.js'
 import { getStoredUserLocation, storeUserLocation, requestBrowserGeolocation } from '../../services/geo.js'
 import { TelegramIcon, InstagramIcon } from '../common/SocialIcons.jsx'
 
@@ -69,14 +70,40 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
     window.dispatchEvent(new CustomEvent('notelab_theme_changed', { detail: newTheme }));
   }
 
+  // Tab: Achievements state
+  const [achievementsData, setAchievementsData] = useState(null)
+  const [achievementsLoading, setAchievementsLoading] = useState(false)
+
+  const fetchAchievements = async () => {
+    setAchievementsLoading(true)
+    try {
+      const client = api || window.api
+      if (client?.getGamificationBadges) {
+        const data = await client.getGamificationBadges()
+        setAchievementsData(data)
+      }
+    } catch (err) {
+      console.error('Failed to load achievements:', err)
+    } finally {
+      setAchievementsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'achievements' && !achievementsData) {
+      fetchAchievements()
+    }
+  }, [activeTab, achievementsData])
+
   const tabs = [
     { id: 'profile', label: t('settings.profile', null, 'Profil'), icon: User },
+    { id: 'achievements', label: t('settings.achievements', null, 'Yutuqlar'), icon: Trophy, color: '#f59e0b' },
     { id: 'appearance', label: t('settings.appearance', null, "Ko'rinish"), icon: theme === 'dark' ? Moon : Sun },
     { id: 'contact', label: t('settings.contact', null, "Bog'lanish"), icon: MessageCircle, color: '#38bdf8' },
     { id: 'logout', label: t('settings.logout', null, 'Chiqish'), icon: LogOut, color: '#ef4444' },
   ]
 
-  const tabIndexMap = { profile: 0, appearance: 1, contact: 2, logout: 3 }
+  const tabIndexMap = { profile: 0, achievements: 1, appearance: 2, contact: 3, logout: 4 }
   const activeIndex = tabIndexMap[activeTab] ?? 0
 
   return ReactDOM.createPortal(
@@ -338,6 +365,164 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                   <span>{t('onboarding.submit')}</span>
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* TAB: Yutuqlar (Achievements) */}
+          {activeTab === 'achievements' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Header Banner */}
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.04) 100%)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  borderRadius: 16,
+                  padding: '18px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div
+                    style={{
+                      width: 46,
+                      height: 46,
+                      borderRadius: '50%',
+                      background: 'rgba(245, 158, 11, 0.2)',
+                      border: '1.5px solid #f59e0b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                  >
+                    <Trophy size={24} color="#f59e0b" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.01em' }}>
+                      {t('gamification.achievementsTitle', null, 'Franshizalar Yutuqlari')}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                      {t('gamification.achievementsDesc', null, '5 ta katta kino koinotini tomosha qilib, maxsus nishonlarni oching')}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#f59e0b' }}>
+                    {achievementsData?.unlocked_count || 0} <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>/ {achievementsData?.total_badges || 15}</span>
+                  </div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {t('gamification.unlocked', null, 'Ochilgan')}
+                  </div>
+                </div>
+              </div>
+
+              {achievementsLoading && (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: 13 }}>{t('common.loading')}...</div>
+                </div>
+              )}
+
+              {!achievementsLoading && achievementsData && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  {['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu'].map(uKey => {
+                    const uProg = achievementsData.universes?.[uKey] || { name: uKey, percent: 0, done: 0, total: 0 }
+                    const universeBadges = (achievementsData.badges || []).filter(b => b.universe_key === uKey)
+
+                    return (
+                      <div
+                        key={uKey}
+                        style={{
+                          background: 'var(--bg-input, #1b1b1f)',
+                          border: '1px solid var(--border, #27272a)',
+                          borderRadius: 16,
+                          padding: '16px 18px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 14
+                        }}
+                      >
+                        {/* Universe Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
+                              {uProg.name}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                              {uProg.done} / {uProg.total} {t('space.done', null, "ko'rildi")} · <strong style={{ color: uProg.percent > 0 ? '#f59e0b' : 'inherit' }}>{uProg.percent}%</strong>
+                            </div>
+                          </div>
+
+                          {/* Universe Mini Progress bar */}
+                          <div style={{ width: 100, height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                width: `${uProg.percent}%`,
+                                height: '100%',
+                                background: uProg.percent === 100 ? '#eab308' : (uProg.percent >= 60 ? '#3b82f6' : '#a855f7'),
+                                borderRadius: 3,
+                                transition: 'width 0.3s ease'
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* 3 Badges for this Universe */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                          {universeBadges.map(b => {
+                            const isUnlocked = !!b.unlocked
+                            const isGoldTier = b.tier === 'gold'
+                            const isSilverTier = b.tier === 'silver'
+                            const badgeBorder = isUnlocked
+                              ? (isGoldTier ? 'rgba(234, 179, 8, 0.4)' : (isSilverTier ? 'rgba(148, 163, 184, 0.4)' : 'rgba(205, 127, 50, 0.4)'))
+                              : 'rgba(255, 255, 255, 0.07)'
+                            const badgeBg = isUnlocked
+                              ? (isGoldTier ? 'rgba(234, 179, 8, 0.08)' : (isSilverTier ? 'rgba(148, 163, 184, 0.08)' : 'rgba(205, 127, 50, 0.08)'))
+                              : 'rgba(0, 0, 0, 0.25)'
+
+                            return (
+                              <div
+                                key={b.id}
+                                style={{
+                                  background: badgeBg,
+                                  border: `1px solid ${badgeBorder}`,
+                                  borderRadius: 12,
+                                  padding: '12px 10px',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  textAlign: 'center',
+                                  opacity: isUnlocked ? 1 : 0.6,
+                                  position: 'relative',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                {/* Badge Icon with Lock or Medal */}
+                                <div style={{ fontSize: 28, marginBottom: 6, filter: isUnlocked ? 'none' : 'grayscale(1)' }}>
+                                  {b.icon}
+                                </div>
+
+                                <div style={{ fontSize: 11, fontWeight: 700, color: isUnlocked ? '#ffffff' : 'var(--text-secondary)', marginBottom: 4, lineHeight: 1.3 }}>
+                                  {b.title}
+                                </div>
+
+                                <div style={{ fontSize: 9.5, fontWeight: 600, color: isUnlocked ? '#22c55e' : 'var(--text-muted)' }}>
+                                  {isUnlocked
+                                    ? `✓ ${t('gamification.unlockedStatus', null, 'Ochilgan')}`
+                                    : `${b.needed_percent}% ${t('gamification.needed', null, 'talab qilinadi')}`}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 
