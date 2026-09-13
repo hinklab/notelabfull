@@ -557,26 +557,19 @@ function MovieCard({
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
       setRenderExpanded(true)
       setIsClosing(false)
-      // Delay isOpen by one frame so the browser can first paint maxHeight: 116,
-      // then transition to maxHeight: 1100 — creating the smooth open animation
-      const openRaf = requestAnimationFrame(() => {
+      // Small 30ms delay ensures the browser commits the 116px layout before expanding to 1100px
+      const openTimer = setTimeout(() => {
         setIsOpen(true)
-      })
-      
-      // Immediately on frame 0, trigger seamless speed-graph slide alongside card morph
-      const raf = requestAnimationFrame(() => {
-        centerCardEquator(cardRef.current, 280)
-      })
+      }, 30)
 
-      // Settle at exact final equatorial center when morph finishes
-      const t = setTimeout(() => {
-        centerCardEquator(cardRef.current, 120)
-      }, 280)
+      // Smoothly adjust equatorial center after the card starts expanding
+      const scrollTimer = setTimeout(() => {
+        centerCardEquator(cardRef.current, 260)
+      }, 180)
 
       return () => {
-        cancelAnimationFrame(openRaf)
-        cancelAnimationFrame(raf)
-        clearTimeout(t)
+        clearTimeout(openTimer)
+        clearTimeout(scrollTimer)
       }
     } else {
       setIsOpen(false)
@@ -586,7 +579,7 @@ function MovieCard({
       closeTimerRef.current = setTimeout(() => {
         setRenderExpanded(false)
         setIsClosing(false)
-      }, 280)
+      }, 360)
       return () => {
         if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
       }
@@ -1007,8 +1000,8 @@ function MovieCard({
         boxShadow: 'none',
         cursor: isCardExpanded ? 'default' : (isTouchDragging ? 'grabbing' : 'pointer'),
         overflow: 'hidden',
-        maxHeight: renderExpanded ? (isVisuallyExpanded ? 1100 : 116) : 'none',
-        transition: 'max-height 0.28s cubic-bezier(0.05, 0.9, 0.1, 1), border-color 0.18s ease, background 0.18s ease, box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        maxHeight: isVisuallyExpanded ? 1100 : 116,
+        transition: 'max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background 0.2s ease, box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         opacity: isTouchDragging ? 0.35 : 1,
         touchAction: 'pan-y',
         WebkitTouchCallout: 'none',
@@ -1341,7 +1334,7 @@ function MovieCard({
           flexDirection: 'column',
           opacity: isVisuallyExpanded ? 1 : 0,
           transform: isVisuallyExpanded ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.98)',
-          transition: 'opacity 0.28s cubic-bezier(0.05, 0.9, 0.1, 1), transform 0.36s cubic-bezier(0.05, 0.9, 0.1, 1)',
+          transition: 'opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
         }}>
           {/* Top Horizontal Cinema Trailer / Poster Banner */}
           <div

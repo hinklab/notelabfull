@@ -5045,9 +5045,10 @@ module.exports = async (req, res) => {
 
         const newNotifsToInsert = [];
 
-        // 1. Release Alerts: For movies with release_date <= today that user hasn't been alerted about
+        // 1. Release Alerts: ONLY for movies in 'futured' whose release_date is today or in the last 3 days
         const todayIso = new Date().toISOString().split('T')[0];
-        const futuredMovies = movies.filter(m => m.release_date && m.release_date <= todayIso && (m.section === 'futured' || m.section === 'todo'));
+        const threeDaysAgoIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const futuredMovies = movies.filter(m => m.section === 'futured' && m.release_date && m.release_date <= todayIso && m.release_date >= threeDaysAgoIso);
         for (const fm of futuredMovies) {
           const fmId = fm.tmdb_id ? String(fm.tmdb_id) : null;
           const fmTitle = (fm.title || '').toLowerCase().trim();
@@ -5069,6 +5070,10 @@ module.exports = async (req, res) => {
               },
               is_read: false
             });
+            // Auto-move premiered movie from futured to todo in Supabase
+            try {
+              await supabase.from('movies').update({ section: 'todo', updated_at: new Date().toISOString() }).eq('id', fm.id);
+            } catch (e) {}
           }
         }
 
@@ -5174,17 +5179,35 @@ module.exports = async (req, res) => {
         console.warn('Error checking/updating activity for notifications:', e.message);
       }
 
-      const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
+      const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(60);
       const list = data || [];
       const seen = new Set();
       const unique = [];
+      const staleNotifIdsToDelete = [];
+
       for (const n of list) {
+        // Discard any bogus release alerts created by previous bug
+        if (n.message && n.message.includes('Tomosha qilish uchun tayyor!')) {
+          staleNotifIdsToDelete.push(n.id);
+          continue;
+        }
         const key = `${n.type}_${n.movie_data?.tmdb_id || (n.movie_data?.title || n.title || '').toLowerCase().replace(/^tavsiya:\s*/i, '').trim()}`;
         if (!seen.has(key)) {
           seen.add(key);
           unique.push(n);
+        } else {
+          staleNotifIdsToDelete.push(n.id);
         }
       }
+
+      if (staleNotifIdsToDelete.length > 0) {
+        (async () => {
+          try {
+            await supabase.from('notifications').delete().in('id', staleNotifIdsToDelete);
+          } catch (e) {}
+        })();
+      }
+
       return res.status(200).json(unique);
     }
 
