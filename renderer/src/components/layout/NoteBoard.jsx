@@ -2801,6 +2801,7 @@ function AddItemModal({ onClose, onSave, note, existingMovies = [], groups = [] 
                       )}
                       {r.rating && (
                         <span style={{ color: isDuplicate ? 'var(--text-muted)' : '#fbbf24', fontWeight: 600, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                          <span style={{ background: '#f5c518', color: '#000000', fontWeight: 800, fontSize: 9, padding: '0.5px 3px', borderRadius: 2.5, letterSpacing: '-0.3px', lineHeight: '11px', display: 'inline-flex', alignItems: 'center' }}>IMDb</span>
                           <Star size={11} fill={isDuplicate ? 'var(--text-muted)' : '#fbbf24'} color={isDuplicate ? 'var(--text-muted)' : '#fbbf24'} />
                           <span>{r.rating}</span>
                         </span>
@@ -3105,7 +3106,10 @@ function TmdbFallbackSearchPanel({ search, itemsByGroup, groups, onAddItem, onSe
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>{r.release_year || r.year || '—'}</span>
-                    {r.rating ? <span style={{ color: '#fbbf24', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 2 }}><Star size={11} fill="#fbbf24" color="#fbbf24" /> {r.rating}</span> : null}
+                    {r.rating ? <span style={{ color: '#fbbf24', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <span style={{ background: '#f5c518', color: '#000000', fontWeight: 800, fontSize: 9, padding: '0.5px 3px', borderRadius: 2.5, letterSpacing: '-0.3px', lineHeight: '11px', display: 'inline-flex', alignItems: 'center' }}>IMDb</span>
+                      <Star size={11} fill="#fbbf24" color="#fbbf24" /> {r.rating}
+                    </span> : null}
                     <span style={{ background: isFuture ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)', color: isFuture ? '#c084fc' : '#60a5fa', padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                       <ArrowRight size={10} /> <span>{destName}</span>
                     </span>

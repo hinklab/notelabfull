@@ -1375,8 +1375,22 @@ function MovieCard({
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 {(movie.rating || !effectiveUserRating) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{
+                      background: '#f5c518',
+                      color: '#000000',
+                      fontWeight: 800,
+                      fontSize: 9.5,
+                      padding: '0.5px 3.5px',
+                      borderRadius: 3,
+                      letterSpacing: '-0.3px',
+                      lineHeight: '12px',
+                      display: 'inline-flex',
+                      alignItems: 'center'
+                    }}>
+                      IMDb
+                    </span>
                     <Star size={11} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} fill={movie.rating ? "#fbbf24" : "none"} />
-                    <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 11.5, fontWeight: 600 }}>
+                    <span style={{ color: movie.rating ? '#fbbf24' : 'var(--text-muted)', fontSize: 11.5, fontWeight: 700 }}>
                       {movie.rating ? movie.rating : '—'}
                     </span>
                     {movie.vote_count ? (
@@ -1724,8 +1738,13 @@ function MovieCard({
                 <span style={{ background: 'var(--bg-input)', borderRadius: 6, padding: '3px 8px' }}>{displayDirector}</span>
               )}
               {!isFuture && (
-                <span style={{ background: movie.rating ? '#2a1f00' : 'var(--bg-input)', color: movie.rating ? '#fbbf24' : 'var(--text-muted)', borderRadius: 6, padding: '3px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Star size={10} fill={movie.rating ? "#fbbf24" : "none"} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} /> {movie.rating ? movie.rating : '—'}
+                <span style={{ background: movie.rating ? '#2a1f00' : 'var(--bg-input)', color: movie.rating ? '#fbbf24' : 'var(--text-muted)', borderRadius: 6, padding: '3px 8px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ background: '#f5c518', color: '#000000', fontWeight: 800, fontSize: 9.5, padding: '0.5px 3.5px', borderRadius: 3, letterSpacing: '-0.3px', lineHeight: '12px' }}>IMDb</span>
+                  <Star size={10} fill={movie.rating ? "#fbbf24" : "none"} color={movie.rating ? "#fbbf24" : "var(--text-muted)"} />
+                  <span>{movie.rating ? `${movie.rating}/10` : '—'}</span>
+                  {movie.vote_count ? (
+                    <span style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 400 }}>({formatVotes(movie.vote_count)} baho)</span>
+                  ) : null}
                 </span>
               )}
               {isDone && (

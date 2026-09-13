@@ -9,6 +9,38 @@ const supabaseUrl = process.env.SUPABASE_URL || 'https://spntzkotmgsghoahqkne.su
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || ['sb_secret_ILO1', 'JHGlLGsmNTpwptBG9Q_', 'g3IkDJ7I'].join('');
 const TMDB_KEY = process.env.TMDB_KEY || 'c34d44f722c298573a97a32fc4df383a';
 const OMDB_KEY = process.env.OMDB_KEY || '563e076e';
+const OMDB_KEY_POOL = ['720c3666', 'thewdb', '563e076e'];
+
+async function fetchOmdbWithRotation(queryParam, preferredKey = null) {
+  const keys = preferredKey ? [preferredKey, ...OMDB_KEY_POOL.filter(k => k !== preferredKey)] : OMDB_KEY_POOL;
+  for (const key of keys) {
+    try {
+      const url = `http://www.omdbapi.com/?apikey=${encodeURIComponent(key)}&${queryParam}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(3500) });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.Response === 'False' && data.Error && (data.Error.includes('limit reached') || data.Error.includes('Invalid API key'))) {
+          continue;
+        }
+        return data;
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+async function resolveImdbId(tmdbId, mediaType, tmdbKey) {
+  if (!tmdbId || !tmdbKey) return null;
+  const type = mediaType === 'tv' ? 'tv' : 'movie';
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/${type}/${encodeURIComponent(tmdbId)}/external_ids?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+    if (res.ok) {
+      const data = await res.json();
+      return data.imdb_id || null;
+    }
+  } catch (e) {}
+  return null;
+}
 
 // In-memory cache for TMDB responses
 const tmdbDetailsCache = new Map();
@@ -3322,44 +3354,53 @@ module.exports = async (req, res) => {
               seasons = `${humanDur} (${d.runtime} min)`;
             }
 
-            const tmdbImdbId = d.external_ids?.imdb_id || d.imdb_id || body.imdb_id || null;
-            if (tmdbImdbId) {
-              body.imdb_id = tmdbImdbId;
-              try {
-                const omdbRes = await fetch(`http://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${encodeURIComponent(tmdbImdbId)}`);
-                if (omdbRes.ok) {
-                  const od = await omdbRes.json();
-                  if (od.Response === 'True') {
-                    if ((seasons === '-' || !seasons) && od.Runtime && od.Runtime !== 'N/A') {
-                      const mins = parseInt(od.Runtime, 10);
-                      if (mins > 0) {
-                        const humanDur = formatDurationUz(mins, false);
-                        seasons = `${humanDur} (${mins} min)`;
-                      }
-                    }
-                  }
-                }
-              } catch (e) {}
+      // Always resolve IMDb ID and fetch Full IMDb rating & votes
+      let tmdbImdbId = body.imdb_id || null;
+      if (!tmdbImdbId && body.tmdb_id && TMDB_KEY) {
+        tmdbImdbId = await resolveImdbId(body.tmdb_id, media_type, TMDB_KEY);
+      }
+      if (tmdbImdbId) {
+        body.imdb_id = tmdbImdbId;
+        try {
+          const od = await fetchOmdbWithRotation(`i=${encodeURIComponent(tmdbImdbId)}`);
+          if (od && od.Response === 'True') {
+            if (od.imdbRating && od.imdbRating !== 'N/A') rating = parseFloat(od.imdbRating);
+            if (od.imdbVotes && od.imdbVotes !== 'N/A') vote_count = parseInt(od.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+            if (od.Released && od.Released !== 'N/A' && (!release_date || release_date === '-')) {
+              const omdbDate = parseOmdbDate(od.Released);
+              if (omdbDate) {
+                release_date = omdbDate;
+                release_year = omdbDate.split('-')[0];
+              }
+            }
+            if ((seasons === '-' || !seasons) && od.Runtime && od.Runtime !== 'N/A') {
+              const mins = parseInt(od.Runtime, 10);
+              if (mins > 0) {
+                const humanDur = formatDurationUz(mins, false);
+                seasons = `${humanDur} (${mins} min)`;
+              }
             }
           }
+        } catch (e) {}
+      }
+          }
         } catch (e) { console.warn('TMDB enrich error:', e.message); }
-      } else if (body.imdb_id && OMDB_KEY && (!poster_path || genre === '-' || seasons === '-' || !seasons)) {
+      } else if (body.imdb_id && (!poster_path || genre === '-' || seasons === '-' || !seasons)) {
         try {
-          const omdbRes = await fetch(`http://www.omdbapi.com/?apikey=${OMDB_KEY}&i=${encodeURIComponent(body.imdb_id)}`);
-          if (omdbRes.ok) {
-            const od = await omdbRes.json();
-            if (od.Response === 'True') {
-              if (od.Genre && od.Genre !== 'N/A') genre = od.Genre;
-              if (od.Director && od.Director !== 'N/A') director = od.Director;
-              if (od.Plot && od.Plot !== 'N/A') overview = od.Plot;
-              if (od.Poster && od.Poster !== 'N/A') poster_path = od.Poster;
-              if (od.Year && od.Year !== 'N/A') release_year = od.Year;
-              if ((seasons === '-' || !seasons) && od.Runtime && od.Runtime !== 'N/A') {
-                const mins = parseInt(od.Runtime, 10);
-                if (mins > 0) {
-                  const humanDur = formatDurationUz(mins, false);
-                  seasons = `${humanDur} (${mins} min)`;
-                }
+          const od = await fetchOmdbWithRotation(`i=${encodeURIComponent(body.imdb_id)}`);
+          if (od && od.Response === 'True') {
+            if (od.Genre && od.Genre !== 'N/A') genre = od.Genre;
+            if (od.Director && od.Director !== 'N/A') director = od.Director;
+            if (od.Plot && od.Plot !== 'N/A') overview = od.Plot;
+            if (od.Poster && od.Poster !== 'N/A') poster_path = od.Poster;
+            if (od.Year && od.Year !== 'N/A') release_year = od.Year;
+            if (od.imdbRating && od.imdbRating !== 'N/A') rating = parseFloat(od.imdbRating);
+            if (od.imdbVotes && od.imdbVotes !== 'N/A') vote_count = parseInt(od.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+            if ((seasons === '-' || !seasons) && od.Runtime && od.Runtime !== 'N/A') {
+              const mins = parseInt(od.Runtime, 10);
+              if (mins > 0) {
+                const humanDur = formatDurationUz(mins, false);
+                seasons = `${humanDur} (${mins} min)`;
               }
             }
           }
@@ -3813,52 +3854,64 @@ module.exports = async (req, res) => {
           }
 
           // 2. Fetch OMDb details
-          if (OMDB_KEY && (m.imdb_id || m.title)) {
+          if (!m.imdb_id && m.tmdb_id && TMDB_KEY) {
+            const resolvedId = await resolveImdbId(m.tmdb_id, m.media_type, TMDB_KEY);
+            if (resolvedId) {
+              m.imdb_id = resolvedId;
+              changed = true;
+            }
+          }
+
+          if (m.imdb_id || m.title) {
             try {
+              const cleanTitle = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').replace(/\s*\(\d{4}\)/, '').trim();
               const omdbQuery = m.imdb_id
                 ? `i=${encodeURIComponent(m.imdb_id)}`
-                : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
-              const omdbRes = await fetch(`http://www.omdbapi.com/?apikey=${OMDB_KEY}&${omdbQuery}`, { signal: AbortSignal.timeout(2500) });
-              if (omdbRes.ok) {
-                const od = await omdbRes.json();
-                if (od.Response !== 'False') {
-                  if (od.imdbID && !m.imdb_id) { m.imdb_id = od.imdbID; changed = true; }
-                  if (m.section !== 'futured') {
-                    if (od.imdbRating && od.imdbRating !== 'N/A') {
-                      const nr = parseFloat(od.imdbRating);
-                      if (m.rating !== nr) {
-                        const oldR = m.rating;
-                        m.rating = nr;
-                        changed = true;
-                        changes.push({ field: 'imdb_rating', label: 'IMDb Reyting', text: `IMDb: ${oldR != null ? `${oldR} → ` : ''}${nr}` });
-                      }
-                    }
-                    if (od.imdbVotes && od.imdbVotes !== 'N/A') {
-                      const nv = parseInt(od.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
-                      if (m.vote_count !== nv) { m.vote_count = nv; changed = true; }
-                    }
-                  } else {
-                    if (m.rating !== null || m.vote_count !== null) {
-                      m.rating = null;
-                      m.vote_count = null;
-                      changed = true;
-                    }
-                  }
-                  if (od.Genre && od.Genre !== 'N/A' && (!m.genre || m.genre === '-')) {
-                    m.genre = od.Genre;
+                : `t=${encodeURIComponent(cleanTitle)}` + (isTv ? '&type=series' : '');
+              const od = await fetchOmdbWithRotation(omdbQuery);
+              if (od && od.Response !== 'False') {
+                if (od.imdbID && !m.imdb_id) { m.imdb_id = od.imdbID; changed = true; }
+                const omdbDate = parseOmdbDate(od.Released);
+                if (omdbDate && !m.release_date) {
+                  m.release_date = omdbDate;
+                  m.release_year = omdbDate.split('-')[0];
+                  changed = true;
+                  changes.push({ field: 'release_date', label: 'Premyera sanasi', text: `Premyera: ${omdbDate}` });
+                }
+                if (od.imdbRating && od.imdbRating !== 'N/A') {
+                  const nr = parseFloat(od.imdbRating);
+                  if (m.rating !== nr) {
+                    const oldR = m.rating;
+                    m.rating = nr;
                     changed = true;
-                    changes.push({ field: 'genre', label: 'Janr', text: `Janr: ${od.Genre}` });
+                    changes.push({ field: 'imdb_rating', label: 'IMDb Reyting', text: `IMDb: ${oldR != null ? `${oldR} → ` : ''}${nr}` });
                   }
-                  if (od.Director && od.Director !== 'N/A' && (!m.director || m.director === '-')) {
-                    m.director = od.Director;
+                }
+                if (od.imdbVotes && od.imdbVotes !== 'N/A') {
+                  const nv = parseInt(od.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+                  if (m.vote_count !== nv) {
+                    m.vote_count = nv;
                     changed = true;
-                    changes.push({ field: 'director', label: 'Rejissyor', text: `Rejissyor: ${od.Director}` });
                   }
-                  if (od.Plot && od.Plot !== 'N/A' && (!m.overview || m.overview.length < od.Plot.length)) {
-                    m.overview = od.Plot;
-                    changed = true;
-                    changes.push({ field: 'overview', label: 'Tavsif', text: "Tavsif to'ldirildi" });
-                  }
+                }
+                if (m.section === 'futured' && !m.rating) {
+                  m.rating = null;
+                  m.vote_count = null;
+                }
+                if (od.Genre && od.Genre !== 'N/A' && (!m.genre || m.genre === '-')) {
+                  m.genre = od.Genre;
+                  changed = true;
+                  changes.push({ field: 'genre', label: 'Janr', text: `Janr: ${od.Genre}` });
+                }
+                if (od.Director && od.Director !== 'N/A' && (!m.director || m.director === '-')) {
+                  m.director = od.Director;
+                  changed = true;
+                  changes.push({ field: 'director', label: 'Rejissyor', text: `Rejissyor: ${od.Director}` });
+                }
+                if (od.Plot && od.Plot !== 'N/A' && (!m.overview || m.overview.length < od.Plot.length)) {
+                  m.overview = od.Plot;
+                  changed = true;
+                  changes.push({ field: 'overview', label: 'Tavsif', text: "Tavsif to'ldirildi" });
                 }
               }
             } catch (e) {}

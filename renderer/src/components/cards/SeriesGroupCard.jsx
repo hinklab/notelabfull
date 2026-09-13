@@ -236,8 +236,22 @@ function SeriesGroupCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {firstMovie?.rating ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{
+                  background: '#f5c518',
+                  color: '#000000',
+                  fontWeight: 800,
+                  fontSize: 9.5,
+                  padding: '0.5px 3.5px',
+                  borderRadius: 3,
+                  letterSpacing: '-0.3px',
+                  lineHeight: '12px',
+                  display: 'inline-flex',
+                  alignItems: 'center'
+                }}>
+                  IMDb
+                </span>
                 <Star size={11} color="#fbbf24" fill="#fbbf24" />
-                <span style={{ color: '#fbbf24', fontSize: 11.5, fontWeight: 600 }}>
+                <span style={{ color: '#fbbf24', fontSize: 11.5, fontWeight: 700 }}>
                   {firstMovie.rating}
                 </span>
                 {firstMovie.vote_count ? (
