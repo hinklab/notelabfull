@@ -28,7 +28,7 @@ function getPosterUrl(posterPath) {
   return posterPath
 }
 
-export default function SeriesGroupCard({
+function SeriesGroupCard({
   seriesTitle,
   seasons,
   group,
@@ -119,10 +119,13 @@ export default function SeriesGroupCard({
           minHeight: 116,
           position: 'relative',
           cursor: 'pointer',
-          transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
-          transition: 'transform 0.15s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.2s ease',
+          transform: hovered ? 'translateY(-2.5px)' : 'translateY(0)',
+          boxShadow: hovered ? '0 6px 16px -2px rgba(0, 0, 0, 0.3)' : 'none',
+          transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, background 0.18s ease',
           userSelect: 'none',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          contain: isExpanded ? 'none' : 'layout paint',
+          willChange: hovered ? 'transform, box-shadow' : 'auto'
         }}
       >
         {/* Left: Poster thumbnail */}
@@ -233,9 +236,15 @@ export default function SeriesGroupCard({
                   flexShrink: 0,
                   transition: 'background 0.15s'
                 }}
-                title={isExpanded ? 'Yig\'ish' : 'Mavsumlarni ko\'rish'}
+                title={isExpanded ? "Yig'ish" : "Mavsumlarni ko'rish"}
               >
-                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                <ChevronDown
+                  size={13}
+                  style={{
+                    transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+                  }}
+                />
               </button>
             </div>
 
@@ -348,17 +357,28 @@ export default function SeriesGroupCard({
       </div>
 
       {/* ============================================================
-          EXPANDED SEASONS LIST (Optional, opens when chevron clicked)
+          EXPANDED SEASONS LIST (Smooth CSS Grid Sliding Accordion)
           ============================================================ */}
-      {isExpanded && (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateRows: isExpanded ? '1fr' : '0fr',
+          transition: 'grid-template-rows 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease',
+          opacity: isExpanded ? 1 : 0,
+          overflow: 'hidden'
+        }}
+      >
         <div
           style={{
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 6,
             paddingLeft: 8,
             borderLeft: '2px solid rgba(139, 92, 246, 0.4)',
-            marginTop: 2
+            marginTop: isExpanded ? 2 : 0,
+            transform: isExpanded ? 'translateY(0)' : 'translateY(-10px)',
+            transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
           }}
         >
           {sortedSeasons.map(seasonItem => (
@@ -390,7 +410,17 @@ export default function SeriesGroupCard({
             </div>
           ))}
         </div>
-      )}
+      </div>
     </div>
   )
 }
+
+function areSeriesGroupPropsEqual(prev, next) {
+  if (prev.expandedMovieId !== next.expandedMovieId) return false
+  if (prev.seriesTitle !== next.seriesTitle) return false
+  if (prev.group?.id !== next.group?.id) return false
+  if (prev.seasons?.length !== next.seasons?.length) return false
+  return true
+}
+
+export default React.memo(SeriesGroupCard, areSeriesGroupPropsEqual)

@@ -138,6 +138,22 @@ function getFranchiseBrand(item) {
     };
   }
 
+  // Resident Evil / Umbrella Corporation / Capcom - Biohazard Crimson & Deep Charcoal
+  if (key === 'resident_evil' || name.includes('resident evil') || name.includes('biohazard')) {
+    return {
+      name: 'Umbrella Corporation / Capcom',
+      logoUrl: 'https://image.tmdb.org/t/p/w500/dD0x5awPmtx4sAr2pNvkmxkCODh.png',
+      fallbackText: 'RE',
+      bgColor: '#181114',
+      border: '1.5px solid #ef4444',
+      boxShadow: '0 3px 12px rgba(239, 68, 68, 0.4)',
+      glow: 'rgba(239, 68, 68, 0.65)',
+      filter: 'brightness(1.2)',
+      padding: 3,
+      textColor: '#ef4444'
+    };
+  }
+
   // Check if item has a poster_path
   if (item?.poster_path) {
     return {
@@ -659,8 +675,9 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   // 1. Fetch user's viewed franchises list & determine initial target franchise
   const fetchViewedFranchises = async () => {
     try {
-      if (window.api && window.api.getViewedFranchises) {
-        const list = await window.api.getViewedFranchises()
+      const client = api || window.api
+      if (client && client.getViewedFranchises) {
+        const list = await client.getViewedFranchises()
         if (Array.isArray(list)) {
           setViewedFranchises(list)
           return list
@@ -693,8 +710,9 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
     setLoading(true)
     setError(null)
     try {
-      if (window.api && window.api.getFranchiseUniverse) {
-        const data = await window.api.getFranchiseUniverse(tmdbId, mediaType, lang)
+      const client = api || window.api
+      if (client && client.getFranchiseUniverse) {
+        const data = await client.getFranchiseUniverse(tmdbId, mediaType, lang)
         setUniverseData(data)
         setActiveTmdbId(tmdbId)
 
@@ -870,9 +888,13 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
 
   const handleMouseMove = (e) => {
     if (!isPanning) return
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
     const nextX = e.clientX - startPos.x
     const nextY = e.clientY - startPos.y
+    panRef.current = { x: nextX, y: nextY }
+    if (viewportContainerRef.current) {
+      viewportContainerRef.current.style.transform = `translate3d(${nextX}px, ${nextY}px, 0) scale(${zoomRef.current})`
+    }
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
     rafRef.current = requestAnimationFrame(() => {
       setPan({ x: nextX, y: nextY })
     })
@@ -909,6 +931,12 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
 
       const newPanX = mouseX - (mouseX - curPan.x) * (newZoom / curZoom)
       const newPanY = mouseY - (mouseY - curPan.y) * (newZoom / curZoom)
+
+      zoomRef.current = newZoom
+      panRef.current = { x: newPanX, y: newPanY }
+      if (viewportContainerRef.current) {
+        viewportContainerRef.current.style.transform = `translate3d(${newPanX}px, ${newPanY}px, 0) scale(${newZoom})`
+      }
 
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = requestAnimationFrame(() => {
@@ -1223,6 +1251,17 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
         userSelect: 'none',
       }}
     >
+      <style>{`
+        @keyframes slideUpToast {
+          from { opacity: 0; transform: translate3d(-50%, 20px, 0); }
+          to { opacity: 1; transform: translate3d(-50%, 0, 0); }
+        }
+        @keyframes modalScaleIn {
+          from { opacity: 0; transform: scale(0.96) translateY(12px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+      `}</style>
+
       {/* Collapsible Left Sidebar for Viewed Franchises */}
       <div
         className="space-sidebar"
@@ -1324,7 +1363,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   const isHovered = hoveredFranchiseKey === itemKey
                   const isConfirmingDelete = confirmDeleteKey === itemKey
 
-                  const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : null))))
+                  const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : null)))))
                   const uProg = uKey ? gamificationProgress[uKey] : null
 
                   return (
@@ -1541,7 +1580,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               {filteredFranchises.map((item, idx) => {
                 const itemKey = item.universe_key || item.key || (item.tmdb_id ? `movie_${item.tmdb_id}` : `idx_${idx}`)
                 const isActive = (item.universe_key && universeData?.universe_key === item.universe_key) || (item.tmdb_id && activeTmdbId === item.tmdb_id)
-                const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : null))))
+                const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : null)))))
                 const uProg = uKey ? gamificationProgress[uKey] : null
 
                 return (
@@ -1850,7 +1889,8 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               border: '1px solid var(--space-modal-border)',
               borderRadius: 24,
               boxShadow: 'var(--space-shadow)',
-              color: 'var(--text-primary)'
+              color: 'var(--text-primary)',
+              animation: 'modalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
           >
             {/* Modal Header Banner with Background Video Trailer */}
@@ -2323,11 +2363,12 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 9999999,
-          background: 'rgba(18, 19, 30, 0.95)',
+          background: 'var(--space-panel-bg)',
           backdropFilter: 'blur(16px)',
-          color: '#a78bfa',
-          border: '1px solid rgba(167, 139, 250, 0.4)',
-          boxShadow: '0 12px 36px rgba(0, 0, 0, 0.6)',
+          WebkitBackdropFilter: 'blur(16px)',
+          color: 'var(--accent)',
+          border: '1px solid var(--accent)',
+          boxShadow: '0 12px 36px rgba(0, 0, 0, 0.25)',
           borderRadius: 30,
           padding: '10px 22px',
           fontSize: 13,
@@ -2335,9 +2376,9 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          animation: 'fadeIn 0.2s ease'
+          animation: 'slideUpToast 0.28s cubic-bezier(0.16, 1, 0.3, 1)'
         }}>
-          <Sparkles size={16} color="#a78bfa" />
+          <Sparkles size={16} color="var(--accent)" />
           <span>{toastMessage}</span>
         </div>,
         document.body

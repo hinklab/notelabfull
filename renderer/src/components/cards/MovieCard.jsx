@@ -485,21 +485,23 @@ function centerCardEquator(el, duration = 280) {
   const headerEl = myCol?.querySelector('.column-header-sticky') || document.querySelector('.column-header-sticky')
   const topBoundary = headerEl ? headerEl.getBoundingClientRect().bottom : 96
   const bottomBoundary = viewportHeight
+
+  // If card is already nicely visible in viewport (not clipped under header and not offscreen below), DO NOT JUMP!
+  const isClippedTop = rect.top < topBoundary + 6
+  const isClippedBottom = rect.bottom > bottomBoundary - 16
+  if (!isClippedTop && !isClippedBottom) {
+    return
+  }
+
   const visibleAreaHeight = Math.max(200, bottomBoundary - topBoundary)
+  const expectedCardHeight = rect.height > 250 ? rect.height : 580
 
-  // 2. Expected expanded height of the card
-  const expectedCardHeight = rect.height > 250 ? rect.height : 620
-
-  // 3. Target on-screen top so the card is centered symmetrically in the visible opening
   let targetScreenTop = topBoundary + 12
   if (expectedCardHeight < visibleAreaHeight) {
     targetScreenTop = topBoundary + Math.round((visibleAreaHeight - expectedCardHeight) / 2)
   }
 
-  // 4. Current absolute top of card on document
   const cardAbsoluteTop = currentScrollY + rect.top
-
-  // 5. Target scroll position
   const targetScrollY = Math.max(0, Math.round(cardAbsoluteTop - targetScreenTop))
 
   const cardCenterX = rect.left + currentScrollX + (rect.width / 2)
@@ -692,12 +694,13 @@ function MovieCard({
   }
 
   useEffect(() => {
+    if (!isCardExpanded) return
     const onFsChange = () => {
       setIsFullscreen(Boolean(document.fullscreenElement))
     }
     document.addEventListener('fullscreenchange', onFsChange)
     return () => document.removeEventListener('fullscreenchange', onFsChange)
-  }, [])
+  }, [isCardExpanded])
 
   useEffect(() => {
     setUserRating(movie?.user_rating || null)
@@ -708,12 +711,6 @@ function MovieCard({
       fetchSingleMovieTranslation(movie.tmdb_id, movie.media_type)
     }
   }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, language])
-
-  useEffect(() => {
-    if (movie?.tmdb_id || movie?.title) {
-      prefetchTrailer(movie, displayTitle)
-    }
-  }, [movie?.tmdb_id, movie?.title, displayTitle])
 
   useEffect(() => {
     if (!isCardExpanded) return
@@ -805,6 +802,7 @@ function MovieCard({
   }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, movie?.title, movie?.seasons])
 
   useEffect(() => {
+    if (!showCinemasModal) return
     const handleCinemaOpen = (e) => {
       if (e.detail && e.detail !== movie.id) {
         setShowCinemasModal(false)
@@ -812,7 +810,7 @@ function MovieCard({
     }
     window.addEventListener('notelab_open_cinema_modal', handleCinemaOpen)
     return () => window.removeEventListener('notelab_open_cinema_modal', handleCinemaOpen)
-  }, [movie.id])
+  }, [showCinemasModal, movie.id])
 
   const handleRate = async (newRating) => {
     setUserRating(newRating)
@@ -1005,14 +1003,16 @@ function MovieCard({
         cursor: isCardExpanded ? 'default' : (isTouchDragging ? 'grabbing' : 'pointer'),
         overflow: 'hidden',
         maxHeight: renderExpanded ? (isVisuallyExpanded ? 1100 : 116) : 'none',
-        transition: 'max-height 0.28s cubic-bezier(0.05, 0.9, 0.1, 1), border-color 0.18s ease, background 0.18s ease, box-shadow 0.2s ease',
+        transition: 'max-height 0.28s cubic-bezier(0.05, 0.9, 0.1, 1), border-color 0.18s ease, background 0.18s ease, box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         opacity: isTouchDragging ? 0.35 : 1,
         touchAction: 'pan-y',
         WebkitTouchCallout: 'none',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
-        userSelect: 'none'
+        userSelect: 'none',
+        contain: isCardExpanded ? 'none' : 'layout paint',
+        willChange: hovered ? 'transform, box-shadow' : 'auto'
       }}
       onMouseEnter={e => {
         if (isTouchDragging || isTouchSessionRef.current || isCardExpanded) return
@@ -1020,7 +1020,8 @@ function MovieCard({
         prefetchTrailer(movie, displayTitle)
         e.currentTarget.style.borderColor = 'var(--border-hover)'
         e.currentTarget.style.background = 'var(--bg-card-hover)'
-        e.currentTarget.style.transform = 'translateY(-1px)'
+        e.currentTarget.style.transform = 'translateY(-2.5px)'
+        e.currentTarget.style.boxShadow = '0 6px 16px -2px rgba(0, 0, 0, 0.3)'
       }}
       onMouseLeave={e => {
         if (isTouchDragging || isCardExpanded) return
@@ -1028,6 +1029,7 @@ function MovieCard({
         e.currentTarget.style.borderColor = 'var(--border)'
         e.currentTarget.style.background = 'var(--bg-card)'
         e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = 'none'
       }}
     >
       {/* 1. COLLAPSED VIEW (Compact Horizontal Row) */}
@@ -1961,4 +1963,28 @@ function MovieCard({
   )
 }
 
-export default React.memo(MovieCard)
+function areMovieCardPropsEqual(prev, next) {
+  if (Boolean(prev.isExpanded) !== Boolean(next.isExpanded)) return false
+  if (prev.sectionKey !== next.sectionKey) return false
+  if (prev.noDrag !== next.noDrag) return false
+
+  const prevM = prev.movie
+  const nextM = next.movie
+  if (prevM === nextM) return true
+  if (!prevM || !nextM) return false
+
+  return (
+    prevM.id === nextM.id &&
+    prevM.user_rating === nextM.user_rating &&
+    prevM.section === nextM.section &&
+    prevM.vote_average === nextM.vote_average &&
+    prevM.runtime === nextM.runtime &&
+    prevM.title === nextM.title &&
+    prevM.name === nextM.name &&
+    prevM.poster_path === nextM.poster_path &&
+    prevM.release_date === nextM.release_date &&
+    prevM.release_year === nextM.release_year
+  )
+}
+
+export default React.memo(MovieCard, areMovieCardPropsEqual)

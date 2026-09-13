@@ -155,6 +155,24 @@ export const api = {
   getGamificationProgress: () => fetchJSON(`${API_BASE}/gamification/progress`),
   getGamificationBadges: () => fetchJSON(`${API_BASE}/gamification/badges`),
 
+  // Franchises & Universes
+  getFranchiseUniverse: (tmdbId, mediaType = 'movie', language = 'en') => {
+    const q = new URLSearchParams();
+    if (mediaType) q.set('media_type', mediaType);
+    if (language) q.set('language', language);
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return fetchJSON(`${API_BASE}/franchises/${tmdbId}${qs}`);
+  },
+  getViewedFranchises: () => fetchJSON(`${API_BASE}/franchises/viewed`),
+  recordFranchiseView: (payload) => fetchJSON(`${API_BASE}/franchises/record-view`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  }),
+  removeViewedFranchise: (payload) => fetchJSON(`${API_BASE}/franchises/viewed`, {
+    method: 'DELETE',
+    body: JSON.stringify(typeof payload === 'object' ? payload : { key: payload })
+  }),
+
   // Agent
   agentChat: (msg, history, uiMovies, noteCtx) => fetchJSON(`${API_BASE}/agent/chat`, {
     method: 'POST',

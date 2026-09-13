@@ -481,7 +481,16 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         window.api.getGroups(noteId),
         isMovieNote ? window.api.getMovies(noteId) : Promise.resolve([])
       ])
-      const validGroups = groups || []
+      const rawGroups = groups || []
+      const seenSectionKeys = new Set()
+      const validGroups = []
+      for (const g of rawGroups) {
+        const key = g.section_key || `group_${g.id}`
+        if (!seenSectionKeys.has(key)) {
+          seenSectionKeys.add(key)
+          validGroups.push(g)
+        }
+      }
       setGroups(validGroups)
       const map = {}
       if (isMovieNote) {
@@ -1626,17 +1635,34 @@ function NoteColumn({
   const isDoneExpanded = isManuallyExpanded || autoExpandedByCard
   const shouldCollapse = isCollapseEligible && !isDoneExpanded
 
-  useLayoutEffect(() => {
-    if (shouldCollapse && cardsRef.current) {
-      const myCol = cardsRef.current.closest('.note-column')
-      const boardEl = myCol?.closest('.board')
-      
-      if (boardEl) {
-        const otherCols = Array.from(boardEl.querySelectorAll('.note-column'))
-          .filter(col => col !== myCol)
+  useEffect(() => {
+    if (!shouldCollapse || !cardsRef.current) {
+      setMeasuredHeight(null)
+      return
+    }
+
+    const myCol = cardsRef.current.closest('.note-column')
+    const boardEl = myCol?.closest('.board')
+    if (!boardEl) {
+      setMeasuredHeight(defaultCardsHeight)
+      return
+    }
+
+    let rafId = null
+    const updateHeight = () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        if (!cardsRef.current) return
+        const currentMyCol = cardsRef.current.closest('.note-column')
+        if (!currentMyCol) return
+        const currentBoard = currentMyCol.closest('.board')
+        if (!currentBoard) return
+
+        const otherCols = Array.from(currentBoard.querySelectorAll('.note-column'))
+          .filter(col => col !== currentMyCol)
 
         let maxOtherBottom = 0
-        const myColTop = myCol.getBoundingClientRect().top
+        const myColTop = currentMyCol.getBoundingClientRect().top
 
         otherCols.forEach(col => {
           const rect = col.getBoundingClientRect()
@@ -1647,55 +1673,14 @@ function NoteColumn({
 
         if (maxOtherBottom > myColTop) {
           const desiredTotalColHeight = maxOtherBottom - myColTop
-          const headerEl = myCol.querySelector('.column-header-sticky')
+          const headerEl = currentMyCol.querySelector('.column-header-sticky')
           const headerH = headerEl ? headerEl.getBoundingClientRect().height : 42
           const targetCardsH = Math.max(defaultCardsHeight, Math.round(desiredTotalColHeight - headerH - FOOTER_HEIGHT))
-          setMeasuredHeight(targetCardsH)
-          return
-        }
-      }
-      setMeasuredHeight(defaultCardsHeight)
-    } else {
-      setMeasuredHeight(null)
-    }
-  }, [shouldCollapse, defaultCardsHeight, items, maxOtherCount])
-
-  useEffect(() => {
-    if (!shouldCollapse || !cardsRef.current) return
-
-    const myCol = cardsRef.current.closest('.note-column')
-    const boardEl = myCol?.closest('.board')
-    if (!boardEl) return
-
-    const updateHeight = () => {
-      if (!cardsRef.current) return
-      const currentMyCol = cardsRef.current.closest('.note-column')
-      if (!currentMyCol) return
-      const currentBoard = currentMyCol.closest('.board')
-      if (!currentBoard) return
-
-      const otherCols = Array.from(currentBoard.querySelectorAll('.note-column'))
-        .filter(col => col !== currentMyCol)
-
-      let maxOtherBottom = 0
-      const myColTop = currentMyCol.getBoundingClientRect().top
-
-      otherCols.forEach(col => {
-        const rect = col.getBoundingClientRect()
-        if (rect.bottom > maxOtherBottom) {
-          maxOtherBottom = rect.bottom
+          setMeasuredHeight(prev => prev === targetCardsH ? prev : targetCardsH)
+        } else {
+          setMeasuredHeight(prev => prev === defaultCardsHeight ? prev : defaultCardsHeight)
         }
       })
-
-      if (maxOtherBottom > myColTop) {
-        const desiredTotalColHeight = maxOtherBottom - myColTop
-        const headerEl = currentMyCol.querySelector('.column-header-sticky')
-        const headerH = headerEl ? headerEl.getBoundingClientRect().height : 42
-        const targetCardsH = Math.max(defaultCardsHeight, Math.round(desiredTotalColHeight - headerH - FOOTER_HEIGHT))
-        setMeasuredHeight(targetCardsH)
-      } else {
-        setMeasuredHeight(defaultCardsHeight)
-      }
     }
 
     updateHeight()
@@ -1704,8 +1689,11 @@ function NoteColumn({
       .filter(col => col !== myCol)
     otherCols.forEach(col => ro.observe(col))
 
-    return () => ro.disconnect()
-  }, [shouldCollapse, defaultCardsHeight, items, maxOtherCount])
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      ro.disconnect()
+    }
+  }, [shouldCollapse, defaultCardsHeight, items?.length, maxOtherCount])
 
   const collapsedHeight = `${collapsedHeightNumber}px`
 
@@ -2098,7 +2086,10 @@ function NoteColumn({
               <div
                 data-card-id={entryCardId}
                 data-item-id={entryItemId}
-                style={{ position: 'relative' }}
+                style={{
+                  position: 'relative',
+                  transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+                }}
               >
                 {isSeries ? (
                   <SeriesGroupCard

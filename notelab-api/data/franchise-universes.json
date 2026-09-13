@@ -2550,5 +2550,250 @@
         "overview": "Follow the early days of Dick Grayson and Jason Todd and explore how their friendship becomes tested by their diverging ideas for what their future should be."
       }
     ]
+  },
+  "resident_evil": {
+    "name": "Resident Evil Universe",
+    "collection_ids": [
+      17255,
+      133352
+    ],
+    "known_tmdb_ids": [
+      1576,
+      1577,
+      7737,
+      35791,
+      71679,
+      173897,
+      460458,
+      108296,
+      1423191,
+      13648,
+      110642,
+      133121,
+      400136,
+      1083862
+    ],
+    "chronological_order": [
+      {
+        "id": 1576,
+        "type": "movie",
+        "stage": 0,
+        "lane": 0,
+        "connects_to": [
+          1577
+        ],
+        "title": "Resident Evil",
+        "release_date": "2002-03-15",
+        "release_year": "2002",
+        "rating": 6.7,
+        "vote_count": 7141,
+        "poster_path": "https://image.tmdb.org/t/p/w500/1UKNef590A0ZaMnxsscIcWuK1Em.jpg",
+        "overview": "When a virus leaks from a top-secret facility, turning all resident researchers into ravenous zombies and their lab animals into mutated hounds from hell, the government sends in an elite military task force to contain the outbreak."
+      },
+      {
+        "id": 1577,
+        "type": "movie",
+        "stage": 1,
+        "lane": 0,
+        "connects_to": [
+          7737
+        ],
+        "title": "Resident Evil: Apocalypse",
+        "release_date": "2004-09-10",
+        "release_year": "2004",
+        "rating": 6.4,
+        "vote_count": 4914,
+        "poster_path": "https://image.tmdb.org/t/p/w500/way9dOm4dM2sm9UMcu2PEXMTX0q.jpg",
+        "overview": "As the city is locked down under quarantine, Alice finds out that the people that died from the previous incident at the Umbrella Corporation have turned into zombies. She then joins a small band of elite soldiers, who are enlisted to rescue the missing daughter of the creator of the mutating T-virus.  Once lack of luck and resources happen, they begin to wage an exhilarating battle to survive and escape before the Umbrella Corporation erases its experiment from the face of the earth."
+      },
+      {
+        "id": 7737,
+        "type": "movie",
+        "stage": 2,
+        "lane": 0,
+        "connects_to": [
+          35791
+        ],
+        "title": "Resident Evil: Extinction",
+        "release_date": "2007-09-20",
+        "release_year": "2007",
+        "rating": 6.3,
+        "vote_count": 4716,
+        "poster_path": "https://image.tmdb.org/t/p/w500/6yaLr7Ymg5cvbtSVi5hHwBKx35I.jpg",
+        "overview": "Years after the Racoon City catastrophe, survivors travel across the Nevada desert, hoping to make it to Alaska. Alice joins the caravan and their fight against hordes of zombies and the evil Umbrella Corp."
+      },
+      {
+        "id": 35791,
+        "type": "movie",
+        "stage": 4,
+        "lane": 0,
+        "connects_to": [
+          71679
+        ],
+        "title": "Resident Evil: Afterlife",
+        "release_date": "2010-09-01",
+        "release_year": "2010",
+        "rating": 6.1,
+        "vote_count": 4335,
+        "poster_path": "https://image.tmdb.org/t/p/w500/qZHDnt8bnsD2cSJfIbjWbCkIq3G.jpg",
+        "overview": "In a world ravaged by a virus infection, turning its victims into the Undead, Alice continues on her journey to find survivors and lead them to safety. Her deadly battle with the Umbrella Corporation reaches new heights, but Alice gets some unexpected help from an old friend. A new lead that promises a safe haven from the Undead takes them to Los Angeles, but when they arrive the city is overrun by thousands of Undead - and Alice and her comrades are about to step into a deadly trap."
+      },
+      {
+        "id": 71679,
+        "type": "movie",
+        "stage": 6,
+        "lane": 0,
+        "connects_to": [
+          173897
+        ],
+        "title": "Resident Evil: Retribution",
+        "release_date": "2012-09-12",
+        "release_year": "2012",
+        "rating": 5.8,
+        "vote_count": 4435,
+        "poster_path": "https://image.tmdb.org/t/p/w500/ohdUDWVlcbuWphaLu6wS91xdJ73.jpg",
+        "overview": "The Umbrella Corporation’s deadly T-virus continues to ravage the Earth, transforming the global population into legions of the flesh eating Undead. The human race’s last and only hope, Alice, awakens in the heart of Umbrella’s most clandestine operations facility and unveils more of her mysterious past as she delves further into the complex. Without a safe haven, Alice continues to hunt those responsible for the outbreak; a chase that takes her from Tokyo to New York, Washington, D.C. and Moscow, culminating in a mind-blowing revelation that will force her to rethink everything that she once thought to be true. Aided by new found allies and familiar friends, Alice must fight to survive long enough to escape a hostile world on the brink of oblivion. The countdown has begun."
+      },
+      {
+        "id": 173897,
+        "type": "movie",
+        "stage": 7,
+        "lane": 0,
+        "connects_to": [
+          460458
+        ],
+        "title": "Resident Evil: The Final Chapter",
+        "release_date": "2016-12-23",
+        "release_year": "2016",
+        "rating": 6.1,
+        "vote_count": 3587,
+        "poster_path": "https://image.tmdb.org/t/p/w500/7glPlA0xPpxPxBu0TnY4ulQVCV1.jpg",
+        "overview": "Picking up immediately after the events in Resident Evil: Retribution, Alice is the only survivor of what was meant to be humanity's final stand against the undead. Now, she must return to where the nightmare began - The Hive in Raccoon City, where the Umbrella Corporation is gathering its forces for a final strike against the only remaining survivors of the apocalypse."
+      },
+      {
+        "id": 13648,
+        "type": "movie",
+        "stage": 3,
+        "lane": 1,
+        "connects_to": [
+          110642
+        ],
+        "title": "Resident Evil: Degeneration",
+        "release_date": "2008-02-13",
+        "release_year": "2008",
+        "rating": 6.8,
+        "vote_count": 1197,
+        "poster_path": "https://image.tmdb.org/t/p/w500/1x5OaFOo38JAwR5yXxeuvQg3VWH.jpg",
+        "overview": "Leon S. Kennedy and Claire Redfield must battle a rogue warrior seeking revenge after unleashing the deadly G-Virus, whilst a mutated monster goes on a rampage."
+      },
+      {
+        "id": 110642,
+        "type": "tv",
+        "stage": 5,
+        "lane": 1,
+        "connects_to": [
+          133121
+        ],
+        "title": "RESIDENT EVIL: Infinite Darkness",
+        "release_date": "2021-07-08",
+        "release_year": "2021",
+        "rating": 7.5,
+        "vote_count": 915,
+        "poster_path": "https://image.tmdb.org/t/p/w500/wWwTjKER5a8LRUGHrw86VU0gUy1.jpg",
+        "overview": "Years after the horrors of Raccoon City, Leon and Claire find themselves consumed by a dark conspiracy when a viral attack ravages the White House."
+      },
+      {
+        "id": 133121,
+        "type": "movie",
+        "stage": 6,
+        "lane": 1,
+        "connects_to": [
+          400136
+        ],
+        "title": "Resident Evil: Damnation",
+        "release_date": "2012-09-25",
+        "release_year": "2012",
+        "rating": 6.9,
+        "vote_count": 1019,
+        "poster_path": "https://image.tmdb.org/t/p/w500/zkHSURVCrt7rpvDDgUXO75CV1v4.jpg",
+        "overview": "U.S. federal agent Leon S. Kennedy sneaks into the \"East Slavic Republic\" to verify rumors that Bio-Organic Weapons (BOWs) are being used in the country's civil war, which the U.S. and Russia are making preparations to jointly intervene in. Right after his infiltration, the U.S. government orders him to leave immediately. Determined to uncover the truth, Leon ignores the order and enters the battlefield to end the chain of tragedies caused by the BOWs."
+      },
+      {
+        "id": 400136,
+        "type": "movie",
+        "stage": 8,
+        "lane": 1,
+        "connects_to": [
+          1083862
+        ],
+        "title": "Resident Evil: Vendetta",
+        "release_date": "2017-05-27",
+        "release_year": "2017",
+        "rating": 6.9,
+        "vote_count": 1104,
+        "poster_path": "https://image.tmdb.org/t/p/w500/kdiMtgjWXEH9QZ85hgmWaSwshjf.jpg",
+        "overview": "When a fearless enemy out for revenge unleashes a brutal and deadly new virus, BSAA captain Chris Redfield enlists the help of Agent Leon S. Kennedy and Professor Rebecca Chambers to bring down the death merchant and save New York City."
+      },
+      {
+        "id": 1083862,
+        "type": "movie",
+        "stage": 10,
+        "lane": 1,
+        "connects_to": [],
+        "title": "Resident Evil: Death Island",
+        "release_date": "2023-06-22",
+        "release_year": "2023",
+        "rating": 7.3,
+        "vote_count": 1138,
+        "poster_path": "https://image.tmdb.org/t/p/w500/qayga07ICNDswm0cMJ8P3VwklFZ.jpg",
+        "overview": "In San Francisco, Jill Valentine is dealing with a zombie outbreak and a new T-Virus, Leon Kennedy is on the trail of a kidnapped DARPA scientist, and Claire Redfield is investigating a monstrous fish that is killing whales in the bay. Joined by Chris Redfield and Rebecca Chambers, they discover the trail of clues from their separate cases all converge on the same location, Alcatraz Island, where a new evil has taken residence and awaits their arrival."
+      },
+      {
+        "id": 460458,
+        "type": "movie",
+        "stage": 9,
+        "lane": 0,
+        "connects_to": [
+          108296
+        ],
+        "title": "Resident Evil: Welcome to Raccoon City",
+        "release_date": "2021-11-24",
+        "release_year": "2021",
+        "rating": 5.9,
+        "vote_count": 2780,
+        "poster_path": "https://image.tmdb.org/t/p/w500/bArhvjRHl535XMaSh9VjInF2mSZ.jpg",
+        "overview": "Once the booming home of pharmaceutical giant Umbrella Corporation, Raccoon City is now a dying Midwestern town. The company’s exodus left the city a wasteland…with great evil brewing below the surface. When that evil is unleashed, the townspeople are forever…changed…and a small group of survivors must work together to uncover the truth behind Umbrella and make it through the night."
+      },
+      {
+        "id": 108296,
+        "type": "tv",
+        "stage": 10,
+        "lane": 0,
+        "connects_to": [
+          1423191
+        ],
+        "title": "Resident Evil",
+        "release_date": "2022-07-14",
+        "release_year": "2022",
+        "rating": 5.5,
+        "vote_count": 639,
+        "poster_path": "https://image.tmdb.org/t/p/w500/rmLvn4w4HMdxobPkjmIqrhJiXDO.jpg",
+        "overview": "Years after a viral outbreak caused a global apocalypse, Jade Wesker vows to bring down those responsible while fighting to survive against the Infected."
+      },
+      {
+        "id": 1423191,
+        "type": "movie",
+        "stage": 11,
+        "lane": 0,
+        "connects_to": [],
+        "title": "Resident Evil",
+        "release_date": "2026-09-16",
+        "release_year": "2026",
+        "rating": 10,
+        "vote_count": 2,
+        "poster_path": "https://image.tmdb.org/t/p/w500/qku2uWSoJ9amQV5MWo1Eek29iji.jpg",
+        "overview": "Medical courier Bryan unwittingly finds himself fighting for survival as one fateful, horrifying night collapses around him in chaos."
+      }
+    ]
   }
 }

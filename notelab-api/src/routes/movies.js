@@ -449,11 +449,51 @@ router.post('/', async (req, res) => {
               deleteRecommendationForMovie(userId, createdSeasons[0]).catch(() => {});
               return res.json({ ...createdSeasons[0], _multiSeason: true, count: createdSeasons.length, seasons_list: createdSeasons });
             } else {
-              const tvDuration = await resolveTvRuntime(data.tmdb_id, effectiveTmdbKey, detail);
-              seasons = tvDuration || `${rawSeasons.length || 1} season`;
-              if (!data.title.includes('— Season') && !data.title.includes('- Season')) {
-                data.title = `${detail.name || data.title} — Season 1`;
-              }
+              // Case B: Single-Season series OR user adding a specific Season (e.g. "Peacemaker - Season 1")
+              const isSpecificSeason = /[-—]\s*Season\s*(\d+)/i.test(data.title);
+              const targetSeasonNum = isSpecificSeason ? parseInt(data.title.match(/[-—]\s*Season\s*(\d+)/i)[1], 10) : 1;
+              const sTarget = rawSeasons.find(s => s.season_number === targetSeasonNum) || rawSeasons[0] || { season_number: targetSeasonNum, episode_count: detail.number_of_episodes || 1 };
+              const sNum = sTarget.season_number || targetSeasonNum || 1;
+              const seriesBaseName = detail.name || data.title.replace(/\s*[-—]\s*Season\s*\d+/i, '').trim();
+
+              let seasonPoster = sTarget.poster_path ? `https://image.tmdb.org/t/p/w500${sTarget.poster_path}` : (poster_path || null);
+              let seasonAirDate = sTarget.air_date || detail.first_air_date || release_date;
+              let seasonReleaseYear = seasonAirDate ? seasonAirDate.split('-')[0] : release_year;
+              let epCount = sTarget.episode_count || 1;
+              let totalMinutes = 0;
+              let exactCount = 0;
+
+              try {
+                const sDetailRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(data.tmdb_id)}/season/${sNum}?api_key=${encodeURIComponent(effectiveTmdbKey)}&language=en-US`, { signal: AbortSignal.timeout(2500) });
+                if (sDetailRes.ok) {
+                  const sDetail = await sDetailRes.json();
+                  if (sDetail.poster_path) seasonPoster = `https://image.tmdb.org/t/p/w500${sDetail.poster_path}`;
+                  if (sDetail.air_date) {
+                    seasonAirDate = sDetail.air_date;
+                    seasonReleaseYear = seasonAirDate.split('-')[0];
+                  }
+                  if (Array.isArray(sDetail.episodes) && sDetail.episodes.length > 0) {
+                    epCount = sDetail.episodes.length;
+                    sDetail.episodes.forEach(ep => {
+                      if (ep.runtime && ep.runtime > 0) {
+                        totalMinutes += ep.runtime;
+                        exactCount++;
+                      }
+                    });
+                  }
+                }
+              } catch (e) {}
+
+              const defaultEpRuntime = (detail.episode_run_time && detail.episode_run_time[0]) || 45;
+              if (exactCount === 0) totalMinutes = epCount * defaultEpRuntime;
+              const humanDuration = formatDurationUz(totalMinutes, exactCount === 0);
+              seasons = `Season ${sNum} · ${epCount} ep · ${humanDuration} (${totalMinutes} min)`;
+              data.title = `${seriesBaseName} — Season ${sNum}`;
+              poster_path = seasonPoster;
+              release_date = seasonAirDate;
+              release_year = seasonReleaseYear;
+              if (sTarget.overview) overview = sTarget.overview;
+              if (sTarget.vote_average) rating = Number(sTarget.vote_average.toFixed(1));
             }
           } else if (detail.runtime && detail.runtime > 0) {
             const humanDur = formatDurationUz(detail.runtime, false);

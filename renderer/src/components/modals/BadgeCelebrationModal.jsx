@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Award, Sparkles, X, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext.jsx';
+import BadgeIcon from '../gamification/BadgeIcon.jsx';
 
 export default function BadgeCelebrationModal({ badges = [], onClose }) {
   const { t } = useLanguage();
@@ -136,24 +137,17 @@ export default function BadgeCelebrationModal({ badges = [], onClose }) {
           <span>{t('gamification.badgeUnlocked', null, 'Yangi Yutuq Ochildi!')}</span>
         </div>
 
-        {/* Animated Badge Medal Icon */}
-        <div
-          style={{
-            margin: '0 auto 20px',
-            width: 96,
-            height: 96,
-            borderRadius: '50%',
-            background: `radial-gradient(circle, ${tierBg} 0%, rgba(0,0,0,0.4) 100%)`,
-            border: `2px solid ${tierColor}`,
-            boxShadow: tierGlow,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 50,
-            animation: 'badgePop 0.6s cubic-bezier(0.16, 1, 0.3, 1), pulseGlow 2.5s infinite ease-in-out'
-          }}
-        >
-          <span>{currentBadge.icon || '🎖️'}</span>
+        {/* Animated Thematic Badge Medal Icon */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+          <BadgeIcon
+            universeKey={currentBadge.universe_key}
+            tier={currentBadge.tier}
+            isUnlocked={true}
+            size={96}
+            style={{
+              animation: 'badgePop 0.6s cubic-bezier(0.16, 1, 0.3, 1), pulseGlow 2.5s infinite ease-in-out'
+            }}
+          />
         </div>
 
         {/* Badge Title */}

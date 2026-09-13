@@ -14,7 +14,7 @@ function getSupabase() {
   }
 }
 
-// 15 Curated Badges catalogue (5 universes x 3 tiers)
+// 18 Curated Badges catalogue (6 universes x 3 tiers)
 const BADGES_CATALOGUE = [
   // MCU
   {
@@ -189,6 +189,41 @@ const BADGES_CATALOGUE = [
     title_en: 'DCU: Truth and Justice',
     description: "Yangi DCU olamidagi barcha loyihalarni 100% to'liq ko'rib bo'ldingiz!",
     icon: '🥇'
+  },
+
+  // Resident Evil
+  {
+    id: 'resident_evil_bronze',
+    universe_key: 'resident_evil',
+    universe_name: 'Resident Evil Universe',
+    tier: 'bronze',
+    threshold: 25,
+    title: 'Resident Evil: Omon Qolgan',
+    title_en: 'Resident Evil: Survivor',
+    description: "Resident Evil olamidagi kamida 25% film va animatsiyalarni ko'rdingiz.",
+    icon: '🥉'
+  },
+  {
+    id: 'resident_evil_silver',
+    universe_key: 'resident_evil',
+    universe_name: 'Resident Evil Universe',
+    tier: 'silver',
+    threshold: 60,
+    title: "Resident Evil: S.T.A.R.S. A'zosi",
+    title_en: 'Resident Evil: S.T.A.R.S. Operative',
+    description: "Resident Evil olamidagi 60% dan ortiq loyihalarni tomosha qildingiz.",
+    icon: '🥈'
+  },
+  {
+    id: 'resident_evil_gold',
+    universe_key: 'resident_evil',
+    universe_name: 'Resident Evil Universe',
+    tier: 'gold',
+    threshold: 100,
+    title: 'Resident Evil: Umbrella Halokati',
+    title_en: "Resident Evil: Umbrella's End",
+    description: "Biohazard xavfi bartaraf etildi! Resident Evil koinotidagi barcha film va animatsiyalarni 100% to'liq ko'rdingiz!",
+    icon: '🥇'
   }
 ];
 
@@ -284,7 +319,7 @@ async function computeGamificationProgress(userId) {
   const userMovies = await getAllUserMovies(userId);
   const universes = loadFranchiseUniverses();
 
-  const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu'];
+  const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil'];
   const progressMap = {};
 
   curatedKeys.forEach(uKey => {

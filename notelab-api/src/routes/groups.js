@@ -51,7 +51,19 @@ router.get('/', async (req, res) => {
     }
     
     groups.sort((a, b) => a.position - b.position);
-    res.json(groups);
+
+    // Deduplicate by section_key
+    const seenSections = new Set();
+    const deduped = [];
+    for (const g of groups) {
+      if (g.section_key) {
+        if (seenSections.has(g.section_key)) continue;
+        seenSections.add(g.section_key);
+      }
+      deduped.push(g);
+    }
+
+    res.json(deduped);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

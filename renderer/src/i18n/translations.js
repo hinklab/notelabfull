@@ -143,7 +143,7 @@ export const translations = {
     },
     "gamification": {
       "achievementsTitle": "Franshizalar Yutuqlari",
-      "achievementsDesc": "5 ta katta kino koinotini tomosha qilib, maxsus nishonlarni oching",
+      "achievementsDesc": "Katta kino koinotlarini tomosha qilib, maxsus nishonlarni oching",
       "badgeUnlocked": "Yangi Yutuq Ochildi!",
       "unlocked": "Ochilgan",
       "tier": "Nishoni",
@@ -428,7 +428,7 @@ export const translations = {
     },
     "gamification": {
       "achievementsTitle": "Достижения франшиз",
-      "achievementsDesc": "Смотрите фильмы и сериалы 5 великих киновселенных и собирайте значки",
+      "achievementsDesc": "Смотрите фильмы и сериалы великих киновселенных и собирайте значки",
       "badgeUnlocked": "Открыто новое достижение!",
       "unlocked": "Открыто",
       "tier": "Значок",
@@ -713,7 +713,7 @@ export const translations = {
     },
     "gamification": {
       "achievementsTitle": "Franchise Achievements",
-      "achievementsDesc": "Watch movies & shows across the 5 great universes and collect badges",
+      "achievementsDesc": "Watch movies & shows across great cinematic universes and collect badges",
       "badgeUnlocked": "New Achievement Unlocked!",
       "unlocked": "Unlocked",
       "tier": "Badge",

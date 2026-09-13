@@ -6,6 +6,7 @@ import { useLanguage } from '../../context/LanguageContext.jsx'
 import { api } from '../../config/api.js'
 import { getStoredUserLocation, storeUserLocation, requestBrowserGeolocation } from '../../services/geo.js'
 import { TelegramIcon, InstagramIcon } from '../common/SocialIcons.jsx'
+import BadgeIcon from '../gamification/BadgeIcon.jsx'
 
 export default function SettingsModal({ onClose, onOpenSurvey }) {
   const { user, updateUser, logout } = useAuth()
@@ -127,7 +128,8 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
           border: '1px solid var(--border, #2a2a2a)',
           borderRadius: 16,
           width: 'min(640px, 94vw)',
-          maxHeight: '85vh',
+          height: 'min(620px, 86vh)',
+          maxHeight: '86vh',
           overflow: 'hidden',
           boxShadow: '0 25px 70px rgba(0,0,0,0.6)',
           display: 'flex',
@@ -145,6 +147,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             background: 'rgba(255, 255, 255, 0.02)',
+            flexShrink: 0,
           }}
         >
           <span style={{ fontWeight: 700, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -159,11 +162,22 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
               cursor: 'pointer',
               padding: 4,
               borderRadius: 6,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease',
             }}
           >
             <X size={18} />
           </button>
         </div>
+
+        <style>{`
+          @keyframes settingsSlideFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
 
         {/* Tab Navigation Bar */}
         <div
@@ -174,6 +188,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
             padding: '4px 12px 0 12px',
             gap: 4,
             overflowX: 'auto',
+            flexShrink: 0,
           }}
         >
           {tabs.map(tab => {
@@ -189,7 +204,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                   borderTop: active ? '2px solid ' + (tab.color || 'var(--accent, #7c3aed)') : '2px solid transparent',
                   borderLeft: active ? '1px solid var(--border, #2a2a2a)' : '1px solid transparent',
                   borderRight: active ? '1px solid var(--border, #2a2a2a)' : '1px solid transparent',
-                  borderBottom: active ? '1px solid var(--bg-surface, #161616)' : 'none',
+                  borderBottom: active ? '1px solid var(--bg-surface, #161616)' : '1px solid transparent',
                   borderRadius: '8px 8px 0 0',
                   padding: '10px 14px',
                   fontSize: 13,
@@ -202,7 +217,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                   whiteSpace: 'nowrap',
                   flex: '1 1 0',
                   minWidth: 'max-content',
-                  transition: 'all 0.2s ease',
+                  transition: 'color 0.15s ease, background-color 0.15s ease',
                   marginBottom: -1,
                 }}
               >
@@ -217,7 +232,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
         <div
           style={{
             flex: 1,
-            maxHeight: 'calc(80vh - 110px)',
+            height: '100%',
             overflowY: 'auto',
             overflowX: 'hidden',
             padding: 24,
@@ -230,7 +245,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
         >
           {/* TAB 1: Profil */}
           {activeTab === 'profile' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, animation: 'settingsSlideFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1)' }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
                   {t('settings.email')}
@@ -370,12 +385,20 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
 
           {/* TAB: Yutuqlar (Achievements) */}
           {activeTab === 'achievements' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div
+              className="settings-tab-panel"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 20,
+                animation: 'settingsSlideFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
+            >
               {/* Header Banner */}
               <div
                 style={{
-                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.04) 100%)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.05) 100%)',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
                   borderRadius: 16,
                   padding: '18px 20px',
                   display: 'flex',
@@ -401,7 +424,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                     <Trophy size={24} color="#f59e0b" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.01em' }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
                       {t('gamification.achievementsTitle', null, 'Franshizalar Yutuqlari')}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
@@ -412,7 +435,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
 
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: 18, fontWeight: 900, color: '#f59e0b' }}>
-                    {achievementsData?.unlocked_count || 0} <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>/ {achievementsData?.total_badges || 15}</span>
+                    {achievementsData?.unlocked_count || 0} <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>/ {achievementsData?.total_badges || 18}</span>
                   </div>
                   <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     {t('gamification.unlocked', null, 'Ochilgan')}
@@ -428,7 +451,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
 
               {!achievementsLoading && achievementsData && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                  {['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu'].map(uKey => {
+                  {['mcu', 'dceu', 'dcu', 'star_wars', 'kurtlar_vadisi', 'resident_evil'].map(uKey => {
                     const uProg = achievementsData.universes?.[uKey] || { name: uKey, percent: 0, done: 0, total: 0 }
                     const universeBadges = (achievementsData.badges || []).filter(b => b.universe_key === uKey)
 
@@ -436,8 +459,8 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                       <div
                         key={uKey}
                         style={{
-                          background: 'var(--bg-input, #1b1b1f)',
-                          border: '1px solid var(--border, #27272a)',
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border)',
                           borderRadius: 16,
                           padding: '16px 18px',
                           display: 'flex',
@@ -451,18 +474,18 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                             <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text-primary)' }}>
                               {uProg.name}
                             </div>
-                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                              {uProg.done} / {uProg.total} {t('space.done', null, "ko'rildi")} · <strong style={{ color: uProg.percent > 0 ? '#f59e0b' : 'inherit' }}>{uProg.percent}%</strong>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+                              {uProg.done} / {uProg.total} {t('space.done', null, "ko'rildi")} · <strong style={{ color: uProg.percent > 0 ? (uProg.percent === 100 ? '#16a34a' : '#f59e0b') : 'inherit' }}>{uProg.percent}%</strong>
                             </div>
                           </div>
 
                           {/* Universe Mini Progress bar */}
-                          <div style={{ width: 100, height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ width: 100, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
                             <div
                               style={{
                                 width: `${uProg.percent}%`,
                                 height: '100%',
-                                background: uProg.percent === 100 ? '#eab308' : (uProg.percent >= 60 ? '#3b82f6' : '#a855f7'),
+                                background: uProg.percent === 100 ? '#16a34a' : (uProg.percent >= 60 ? '#3b82f6' : '#a855f7'),
                                 borderRadius: 3,
                                 transition: 'width 0.3s ease'
                               }}
@@ -477,11 +500,11 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                             const isGoldTier = b.tier === 'gold'
                             const isSilverTier = b.tier === 'silver'
                             const badgeBorder = isUnlocked
-                              ? (isGoldTier ? 'rgba(234, 179, 8, 0.4)' : (isSilverTier ? 'rgba(148, 163, 184, 0.4)' : 'rgba(205, 127, 50, 0.4)'))
-                              : 'rgba(255, 255, 255, 0.07)'
+                              ? (isGoldTier ? '#eab308' : (isSilverTier ? '#94a3b8' : '#ea580c'))
+                              : 'var(--border)'
                             const badgeBg = isUnlocked
-                              ? (isGoldTier ? 'rgba(234, 179, 8, 0.08)' : (isSilverTier ? 'rgba(148, 163, 184, 0.08)' : 'rgba(205, 127, 50, 0.08)'))
-                              : 'rgba(0, 0, 0, 0.25)'
+                              ? (isGoldTier ? 'rgba(234, 179, 8, 0.1)' : (isSilverTier ? 'rgba(148, 163, 184, 0.1)' : 'rgba(234, 88, 12, 0.1)'))
+                              : 'var(--bg-card)'
 
                             return (
                               <div
@@ -495,21 +518,25 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
                                   flexDirection: 'column',
                                   alignItems: 'center',
                                   textAlign: 'center',
-                                  opacity: isUnlocked ? 1 : 0.6,
+                                  opacity: isUnlocked ? 1 : 0.65,
                                   position: 'relative',
                                   transition: 'all 0.15s ease'
                                 }}
                               >
-                                {/* Badge Icon with Lock or Medal */}
-                                <div style={{ fontSize: 28, marginBottom: 6, filter: isUnlocked ? 'none' : 'grayscale(1)' }}>
-                                  {b.icon}
-                                </div>
+                                {/* Universe-specific metallic Badge Icon */}
+                                <BadgeIcon
+                                  universeKey={b.universe_key}
+                                  tier={b.tier}
+                                  isUnlocked={isUnlocked}
+                                  size={40}
+                                  style={{ marginBottom: 8 }}
+                                />
 
-                                <div style={{ fontSize: 11, fontWeight: 700, color: isUnlocked ? '#ffffff' : 'var(--text-secondary)', marginBottom: 4, lineHeight: 1.3 }}>
+                                <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, lineHeight: 1.3 }}>
                                   {b.title}
                                 </div>
 
-                                <div style={{ fontSize: 9.5, fontWeight: 600, color: isUnlocked ? '#22c55e' : 'var(--text-muted)' }}>
+                                <div style={{ fontSize: 10, fontWeight: 600, color: isUnlocked ? '#16a34a' : 'var(--text-muted)' }}>
                                   {isUnlocked
                                     ? `✓ ${t('gamification.unlockedStatus', null, 'Ochilgan')}`
                                     : `${b.needed_percent}% ${t('gamification.needed', null, 'talab qilinadi')}`}
@@ -528,7 +555,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
 
           {/* TAB 2: Ko'rinish & Til */}
           {activeTab === 'appearance' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'settingsSlideFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1)' }}>
               {/* Language Selection Section */}
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -708,7 +735,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
 
           {/* TAB 3: Biz bilan bog'lanish */}
           {activeTab === 'contact' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, animation: 'settingsSlideFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1)' }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <MessageCircle size={16} color="#38bdf8" />

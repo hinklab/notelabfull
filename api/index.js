@@ -2392,7 +2392,252 @@ const FRANCHISE_UNIVERSES = {
       { "id": 58637, "type": "movie", "title": "Valley of the Wolves: Palestine", "stage": 3, "lane": 1, "connects_to": [469469] },
       { "id": 469469, "type": "movie", "title": "Valley of the Wolves: Homeland", "stage": 4, "lane": 0, "connects_to": [] }
     ]
-  }
+  },
+  "resident_evil": {
+    "name": "Resident Evil Universe",
+    "collection_ids": [
+        17255,
+        133352
+    ],
+    "known_tmdb_ids": [
+        1576,
+        1577,
+        7737,
+        35791,
+        71679,
+        173897,
+        460458,
+        108296,
+        1423191,
+        13648,
+        110642,
+        133121,
+        400136,
+        1083862
+    ],
+    "chronological_order": [
+        {
+            "id": 1576,
+            "type": "movie",
+            "stage": 0,
+            "lane": 0,
+            "connects_to": [
+                1577
+            ],
+            "title": "Resident Evil",
+            "release_date": "2002-03-15",
+            "release_year": "2002",
+            "rating": 6.7,
+            "vote_count": 7141,
+            "poster_path": "https://image.tmdb.org/t/p/w500/1UKNef590A0ZaMnxsscIcWuK1Em.jpg",
+            "overview": "When a virus leaks from a top-secret facility, turning all resident researchers into ravenous zombies and their lab animals into mutated hounds from hell, the government sends in an elite military task force to contain the outbreak."
+        },
+        {
+            "id": 1577,
+            "type": "movie",
+            "stage": 1,
+            "lane": 0,
+            "connects_to": [
+                7737
+            ],
+            "title": "Resident Evil: Apocalypse",
+            "release_date": "2004-09-10",
+            "release_year": "2004",
+            "rating": 6.4,
+            "vote_count": 4914,
+            "poster_path": "https://image.tmdb.org/t/p/w500/way9dOm4dM2sm9UMcu2PEXMTX0q.jpg",
+            "overview": "As the city is locked down under quarantine, Alice finds out that the people that died from the previous incident at the Umbrella Corporation have turned into zombies. She then joins a small band of elite soldiers, who are enlisted to rescue the missing daughter of the creator of the mutating T-virus.  Once lack of luck and resources happen, they begin to wage an exhilarating battle to survive and escape before the Umbrella Corporation erases its experiment from the face of the earth."
+        },
+        {
+            "id": 7737,
+            "type": "movie",
+            "stage": 2,
+            "lane": 0,
+            "connects_to": [
+                35791
+            ],
+            "title": "Resident Evil: Extinction",
+            "release_date": "2007-09-20",
+            "release_year": "2007",
+            "rating": 6.3,
+            "vote_count": 4716,
+            "poster_path": "https://image.tmdb.org/t/p/w500/6yaLr7Ymg5cvbtSVi5hHwBKx35I.jpg",
+            "overview": "Years after the Racoon City catastrophe, survivors travel across the Nevada desert, hoping to make it to Alaska. Alice joins the caravan and their fight against hordes of zombies and the evil Umbrella Corp."
+        },
+        {
+            "id": 35791,
+            "type": "movie",
+            "stage": 4,
+            "lane": 0,
+            "connects_to": [
+                71679
+            ],
+            "title": "Resident Evil: Afterlife",
+            "release_date": "2010-09-01",
+            "release_year": "2010",
+            "rating": 6.1,
+            "vote_count": 4335,
+            "poster_path": "https://image.tmdb.org/t/p/w500/qZHDnt8bnsD2cSJfIbjWbCkIq3G.jpg",
+            "overview": "In a world ravaged by a virus infection, turning its victims into the Undead, Alice continues on her journey to find survivors and lead them to safety. Her deadly battle with the Umbrella Corporation reaches new heights, but Alice gets some unexpected help from an old friend. A new lead that promises a safe haven from the Undead takes them to Los Angeles, but when they arrive the city is overrun by thousands of Undead - and Alice and her comrades are about to step into a deadly trap."
+        },
+        {
+            "id": 71679,
+            "type": "movie",
+            "stage": 6,
+            "lane": 0,
+            "connects_to": [
+                173897
+            ],
+            "title": "Resident Evil: Retribution",
+            "release_date": "2012-09-12",
+            "release_year": "2012",
+            "rating": 5.8,
+            "vote_count": 4435,
+            "poster_path": "https://image.tmdb.org/t/p/w500/ohdUDWVlcbuWphaLu6wS91xdJ73.jpg",
+            "overview": "The Umbrella Corporation’s deadly T-virus continues to ravage the Earth, transforming the global population into legions of the flesh eating Undead. The human race’s last and only hope, Alice, awakens in the heart of Umbrella’s most clandestine operations facility and unveils more of her mysterious past as she delves further into the complex. Without a safe haven, Alice continues to hunt those responsible for the outbreak; a chase that takes her from Tokyo to New York, Washington, D.C. and Moscow, culminating in a mind-blowing revelation that will force her to rethink everything that she once thought to be true. Aided by new found allies and familiar friends, Alice must fight to survive long enough to escape a hostile world on the brink of oblivion. The countdown has begun."
+        },
+        {
+            "id": 173897,
+            "type": "movie",
+            "stage": 7,
+            "lane": 0,
+            "connects_to": [
+                460458
+            ],
+            "title": "Resident Evil: The Final Chapter",
+            "release_date": "2016-12-23",
+            "release_year": "2016",
+            "rating": 6.1,
+            "vote_count": 3587,
+            "poster_path": "https://image.tmdb.org/t/p/w500/7glPlA0xPpxPxBu0TnY4ulQVCV1.jpg",
+            "overview": "Picking up immediately after the events in Resident Evil: Retribution, Alice is the only survivor of what was meant to be humanity's final stand against the undead. Now, she must return to where the nightmare began - The Hive in Raccoon City, where the Umbrella Corporation is gathering its forces for a final strike against the only remaining survivors of the apocalypse."
+        },
+        {
+            "id": 13648,
+            "type": "movie",
+            "stage": 3,
+            "lane": 1,
+            "connects_to": [
+                110642
+            ],
+            "title": "Resident Evil: Degeneration",
+            "release_date": "2008-02-13",
+            "release_year": "2008",
+            "rating": 6.8,
+            "vote_count": 1197,
+            "poster_path": "https://image.tmdb.org/t/p/w500/1x5OaFOo38JAwR5yXxeuvQg3VWH.jpg",
+            "overview": "Leon S. Kennedy and Claire Redfield must battle a rogue warrior seeking revenge after unleashing the deadly G-Virus, whilst a mutated monster goes on a rampage."
+        },
+        {
+            "id": 110642,
+            "type": "tv",
+            "stage": 5,
+            "lane": 1,
+            "connects_to": [
+                133121
+            ],
+            "title": "RESIDENT EVIL: Infinite Darkness",
+            "release_date": "2021-07-08",
+            "release_year": "2021",
+            "rating": 7.5,
+            "vote_count": 915,
+            "poster_path": "https://image.tmdb.org/t/p/w500/wWwTjKER5a8LRUGHrw86VU0gUy1.jpg",
+            "overview": "Years after the horrors of Raccoon City, Leon and Claire find themselves consumed by a dark conspiracy when a viral attack ravages the White House."
+        },
+        {
+            "id": 133121,
+            "type": "movie",
+            "stage": 6,
+            "lane": 1,
+            "connects_to": [
+                400136
+            ],
+            "title": "Resident Evil: Damnation",
+            "release_date": "2012-09-25",
+            "release_year": "2012",
+            "rating": 6.9,
+            "vote_count": 1019,
+            "poster_path": "https://image.tmdb.org/t/p/w500/zkHSURVCrt7rpvDDgUXO75CV1v4.jpg",
+            "overview": "U.S. federal agent Leon S. Kennedy sneaks into the \"East Slavic Republic\" to verify rumors that Bio-Organic Weapons (BOWs) are being used in the country's civil war, which the U.S. and Russia are making preparations to jointly intervene in. Right after his infiltration, the U.S. government orders him to leave immediately. Determined to uncover the truth, Leon ignores the order and enters the battlefield to end the chain of tragedies caused by the BOWs."
+        },
+        {
+            "id": 400136,
+            "type": "movie",
+            "stage": 8,
+            "lane": 1,
+            "connects_to": [
+                1083862
+            ],
+            "title": "Resident Evil: Vendetta",
+            "release_date": "2017-05-27",
+            "release_year": "2017",
+            "rating": 6.9,
+            "vote_count": 1104,
+            "poster_path": "https://image.tmdb.org/t/p/w500/kdiMtgjWXEH9QZ85hgmWaSwshjf.jpg",
+            "overview": "When a fearless enemy out for revenge unleashes a brutal and deadly new virus, BSAA captain Chris Redfield enlists the help of Agent Leon S. Kennedy and Professor Rebecca Chambers to bring down the death merchant and save New York City."
+        },
+        {
+            "id": 1083862,
+            "type": "movie",
+            "stage": 10,
+            "lane": 1,
+            "connects_to": [],
+            "title": "Resident Evil: Death Island",
+            "release_date": "2023-06-22",
+            "release_year": "2023",
+            "rating": 7.3,
+            "vote_count": 1138,
+            "poster_path": "https://image.tmdb.org/t/p/w500/qayga07ICNDswm0cMJ8P3VwklFZ.jpg",
+            "overview": "In San Francisco, Jill Valentine is dealing with a zombie outbreak and a new T-Virus, Leon Kennedy is on the trail of a kidnapped DARPA scientist, and Claire Redfield is investigating a monstrous fish that is killing whales in the bay. Joined by Chris Redfield and Rebecca Chambers, they discover the trail of clues from their separate cases all converge on the same location, Alcatraz Island, where a new evil has taken residence and awaits their arrival."
+        },
+        {
+            "id": 460458,
+            "type": "movie",
+            "stage": 9,
+            "lane": 0,
+            "connects_to": [
+                108296
+            ],
+            "title": "Resident Evil: Welcome to Raccoon City",
+            "release_date": "2021-11-24",
+            "release_year": "2021",
+            "rating": 5.9,
+            "vote_count": 2780,
+            "poster_path": "https://image.tmdb.org/t/p/w500/bArhvjRHl535XMaSh9VjInF2mSZ.jpg",
+            "overview": "Once the booming home of pharmaceutical giant Umbrella Corporation, Raccoon City is now a dying Midwestern town. The company’s exodus left the city a wasteland…with great evil brewing below the surface. When that evil is unleashed, the townspeople are forever…changed…and a small group of survivors must work together to uncover the truth behind Umbrella and make it through the night."
+        },
+        {
+            "id": 108296,
+            "type": "tv",
+            "stage": 10,
+            "lane": 0,
+            "connects_to": [
+                1423191
+            ],
+            "title": "Resident Evil",
+            "release_date": "2022-07-14",
+            "release_year": "2022",
+            "rating": 5.5,
+            "vote_count": 639,
+            "poster_path": "https://image.tmdb.org/t/p/w500/rmLvn4w4HMdxobPkjmIqrhJiXDO.jpg",
+            "overview": "Years after a viral outbreak caused a global apocalypse, Jade Wesker vows to bring down those responsible while fighting to survive against the Infected."
+        },
+        {
+            "id": 1423191,
+            "type": "movie",
+            "stage": 11,
+            "lane": 0,
+            "connects_to": [],
+            "title": "Resident Evil",
+            "release_date": "2026-09-16",
+            "release_year": "2026",
+            "rating": 10,
+            "vote_count": 2,
+            "poster_path": "https://image.tmdb.org/t/p/w500/qku2uWSoJ9amQV5MWo1Eek29iji.jpg",
+            "overview": "Medical courier Bryan unwittingly finds himself fighting for survival as one fateful, horrifying night collapses around him in chaos."
+        }
+    ]
+}
 };
 
 const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -2836,8 +3081,25 @@ module.exports = async (req, res) => {
       let movieNotes = notes.filter(n => n.is_movie || n.type === 'movie' || (n.title || '').toLowerCase() === 'movies');
       
       if (movieNotes.length > 1) {
-        const primary = movieNotes.find(n => n.id === 6) || movieNotes[movieNotes.length - 1];
+        // Find which movie note actually has movies attached to it
+        let primary = movieNotes[0];
+        try {
+          const { data: userMovies } = await supabase.from('movies').select('note_id').eq('user_id', userId);
+          if (userMovies && userMovies.length > 0) {
+            const noteIdsWithMovies = new Set(userMovies.map(m => Number(m.note_id)).filter(Boolean));
+            const noteWithMovies = movieNotes.find(n => noteIdsWithMovies.has(Number(n.id)));
+            if (noteWithMovies) primary = noteWithMovies;
+          }
+        } catch (e) {}
+
+        // Keep only primary movie note, filter out duplicate movie notes
         notes = notes.filter(n => !movieNotes.includes(n) || n.id === primary.id);
+
+        // Clean up duplicate empty movie notes from Supabase
+        const toDeleteIds = movieNotes.filter(n => n.id !== primary.id).map(n => n.id);
+        if (toDeleteIds.length > 0) {
+          supabase.from('notes').delete().in('id', toDeleteIds).catch(() => {});
+        }
       } else if (movieNotes.length === 0) {
         const { data: created } = await supabase.from('notes')
           .insert([{ user_id: userId, title: 'Movies', icon: '🎬', type: 'movie', is_movie: true, position: 0 }])
@@ -2851,15 +3113,16 @@ module.exports = async (req, res) => {
     // GROUPS
     // ═══════════════════════════════════════
     if (path === 'groups' && req.method === 'GET') {
-      let q = supabase.from('note_groups').select('*').eq('user_id', userId).order('position');
-      if (query.note_id) q = q.eq('note_id', query.note_id);
-      const { data } = await q;
-      let groups = data || [];
-      if (groups.length === 0) {
-        const { data: allUserGroups } = await supabase.from('note_groups').select('*').eq('user_id', userId).order('position');
-        if (allUserGroups && allUserGroups.length > 0) {
-          groups = allUserGroups;
-        } else if (query.note_id) {
+      let groups = [];
+      const targetNoteId = query.note_id ? Number(query.note_id) : null;
+
+      if (targetNoteId) {
+        // Query groups strictly for this note_id
+        const { data } = await supabase.from('note_groups').select('*').eq('user_id', userId).eq('note_id', targetNoteId).order('position');
+        groups = data || [];
+
+        // If no groups exist for this specific note_id, create the 4 standard defaults
+        if (groups.length === 0) {
           const defaults = [
             { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
             { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
@@ -2867,12 +3130,38 @@ module.exports = async (req, res) => {
             { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
           ];
           const { data: created } = await supabase.from('note_groups')
-            .insert(defaults.map(d => ({ ...d, user_id: userId, note_id: Number(query.note_id) })))
+            .insert(defaults.map(d => ({ ...d, user_id: userId, note_id: targetNoteId })))
             .select();
           groups = created || [];
         }
+      } else {
+        const { data } = await supabase.from('note_groups').select('*').eq('user_id', userId).order('position');
+        groups = data || [];
       }
-      return res.status(200).json(groups);
+
+      // STRICT DEDUPLICATION: Ensure no duplicate section_key is ever returned
+      const seenSectionKeys = new Set();
+      const duplicateIdsToDelete = [];
+      const deduped = [];
+
+      for (const g of groups) {
+        const secKey = g.section_key;
+        if (secKey) {
+          if (seenSectionKeys.has(secKey)) {
+            duplicateIdsToDelete.push(g.id);
+            continue;
+          }
+          seenSectionKeys.add(secKey);
+        }
+        deduped.push(g);
+      }
+
+      // Clean up duplicate group rows in Supabase in background
+      if (duplicateIdsToDelete.length > 0) {
+        supabase.from('note_groups').delete().in('id', duplicateIdsToDelete).catch(() => {});
+      }
+
+      return res.status(200).json(deduped);
     }
 
     // ═══════════════════════════════════════
@@ -2887,12 +3176,9 @@ module.exports = async (req, res) => {
       const ratingsMap = (ratingRow && ratingRow.settings) ? ratingRow.settings : {};
 
       let movies = data || [];
-      if (query.note_id && movies.length > 0) {
+      if (query.note_id) {
         const targetNoteId = parseInt(query.note_id);
-        const filtered = movies.filter(m => !m.note_id || parseInt(m.note_id) === targetNoteId);
-        if (filtered.length > 0) {
-          movies = filtered;
-        }
+        movies = movies.filter(m => !m.note_id || parseInt(m.note_id) === targetNoteId);
       }
       movies = movies.map(m => {
         const uRating = ratingsMap[String(m.id)] != null ? Number(ratingsMap[String(m.id)]) : (m.user_rating != null ? Number(m.user_rating) : null);
@@ -3102,20 +3388,25 @@ module.exports = async (req, res) => {
         } catch (e) {}
       }
 
-      // Multi-season TV Show Detection & Auto-Splitting
-      if (body.tmdb_id && TMDB_KEY && (media_type === 'tv' || body.media_type === 'tv' || (body.seasons && /season/i.test(body.seasons))) && !body.title.includes('— Season')) {
+      // Multi-season and Single-season TV Show Detection & Auto-Splitting / Auto-Enrichment
+      const isTvCandidate = (media_type === 'tv' || body.media_type === 'tv' || (body.seasons && /season|mavsum/i.test(body.seasons)) || (body.title && /[-—]\s*Season\s*\d+/i.test(body.title)));
+      if (body.tmdb_id && TMDB_KEY && isTvCandidate) {
         try {
-          const tvUrl = `https://api.themoviedb.org/3/tv/${body.tmdb_id}?api_key=${TMDB_KEY}&language=en-US`;
-          const tvRes = await fetch(tvUrl, { signal: AbortSignal.timeout(3000) });
+          const tvUrl = `https://api.themoviedb.org/3/tv/${body.tmdb_id}?api_key=${TMDB_KEY}&append_to_response=credits,external_ids&language=en-US`;
+          const tvRes = await fetch(tvUrl, { signal: AbortSignal.timeout(3500) });
           if (tvRes.ok) {
             const d = await tvRes.json();
+            media_type = 'tv';
+            const seriesBaseName = d.name || body.title.replace(/\s*[-—]\s*Season\s*\d+/i, '').trim();
+            const seriesPoster = d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : (poster_path || null);
+            const defaultEpRuntime = (d.episode_run_time && d.episode_run_time[0]) || 45;
+            const genreStr = d.genres?.map(g => g.name).join(', ') || genre || '-';
             const rawSeasons = (d.seasons || []).filter(s => s.season_number > 0);
-            if (rawSeasons.length > 1) {
-              const seriesBaseName = d.name || body.title;
-              const seriesPoster = d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : (poster_path || null);
-              const defaultEpRuntime = (d.episode_run_time && d.episode_run_time[0]) || 45;
+
+            // Case A: User adding base TV show with multiple seasons -> Auto-create all seasons
+            const isSpecificSeason = /[-—]\s*Season\s*(\d+)/i.test(body.title);
+            if (!isSpecificSeason && rawSeasons.length > 1) {
               const createdSeasons = [];
-              const genreStr = d.genres?.map(g => g.name).join(', ') || genre || '-';
 
               for (let sIdx = 0; sIdx < rawSeasons.length; sIdx++) {
                 const s = rawSeasons[sIdx];
@@ -3177,10 +3468,54 @@ module.exports = async (req, res) => {
 
                 return res.status(200).json(createdSeasons[0]);
               }
+            } else {
+              // Case B: Single-Season series OR user adding a specific Season (e.g. "Peacemaker - Season 1")
+              const targetSeasonNum = isSpecificSeason ? parseInt(body.title.match(/[-—]\s*Season\s*(\d+)/i)[1], 10) : 1;
+              const sTarget = rawSeasons.find(s => s.season_number === targetSeasonNum) || rawSeasons[0] || { season_number: targetSeasonNum, episode_count: d.number_of_episodes || 1 };
+              const sNum = sTarget.season_number || targetSeasonNum || 1;
+
+              let seasonPoster = sTarget.poster_path ? `https://image.tmdb.org/t/p/w500${sTarget.poster_path}` : seriesPoster;
+              let seasonAirDate = sTarget.air_date || d.first_air_date || release_date;
+              let seasonReleaseYear = seasonAirDate ? seasonAirDate.split('-')[0] : release_year;
+              let epCount = sTarget.episode_count || 1;
+              let totalMinutes = 0;
+              let exactCount = 0;
+
+              try {
+                const sDetailRes = await fetch(`https://api.themoviedb.org/3/tv/${body.tmdb_id}/season/${sNum}?api_key=${TMDB_KEY}&language=en-US`, { signal: AbortSignal.timeout(2500) });
+                if (sDetailRes.ok) {
+                  const sDetail = await sDetailRes.json();
+                  if (sDetail.poster_path) seasonPoster = `https://image.tmdb.org/t/p/w500${sDetail.poster_path}`;
+                  if (sDetail.air_date) {
+                    seasonAirDate = sDetail.air_date;
+                    seasonReleaseYear = seasonAirDate.split('-')[0];
+                  }
+                  if (Array.isArray(sDetail.episodes) && sDetail.episodes.length > 0) {
+                    epCount = sDetail.episodes.length;
+                    sDetail.episodes.forEach(ep => {
+                      if (ep.runtime && ep.runtime > 0) {
+                        totalMinutes += ep.runtime;
+                        exactCount++;
+                      }
+                    });
+                  }
+                }
+              } catch (e) {}
+
+              if (exactCount === 0) totalMinutes = epCount * defaultEpRuntime;
+              const humanDuration = formatDurationUz(totalMinutes, exactCount === 0);
+              seasons = `Season ${sNum} · ${epCount} ep · ${humanDuration} (${totalMinutes} min)`;
+              body.title = `${seriesBaseName} — Season ${sNum}`;
+              poster_path = seasonPoster;
+              release_date = seasonAirDate;
+              release_year = seasonReleaseYear;
+              genre = genreStr;
+              if (sTarget.overview) overview = sTarget.overview;
+              if (sTarget.vote_average) rating = Number(sTarget.vote_average.toFixed(1));
             }
           }
         } catch (e) {
-          console.warn('Multi-season TV add error:', e.message);
+          console.warn('TV season resolution error:', e.message);
         }
       }
 
@@ -4591,14 +4926,17 @@ module.exports = async (req, res) => {
       { id: 'kurtlar_vadisi_gold', universe_key: 'kurtlar_vadisi', universe_name: 'Kurtlar Vadisi Universe', tier: 'gold', threshold: 100, title: 'Kurtlar Vadisi: Baron', title_en: 'Valley of the Wolves: The Baron', description: "Bu shunchaki kino emas, bu hayot! Barcha serial va filmlarini 100% to'liq ko'rdingiz!", icon: '🥇' },
       { id: 'dcu_bronze', universe_key: 'dcu', universe_name: 'DC Universe (Gods and Monsters)', tier: 'bronze', threshold: 25, title: 'DCU: Xudolar va Maxluqlar', title_en: 'DCU: Gods and Monsters', description: "Yangi James Gunn DCU olamidagi dastlabki loyihalarni ko'rib chiqdingiz.", icon: '🥉' },
       { id: 'dcu_silver', universe_key: 'dcu', universe_name: 'DC Universe (Gods and Monsters)', tier: 'silver', threshold: 60, title: 'DCU: Yangi Davr', title_en: 'DCU: New Chapter', description: "DCU olamidagi loyihalarning 60% dan ortig'ini tomosha qildingiz.", icon: '🥈' },
-      { id: 'dcu_gold', universe_key: 'dcu', universe_name: 'DC Universe (Gods and Monsters)', tier: 'gold', threshold: 100, title: 'DCU: Haqiqat va Adolat', title_en: 'DCU: Truth and Justice', description: "Yangi DCU olamidagi barcha loyihalarni 100% to'liq ko'rib bo'ldingiz!", icon: '🥇' }
+      { id: 'dcu_gold', universe_key: 'dcu', universe_name: 'DC Universe (Gods and Monsters)', tier: 'gold', threshold: 100, title: 'DCU: Haqiqat va Adolat', title_en: 'DCU: Truth and Justice', description: "Yangi DCU olamidagi barcha loyihalarni 100% to'liq ko'rib bo'ldingiz!", icon: '🥇' },
+      { id: 'resident_evil_bronze', universe_key: 'resident_evil', universe_name: 'Resident Evil Universe', tier: 'bronze', threshold: 25, title: 'Resident Evil: Omon Qolgan', title_en: 'Resident Evil: Survivor', description: "Resident Evil olamidagi kamida 25% film va animatsiyalarni ko'rdingiz.", icon: '🥉' },
+      { id: 'resident_evil_silver', universe_key: 'resident_evil', universe_name: 'Resident Evil Universe', tier: 'silver', threshold: 60, title: "Resident Evil: S.T.A.R.S. A'zosi", title_en: 'Resident Evil: S.T.A.R.S. Operative', description: "Resident Evil olamidagi 60% dan ortiq loyihalarni tomosha qildingiz.", icon: '🥈' },
+      { id: 'resident_evil_gold', universe_key: 'resident_evil', universe_name: 'Resident Evil Universe', tier: 'gold', threshold: 100, title: 'Resident Evil: Umbrella Halokati', title_en: "Resident Evil: Umbrella's End", description: "Biohazard xavfi bartaraf etildi! Resident Evil koinotidagi barcha film va animatsiyalarni 100% to'liq ko'rdingiz!", icon: '🥇' }
     ];
 
     if ((path === 'gamification/progress' || path === 'gamification/badges') && req.method === 'GET') {
       const { data: userMovies } = await supabase.from('movies').select('*').eq('user_id', userId);
       const moviesList = userMovies || [];
 
-      const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu'];
+      const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil'];
       const progressMap = {};
 
       curatedKeys.forEach(uKey => {
