@@ -382,8 +382,9 @@ router.post('/', async (req, res) => {
 
           release_date = detail.release_date || detail.first_air_date || release_date;
           release_year = release_date ? release_date.split('-')[0] : release_year;
-          rating = detail.vote_average ? Number(detail.vote_average.toFixed(1)) : rating;
-          vote_count = detail.vote_count ?? vote_count;
+          // IMDb-only rating system: do not populate rating or vote_count from TMDB
+          rating = null;
+          vote_count = null;
           if (detail.poster_path) poster_path = `https://image.tmdb.org/t/p/w500${detail.poster_path}`;
           if (detail.genres && detail.genres.length) genre = detail.genres.map(g => g.name).join(', ');
           if (detail.credits && detail.credits.crew) {
@@ -394,6 +395,39 @@ router.post('/', async (req, res) => {
             director = detail.created_by.map(c => c.name).join(', ');
           }
           if (detail.overview) overview = detail.overview;
+
+          // Always resolve IMDb ID and fetch Full IMDb rating & votes
+          let tmdbImdbId = detail.external_ids?.imdb_id || detail.imdb_id || data.imdb_id || null;
+          if (!tmdbImdbId && tmdb_id) {
+            tmdbImdbId = await resolveImdbId(tmdb_id, media_type, tmdbKey);
+          }
+          if (tmdbImdbId) {
+            data.imdb_id = tmdbImdbId;
+            try {
+              const omdbDetail = await fetchOmdbWithRotation(`i=${encodeURIComponent(tmdbImdbId)}&plot=short`, effectiveOmdbKey);
+              if (omdbDetail && omdbDetail.Response === 'True') {
+                const omdbDate = parseOmdbDate(omdbDetail.Released);
+                if (omdbDate) {
+                  release_date = omdbDate;
+                  release_year = omdbDate.split('-')[0];
+                }
+                if (omdbDetail.imdbRating && omdbDetail.imdbRating !== 'N/A') {
+                  rating = parseFloat(omdbDetail.imdbRating);
+                }
+                if (omdbDetail.imdbVotes && omdbDetail.imdbVotes !== 'N/A') {
+                  vote_count = parseInt(omdbDetail.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+                }
+                if (omdbDetail.Runtime && omdbDetail.Runtime !== 'N/A') {
+                  const mins = parseInt(omdbDetail.Runtime, 10);
+                  if (mins > 0 && (!detail.runtime || detail.runtime <= 0)) {
+                    detail.runtime = mins;
+                  }
+                }
+              }
+            } catch (omdbErr) {
+              console.warn('OMDb release date fetch error on Add:', omdbErr.message);
+            }
+          }
 
           if (media_type === 'tv' || detail.number_of_seasons) {
             const rawSeasons = (detail.seasons || []).filter(s => s.season_number > 0);
@@ -460,8 +494,8 @@ router.post('/', async (req, res) => {
                   imdb_id: data.imdb_id || null,
                   media_type: 'tv',
                   poster_path: seasonPoster,
-                  rating: s.vote_average ? Number(s.vote_average.toFixed(1)) : (rating || null),
-                  vote_count: s.vote_count || (vote_count || 0),
+                  rating: rating || null,
+                  vote_count: vote_count || null,
                   genre,
                   director,
                   overview: s.overview || detail.overview || overview || '',
@@ -530,46 +564,12 @@ router.post('/', async (req, res) => {
               release_date = seasonAirDate;
               release_year = seasonReleaseYear;
               if (sTarget.overview) overview = sTarget.overview;
-              if (sTarget.vote_average) rating = Number(sTarget.vote_average.toFixed(1));
             }
           } else if (detail.runtime && detail.runtime > 0) {
             const humanDur = formatDurationUz(detail.runtime, false);
             seasons = `${humanDur} (${detail.runtime} min)`;
           } else {
             seasons = '-';
-          }
-
-          let tmdbImdbId = detail.external_ids?.imdb_id || detail.imdb_id || data.imdb_id || null;
-          if (!tmdbImdbId && tmdb_id) {
-            tmdbImdbId = await resolveImdbId(tmdb_id, media_type, tmdbKey);
-          }
-          if (tmdbImdbId) {
-            data.imdb_id = tmdbImdbId;
-            try {
-              const omdbDetail = await fetchOmdbWithRotation(`i=${encodeURIComponent(tmdbImdbId)}&plot=short`, effectiveOmdbKey);
-              if (omdbDetail && omdbDetail.Response === 'True') {
-                const omdbDate = parseOmdbDate(omdbDetail.Released);
-                if (omdbDate) {
-                  release_date = omdbDate;
-                  release_year = omdbDate.split('-')[0];
-                }
-                if (omdbDetail.imdbRating && omdbDetail.imdbRating !== 'N/A') {
-                  rating = parseFloat(omdbDetail.imdbRating);
-                }
-                if (omdbDetail.imdbVotes && omdbDetail.imdbVotes !== 'N/A') {
-                  vote_count = parseInt(omdbDetail.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
-                }
-                if ((seasons === '-' || !seasons) && omdbDetail.Runtime && omdbDetail.Runtime !== 'N/A') {
-                  const mins = parseInt(omdbDetail.Runtime, 10);
-                  if (mins > 0) {
-                    const humanDur = formatDurationUz(mins, false);
-                    seasons = `${humanDur} (${mins} min)`;
-                  }
-                }
-              }
-            } catch (omdbErr) {
-              console.warn('OMDb release date fetch error on Add:', omdbErr.message);
-            }
           }
 
           if (section === 'futured' && !rating) {
@@ -989,19 +989,7 @@ router.post('/refresh-all', async (req, res) => {
                 changed = true;
                 changes.push({ field: 'overview', label: 'Tavsif', text: "Film tavsifi qo'shildi" });
               }
-              if (movieDetail.vote_average && m.section !== 'futured') {
-                const newRating = Number(movieDetail.vote_average.toFixed(1));
-                if (m.rating !== newRating) {
-                  const oldR = m.rating;
-                  m.rating = newRating;
-                  changed = true;
-                  changes.push({ field: 'rating', label: 'TMDB Reyting', text: `TMDB: ${oldR != null ? `${oldR} → ` : ''}${newRating}` });
-                }
-                if (movieDetail.vote_count && m.vote_count !== movieDetail.vote_count) {
-                  m.vote_count = movieDetail.vote_count;
-                  changed = true;
-                }
-              }
+
             } else if (tvDetail) {
               if (tvDetail.first_air_date && m.release_date !== tvDetail.first_air_date) {
                 m.release_date = tvDetail.first_air_date;

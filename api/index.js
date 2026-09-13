@@ -3337,9 +3337,9 @@ module.exports = async (req, res) => {
             else if (d.release_date || d.runtime) media_type = 'movie';
 
             release_date = d.release_date || d.first_air_date || release_date;
-            release_year = release_date ? release_date.split('-')[0] : release_year;
-            rating = d.vote_average ? Number(d.vote_average.toFixed(1)) : rating;
-            vote_count = d.vote_count ?? vote_count;
+            // IMDb-only rating system: do not populate rating or vote_count from TMDB
+            rating = null;
+            vote_count = null;
             if (d.poster_path) poster_path = `https://image.tmdb.org/t/p/w500${d.poster_path}`;
             if (d.genres?.length) genre = d.genres.map(g => g.name).join(', ');
             if (d.credits?.crew) {
@@ -3474,8 +3474,8 @@ module.exports = async (req, res) => {
                 const sPayload = {
                   user_id: userId, note_id: noteId, title: seasonTitle, section, position: position + sIdx,
                   tmdb_id: body.tmdb_id, imdb_id: body.imdb_id || null, media_type: 'tv',
-                  poster_path: seasonPoster, rating: s.vote_average ? Number(s.vote_average.toFixed(1)) : (rating || null),
-                  vote_count: s.vote_count || (vote_count || 0), genre: genreStr,
+                  poster_path: seasonPoster, rating: (rating || null),
+                  vote_count: (vote_count || null), genre: genreStr,
                   director: director || '-', overview: s.overview || d.overview || overview || '',
                   release_date: seasonAirDate, release_year: seasonReleaseYear, seasons: seasonStr,
                   note: body.note || '', created_at: new Date().toISOString(), updated_at: new Date().toISOString()
@@ -3543,7 +3543,6 @@ module.exports = async (req, res) => {
               release_year = seasonReleaseYear;
               genre = genreStr;
               if (sTarget.overview) overview = sTarget.overview;
-              if (sTarget.vote_average) rating = Number(sTarget.vote_average.toFixed(1));
             }
           }
         } catch (e) {
@@ -3797,19 +3796,6 @@ module.exports = async (req, res) => {
                   m.overview = movieDetail.overview;
                   changed = true;
                   changes.push({ field: 'overview', label: 'Tavsif', text: "Film tavsifi qo'shildi" });
-                }
-                if (movieDetail.vote_average && m.section !== 'futured') {
-                  const newRating = Number(movieDetail.vote_average.toFixed(1));
-                  if (m.rating !== newRating) {
-                    const oldR = m.rating;
-                    m.rating = newRating;
-                    changed = true;
-                    changes.push({ field: 'rating', label: 'TMDB Reyting', text: `TMDB: ${oldR != null ? `${oldR} → ` : ''}${newRating}` });
-                  }
-                  if (movieDetail.vote_count && m.vote_count !== movieDetail.vote_count) {
-                    m.vote_count = movieDetail.vote_count;
-                    changed = true;
-                  }
                 }
               } else if (tvDetail) {
                 if (tvDetail.first_air_date && m.release_date !== tvDetail.first_air_date) {

@@ -2078,10 +2078,11 @@ function MovieCard({
             <div className="movie-card-title" style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {displayTitle}
             </div>
-            {movie.vote_average > 0 && (
+            {(movie.rating > 0 || movie.vote_average > 0) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: '#000000', background: '#f5c518', padding: '1px 3.5px', borderRadius: 2.5, letterSpacing: '0.2px' }}>IMDb</span>
                 <Star size={12} fill="#eab308" color="#eab308" />
-                <span style={{ fontWeight: 700, color: '#eab308' }}>{Number(movie.vote_average).toFixed(1)}</span>
+                <span style={{ fontWeight: 700, color: '#eab308' }}>{Number(movie.rating || movie.vote_average).toFixed(1)}</span>
                 {isDone && effectiveUserRating && (
                   <span style={{ marginLeft: 6, background: '#3b82f6', color: '#fff', fontSize: 10.5, fontWeight: 700, padding: '1px 5px', borderRadius: 4 }}>
                     ★ {effectiveUserRating}
@@ -2111,8 +2112,11 @@ function areMovieCardPropsEqual(prev, next) {
     prevM.id === nextM.id &&
     prevM.user_rating === nextM.user_rating &&
     prevM.section === nextM.section &&
+    prevM.rating === nextM.rating &&
+    prevM.vote_count === nextM.vote_count &&
     prevM.vote_average === nextM.vote_average &&
     prevM.runtime === nextM.runtime &&
+    prevM.seasons === nextM.seasons &&
     prevM.title === nextM.title &&
     prevM.name === nextM.name &&
     prevM.poster_path === nextM.poster_path &&
