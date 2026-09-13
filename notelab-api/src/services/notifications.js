@@ -811,11 +811,14 @@ async function generateBoxOfficeAlerts(userId) {
 
   for (const movie of userMovies) {
     if (!movie.release_date || !movie.tmdb_id) continue;
+    // TV shows don't have theatrical box office
+    if (movie.media_type === 'tv') continue;
+
     const relTime = new Date(movie.release_date).getTime();
     if (isNaN(relTime)) continue;
 
     const daysSinceRelease = Math.floor((now - relTime) / (1000 * 60 * 60 * 24));
-    if (daysSinceRelease < 7 || daysSinceRelease > 30) continue;
+    if (daysSinceRelease < 7 || daysSinceRelease > 60) continue;
 
     const weekNum = Math.floor(daysSinceRelease / 7);
     const mId = String(movie.tmdb_id);
@@ -827,31 +830,64 @@ async function generateBoxOfficeAlerts(userId) {
       if (!res.ok) continue;
       const detail = await res.json();
 
-      let revenueText = '';
-      if (detail.revenue && detail.revenue > 0) {
-        const revM = (detail.revenue / 1000000).toFixed(1);
-        revenueText = `$${revM} mln`;
-      } else if (detail.popularity) {
-        revenueText = `mashhurlik reytingi ${Math.round(detail.popularity)}`;
+      let revenueAmount = (detail.revenue && detail.revenue > 0) ? detail.revenue : 0;
+      let budgetAmount = (detail.budget && detail.budget > 0) ? detail.budget : 0;
+
+      // If TMDB does not have revenue yet, check OMDB by IMDb ID
+      const imdbId = detail.imdb_id || movie.imdb_id;
+      if (revenueAmount === 0 && imdbId) {
+        try {
+          const omdbRes = await fetch(`http://www.omdbapi.com/?apikey=563e076e&i=${encodeURIComponent(imdbId)}`, { signal: AbortSignal.timeout(3000) });
+          if (omdbRes.ok) {
+            const od = await omdbRes.json();
+            if (od.BoxOffice && od.BoxOffice !== 'N/A') {
+              const parsed = parseInt(od.BoxOffice.replace(/[^0-9]/g, ''), 10);
+              if (!isNaN(parsed) && parsed > 0) {
+                revenueAmount = parsed;
+              }
+            }
+          }
+        } catch (e) {}
       }
 
-      if (revenueText) {
-        const notif = await createNotification(userId, {
-          type: 'release_alert',
-          title: `💰 Kassa yig'imi (${weekNum}-hafta): ${movie.title}`,
-          message: `"${movie.title}" filmining ${weekNum}-haftalik kassa yig'imi ${revenueText} ko'rsatkichiga yetdi!`,
-          movie_data: {
-            ...movie,
-            week_num: weekNum,
-            revenue: detail.revenue || null,
-            event_type: 'box_office_alert',
-            event_value: `w${weekNum}`,
-            dedup_key: dedupKey
-          },
-          dedup_key: dedupKey
-        });
-        if (notif) created.push(notif);
+      // CRITICAL: If there is no real dollar box office revenue, DO NOT send a notification.
+      // Never fall back to popularity rating, because user expects real financial numbers ($ mln/mlrd).
+      if (!revenueAmount || revenueAmount <= 0) {
+        continue;
       }
+
+      let revenueText = '';
+      if (revenueAmount >= 1000000000) {
+        revenueText = `$${(revenueAmount / 1000000000).toFixed(2)} mlrd`;
+      } else if (revenueAmount >= 1000000) {
+        revenueText = `$${(revenueAmount / 1000000).toFixed(1)} mln`;
+      } else {
+        revenueText = `$${Math.round(revenueAmount / 1000).toLocaleString()} ming`;
+      }
+
+      let message = `"${movie.title}" filmining butun dunyo bo'ylab kassa yig'imi ${revenueText} ga yetdi!`;
+      if (budgetAmount > 0) {
+        const budgetText = budgetAmount >= 1000000 ? `$${(budgetAmount / 1000000).toFixed(0)} mln` : `$${budgetAmount}`;
+        message += ` (Film byudjeti: ${budgetText})`;
+      }
+
+      const notif = await createNotification(userId, {
+        type: 'release_alert',
+        title: `💰 Kassa yig'imi (${weekNum}-hafta): ${movie.title}`,
+        message,
+        movie_data: {
+          ...movie,
+          week_num: weekNum,
+          revenue: revenueAmount,
+          revenue_formatted: revenueText,
+          budget: budgetAmount || null,
+          event_type: 'box_office_alert',
+          event_value: `w${weekNum}`,
+          dedup_key: dedupKey
+        },
+        dedup_key: dedupKey
+      });
+      if (notif) created.push(notif);
     } catch (e) {
       console.warn(`[BOX OFFICE ALERT] Error for "${movie.title}":`, e.message);
     }
@@ -922,11 +958,14 @@ const lastSmartCheckByUser = new Map();
 let isSmartRunning = false;
 
 // Master Smart Notification Runner
-async function generateSmartNotifications(userId) {
+async function generateSmartNotifications(userId, options = {}) {
   if (!userId) return [];
   const now = Date.now();
   const lastTime = lastSmartCheckByUser.get(userId) || 0;
-  if (now - lastTime < 10 * 60 * 1000 || isSmartRunning) {
+  const force = options?.force === true;
+
+  // Rate-limit: 10 minutes between smart checks unless explicitly forced (e.g. catch-up on login after > 24h)
+  if (!force && (now - lastTime < 10 * 60 * 1000 || isSmartRunning)) {
     return [];
   }
   isSmartRunning = true;
@@ -945,6 +984,44 @@ async function generateSmartNotifications(userId) {
   }
 }
 
+// Background 8-hour Notification Scheduler
+// Only runs for users whose last activity was < 24 hours ago. Pauses if inactive > 24 hours.
+async function runBackgroundNotificationCycle() {
+  try {
+    const db = readDB();
+    const userSettingsList = Array.isArray(db.user_settings) ? db.user_settings : Object.values(db.user_settings || {});
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+    for (const us of userSettingsList) {
+      const userId = us.user_id || us.id;
+      if (!userId) continue;
+
+      const lastActiveStr = us.last_active_at;
+      if (!lastActiveStr) continue;
+
+      const lastActive = new Date(lastActiveStr).getTime();
+      const inactiveDuration = now - lastActive;
+
+      // Inactive < 24 hours: Run background smart checks every 8 hours
+      if (inactiveDuration < TWENTY_FOUR_HOURS_MS) {
+        console.log(`[NOTIFICATIONS 8H SCHEDULER] User ${userId} is eligible (<24h inactive). Running check...`);
+        await generateSmartNotifications(userId, { force: true }).catch(err => {
+          console.warn(`[NOTIFICATIONS 8H SCHEDULER] Error for user ${userId}:`, err.message);
+        });
+      } else {
+        console.log(`[NOTIFICATIONS 8H SCHEDULER] User ${userId} inactive > 24h (${Math.round(inactiveDuration / 3600000)}h). Background paused until next login.`);
+      }
+    }
+  } catch (err) {
+    console.warn('[NOTIFICATIONS 8H SCHEDULER] Error:', err.message);
+  }
+}
+
+// Run 8-hour background cycle
+const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000;
+setInterval(runBackgroundNotificationCycle, EIGHT_HOURS_MS);
+
 module.exports = {
   getNotifications,
   createNotification,
@@ -959,5 +1036,6 @@ module.exports = {
   generateTrailerAlerts,
   generateBoxOfficeAlerts,
   generateEpisodeAlerts,
-  generateSmartNotifications
+  generateSmartNotifications,
+  runBackgroundNotificationCycle
 };

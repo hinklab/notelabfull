@@ -30,17 +30,86 @@ router.get('/', async (req, res) => {
   try {
     const db = readDB();
     const userId = req.userId || DEFAULT_USER_ID;
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data: cloudNotes } = await supabase.from('notes').select('*').eq('user_id', userId).order('position');
+        if (cloudNotes && cloudNotes.length > 0) {
+          if (!db.notes) db.notes = [];
+          for (const cn of cloudNotes) {
+            const idx = db.notes.findIndex(n => String(n.id) === String(cn.id));
+            const noteObj = {
+              id: cn.id,
+              user_id: cn.user_id,
+              name: cn.title || 'Movies',
+              title: cn.title || 'Movies',
+              icon: cn.icon || '🎬',
+              type: cn.type || 'movie',
+              is_movie: Boolean(cn.is_movie),
+              position: cn.position || 0,
+              created_at: cn.created_at,
+              updated_at: cn.updated_at
+            };
+            if (idx >= 0) db.notes[idx] = { ...db.notes[idx], ...noteObj };
+            else db.notes.push(noteObj);
+          }
+          await writeDB(db);
+        }
+      } catch (e) {}
+    }
+
     let notes = (db.notes || []).filter(n => (n.user_id || DEFAULT_USER_ID) === userId);
     let groups = (db.note_groups || []).filter(g => (g.user_id || DEFAULT_USER_ID) === userId);
     let items = (db.note_items || []).filter(i => (i.user_id || DEFAULT_USER_ID) === userId);
     let movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
     
-    // Auto-create Movies note for user if not exists
-    let movieNote = notes.find(n => n.is_movie || n.type === 'movie');
+    // Auto-create or deduplicate Movies note for user
+    let movieNotes = notes.filter(n => n.is_movie || n.type === 'movie' || (n.name || n.title || '').toLowerCase() === 'movies');
+    let movieNote = null;
     let dbChanged = false;
 
+    if (movieNotes.length > 1) {
+      let primary = movieNotes[0];
+      try {
+        let userMovies = movies;
+        if (supabase) {
+          const { data: cloudMovies } = await supabase.from('movies').select('note_id').eq('user_id', userId);
+          if (Array.isArray(cloudMovies) && cloudMovies.length > 0) userMovies = cloudMovies;
+        }
+        if (userMovies && userMovies.length > 0) {
+          const noteIdsWithMovies = new Set(userMovies.map(m => Number(m.note_id)).filter(Boolean));
+          const noteWithMovies = movieNotes.find(n => noteIdsWithMovies.has(Number(n.id)));
+          if (noteWithMovies) primary = noteWithMovies;
+        }
+      } catch (e) {}
+
+      notes = notes.filter(n => !movieNotes.includes(n) || n.id === primary.id);
+      db.notes = (db.notes || []).filter(n => (n.user_id || DEFAULT_USER_ID) !== userId || !movieNotes.some(mn => mn.id === n.id && mn.id !== primary.id));
+      dbChanged = true;
+
+      const toDeleteIds = movieNotes.filter(n => n.id !== primary.id).map(n => n.id);
+      if (supabase && toDeleteIds.length > 0) {
+        try {
+          await supabase.from('notes').delete().in('id', toDeleteIds);
+        } catch (e) {}
+      }
+      movieNote = primary;
+    } else if (movieNotes.length === 1) {
+      movieNote = movieNotes[0];
+    }
+
     if (!movieNote) {
-      const nextNoteId = db.notes && db.notes.length ? Math.max(...db.notes.map(n => Number(n.id) || 0)) + 1 : 1;
+      let nextNoteId = 1;
+      if (supabase) {
+        try {
+          const { data: created } = await supabase.from('notes').insert([{ user_id: userId, title: 'Movies', icon: '🎬', type: 'movie', is_movie: true, position: 0 }]).select().single();
+          if (created) nextNoteId = created.id;
+        } catch (e) {}
+      }
+      if (nextNoteId === 1 && db.notes && db.notes.length) {
+        nextNoteId = Math.max(...db.notes.map(n => Number(n.id) || 0)) + 1;
+      }
       movieNote = {
         id: nextNoteId,
         user_id: userId,
@@ -58,7 +127,23 @@ router.get('/', async (req, res) => {
 
     // Auto-create 4 default movie groups if user has a Movies note with 0 groups
     if (!db.note_groups) db.note_groups = [];
-    const userMovieGroups = db.note_groups.filter(g => (g.user_id || DEFAULT_USER_ID) === userId && String(g.note_id) === String(movieNote.id));
+    let userMovieGroups = db.note_groups.filter(g => (g.user_id || DEFAULT_USER_ID) === userId && String(g.note_id) === String(movieNote.id));
+    if (supabase && userMovieGroups.length === 0) {
+      try {
+        const { data: sbGroups } = await supabase.from('note_groups').select('*').eq('user_id', userId).eq('note_id', movieNote.id);
+        if (Array.isArray(sbGroups) && sbGroups.length > 0) {
+          userMovieGroups = sbGroups;
+          for (const sbg of sbGroups) {
+            if (!db.note_groups.some(g => String(g.id) === String(sbg.id))) {
+              db.note_groups.push(sbg);
+              groups.push(sbg);
+              dbChanged = true;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
     if (userMovieGroups.length === 0) {
       const defaultGroups = [
         { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
@@ -80,6 +165,11 @@ router.get('/', async (req, res) => {
         };
         db.note_groups.push(newG);
         groups.push(newG);
+        if (supabase) {
+          try {
+            await supabase.from('note_groups').upsert([newG], { onConflict: 'id' });
+          } catch (e) {}
+        }
       }
       dbChanged = true;
     }

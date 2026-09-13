@@ -3098,7 +3098,9 @@ module.exports = async (req, res) => {
         // Clean up duplicate empty movie notes from Supabase
         const toDeleteIds = movieNotes.filter(n => n.id !== primary.id).map(n => n.id);
         if (toDeleteIds.length > 0) {
-          supabase.from('notes').delete().in('id', toDeleteIds).catch(() => {});
+          try {
+            await supabase.from('notes').delete().in('id', toDeleteIds);
+          } catch (e) {}
         }
       } else if (movieNotes.length === 0) {
         const { data: created } = await supabase.from('notes')
@@ -3158,7 +3160,9 @@ module.exports = async (req, res) => {
 
       // Clean up duplicate group rows in Supabase in background
       if (duplicateIdsToDelete.length > 0) {
-        supabase.from('note_groups').delete().in('id', duplicateIdsToDelete).catch(() => {});
+        try {
+          await supabase.from('note_groups').delete().in('id', duplicateIdsToDelete);
+        } catch (e) {}
       }
 
       return res.status(200).json(deduped);
@@ -3178,7 +3182,17 @@ module.exports = async (req, res) => {
       let movies = data || [];
       if (query.note_id) {
         const targetNoteId = parseInt(query.note_id);
-        movies = movies.filter(m => !m.note_id || parseInt(m.note_id) === targetNoteId);
+        const mismatchedIds = movies.filter(m => !m.note_id || parseInt(m.note_id) !== targetNoteId).map(m => m.id);
+        if (mismatchedIds.length > 0) {
+          try {
+            await supabase.from('movies').update({ note_id: targetNoteId }).in('id', mismatchedIds);
+          } catch (e) {}
+          movies.forEach(m => {
+            if (!m.note_id || parseInt(m.note_id) !== targetNoteId) {
+              m.note_id = targetNoteId;
+            }
+          });
+        }
       }
       movies = movies.map(m => {
         const uRating = ratingsMap[String(m.id)] != null ? Number(ratingsMap[String(m.id)]) : (m.user_rating != null ? Number(m.user_rating) : null);
@@ -3206,22 +3220,24 @@ module.exports = async (req, res) => {
             for (const rm of releasedFromFutured) {
               await supabase.from('movies').update({ section: 'todo', updated_at: new Date().toISOString() }).eq('id', rm.id);
               // Insert release_alert notification
-              await supabase.from('notifications').insert([{
-                user_id: userId,
-                type: 'release_alert',
-                title: `${rm.title} chiqdi!`,
-                message: `"${rm.title}" filmining premyerasi bo'lib o'tdi. Film 'To Do' bo'limiga o'tkazildi!`,
-                movie_data: {
-                  tmdb_id: rm.tmdb_id,
-                  imdb_id: rm.imdb_id,
-                  title: rm.title,
-                  poster_path: rm.poster_path,
-                  rating: rm.rating,
-                  release_date: rm.release_date,
-                  genre: rm.genre
-                },
-                is_read: false
-              }]).catch(() => {});
+              try {
+                await supabase.from('notifications').insert([{
+                  user_id: userId,
+                  type: 'release_alert',
+                  title: `${rm.title} chiqdi!`,
+                  message: `"${rm.title}" filmining premyerasi bo'lib o'tdi. Film 'To Do' bo'limiga o'tkazildi!`,
+                  movie_data: {
+                    tmdb_id: rm.tmdb_id,
+                    imdb_id: rm.imdb_id,
+                    title: rm.title,
+                    poster_path: rm.poster_path,
+                    rating: rm.rating,
+                    release_date: rm.release_date,
+                    genre: rm.genre
+                  },
+                  is_read: false
+                }]);
+              } catch (e) {}
             }
           } catch (e) {
             console.warn('Auto-move futured error:', e.message);
@@ -3262,13 +3278,16 @@ module.exports = async (req, res) => {
 
       if (!noteId) {
         try {
-          const { data: userNotes } = await supabase.from('notes').select('id, type, is_movie').eq('user_id', userId).limit(5);
+          const { data: userNotes } = await supabase.from('notes').select('id, type, is_movie, title').eq('user_id', userId);
           if (userNotes && userNotes.length > 0) {
-            const mNote = userNotes.find(n => n.is_movie || n.type === 'movie');
+            const mNote = userNotes.find(n => n.is_movie || n.type === 'movie' || (n.title || '').toLowerCase() === 'movies') || userNotes[0];
             if (mNote) noteId = mNote.id;
           }
+          if (!noteId) {
+            const { data: newNote } = await supabase.from('notes').insert([{ user_id: userId, title: 'Movies', icon: '🎬', type: 'movie', is_movie: true, position: 0 }]).select().single();
+            if (newNote) noteId = newNote.id;
+          }
         } catch (e) {}
-        if (!noteId) noteId = 6;
       }
 
       // Deduplication: If exact same season or movie already exists for this user, update its section / note_id and return it
@@ -3444,6 +3463,14 @@ module.exports = async (req, res) => {
                 const seasonStr = `Season ${sNum} · ${epCount} ep · ${humanDuration} (${totalMinutes} min)`;
                 const seasonTitle = `${seriesBaseName} — Season ${sNum}`;
 
+                let seasonComputedId = null;
+                try {
+                  const { data: maxRow } = await supabase.from('movies').select('id').order('id', { ascending: false }).limit(1);
+                  if (maxRow && maxRow[0] && typeof maxRow[0].id === 'number') {
+                    seasonComputedId = maxRow[0].id + 1 + sIdx;
+                  }
+                } catch (e) {}
+
                 const sPayload = {
                   user_id: userId, note_id: noteId, title: seasonTitle, section, position: position + sIdx,
                   tmdb_id: body.tmdb_id, imdb_id: body.imdb_id || null, media_type: 'tv',
@@ -3453,6 +3480,9 @@ module.exports = async (req, res) => {
                   release_date: seasonAirDate, release_year: seasonReleaseYear, seasons: seasonStr,
                   note: body.note || '', created_at: new Date().toISOString(), updated_at: new Date().toISOString()
                 };
+                if (seasonComputedId != null) {
+                  sPayload.id = seasonComputedId;
+                }
 
                 const { data: insRow } = await supabase.from('movies').insert([sPayload]).select().single();
                 if (insRow) createdSeasons.push(insRow);
@@ -3463,7 +3493,9 @@ module.exports = async (req, res) => {
                 try {
                   const { data: notifs } = await supabase.from('notifications').select('id, type, title, movie_data').eq('user_id', userId);
                   const toDelete = (notifs || []).filter(n => n.type === 'recommendation' && (String(n.movie_data?.tmdb_id) === String(body.tmdb_id) || (n.movie_data?.title || '').toLowerCase().includes(seriesBaseName.toLowerCase())));
-                  for (const d of toDelete) await supabase.from('notifications').delete().eq('id', d.id).catch(() => {});
+                  for (const d of toDelete) {
+                    try { await supabase.from('notifications').delete().eq('id', d.id); } catch (e) {}
+                  }
                 } catch (e) {}
 
                 return res.status(200).json(createdSeasons[0]);
@@ -3570,7 +3602,7 @@ module.exports = async (req, res) => {
             return false;
           });
           for (const d of toDelete) {
-            await supabase.from('notifications').delete().eq('id', d.id).catch(() => {});
+            try { await supabase.from('notifications').delete().eq('id', d.id); } catch (e) {}
           }
         } catch (e) {}
       }
@@ -3665,6 +3697,244 @@ module.exports = async (req, res) => {
         await Promise.all(updates);
       }
       return res.status(200).json({ success: true });
+    }
+
+    // POST /api/movies/refresh-all (Vercel)
+    if (path === 'movies/refresh-all' && req.method === 'POST') {
+      const { data: movies, error: fetchErr } = await supabase
+        .from('movies')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (fetchErr || !movies) {
+        return res.status(500).json({ error: fetchErr?.message || 'Filmlar yuklanmadi' });
+      }
+
+      let updatedCount = 0;
+      let movedToTodoCount = 0;
+      const todayIso = new Date().toISOString().split('T')[0];
+      const changedMovies = [];
+
+      const BATCH_SIZE = 12;
+      for (let i = 0; i < movies.length; i += BATCH_SIZE) {
+        const batch = movies.slice(i, i + BATCH_SIZE);
+        await Promise.allSettled(batch.map(async (m) => {
+          let changed = false;
+          let isTv = m.media_type === 'tv';
+          let isMovie = m.media_type === 'movie';
+
+          // 1. Fetch TMDB details
+          if (m.tmdb_id && TMDB_KEY) {
+            try {
+              let movieDetail = null;
+              let tvDetail = null;
+
+              if (isTv) {
+                const r = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
+                if (r.ok) tvDetail = await r.json();
+              } else if (isMovie) {
+                const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
+                if (r.ok) movieDetail = await r.json();
+              } else {
+                const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
+                if (r.ok) {
+                  movieDetail = await r.json();
+                  m.media_type = 'movie';
+                  isMovie = true;
+                  changed = true;
+                } else {
+                  const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
+                  if (tvRes.ok) {
+                    tvDetail = await tvRes.json();
+                    m.media_type = 'tv';
+                    isTv = true;
+                    changed = true;
+                  }
+                }
+              }
+
+              if (movieDetail) {
+                if (movieDetail.release_date && m.release_date !== movieDetail.release_date) {
+                  m.release_date = movieDetail.release_date;
+                  m.release_year = movieDetail.release_date.split('-')[0];
+                  changed = true;
+                }
+                if (movieDetail.runtime && movieDetail.runtime > 0) {
+                  const humanDur = formatDurationUz(movieDetail.runtime, false);
+                  const richRuntime = `${humanDur} (${movieDetail.runtime} min)`;
+                  if (m.seasons !== richRuntime) {
+                    m.seasons = richRuntime;
+                    changed = true;
+                  }
+                }
+                if (movieDetail.overview && (!m.overview || m.overview === '-')) {
+                  m.overview = movieDetail.overview;
+                  changed = true;
+                }
+                if (movieDetail.vote_average && m.section !== 'futured') {
+                  const newRating = Number(movieDetail.vote_average.toFixed(1));
+                  if (m.rating !== newRating) {
+                    m.rating = newRating;
+                    changed = true;
+                  }
+                  if (movieDetail.vote_count && m.vote_count !== movieDetail.vote_count) {
+                    m.vote_count = movieDetail.vote_count;
+                    changed = true;
+                  }
+                }
+              } else if (tvDetail) {
+                if (tvDetail.first_air_date && m.release_date !== tvDetail.first_air_date) {
+                  m.release_date = tvDetail.first_air_date;
+                  m.release_year = tvDetail.first_air_date.split('-')[0];
+                  changed = true;
+                }
+
+                // Season or series check
+                const sMatch = (m.title || '').match(/[-—]\s*Season\s*(\d+)/i);
+                if (sMatch) {
+                  const sNum = parseInt(sMatch[1], 10);
+                  try {
+                    const sRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}/season/${sNum}?api_key=${TMDB_KEY}&language=en-US`, { signal: AbortSignal.timeout(3000) });
+                    if (sRes.ok) {
+                      const sData = await sRes.json();
+                      let sMinutes = 0;
+                      let sExact = 0;
+                      const epCount = sData.episodes?.length || 1;
+                      if (Array.isArray(sData.episodes)) {
+                        sData.episodes.forEach(ep => {
+                          if (ep.runtime && ep.runtime > 0) {
+                            sMinutes += ep.runtime;
+                            sExact++;
+                          }
+                        });
+                      }
+                      if (sExact === 0) sMinutes = epCount * 45;
+                      const humanDuration = formatDurationUz(sMinutes, sExact === 0);
+                      const seasonStr = `Season ${sNum} · ${epCount} ep · ${humanDuration} (${sMinutes} min)`;
+                      if (m.seasons !== seasonStr) {
+                        m.seasons = seasonStr;
+                        changed = true;
+                      }
+                    }
+                  } catch (e) {}
+                }
+              }
+            } catch (e) {}
+          }
+
+          // 2. Fetch OMDb details
+          if (OMDB_KEY && (m.imdb_id || m.title)) {
+            try {
+              const omdbQuery = m.imdb_id
+                ? `i=${encodeURIComponent(m.imdb_id)}`
+                : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
+              const omdbRes = await fetch(`http://www.omdbapi.com/?apikey=${OMDB_KEY}&${omdbQuery}`, { signal: AbortSignal.timeout(2500) });
+              if (omdbRes.ok) {
+                const od = await omdbRes.json();
+                if (od.Response !== 'False') {
+                  if (od.imdbID && !m.imdb_id) { m.imdb_id = od.imdbID; changed = true; }
+                  if (m.section !== 'futured') {
+                    if (od.imdbRating && od.imdbRating !== 'N/A') {
+                      const nr = parseFloat(od.imdbRating);
+                      if (m.rating !== nr) { m.rating = nr; changed = true; }
+                    }
+                    if (od.imdbVotes && od.imdbVotes !== 'N/A') {
+                      const nv = parseInt(od.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+                      if (m.vote_count !== nv) { m.vote_count = nv; changed = true; }
+                    }
+                  } else {
+                    if (m.rating !== null || m.vote_count !== null) {
+                      m.rating = null;
+                      m.vote_count = null;
+                      changed = true;
+                    }
+                  }
+                  if (od.Genre && od.Genre !== 'N/A' && (!m.genre || m.genre === '-')) { m.genre = od.Genre; changed = true; }
+                  if (od.Director && od.Director !== 'N/A' && (!m.director || m.director === '-')) { m.director = od.Director; changed = true; }
+                  if (od.Plot && od.Plot !== 'N/A' && (!m.overview || m.overview.length < od.Plot.length)) { m.overview = od.Plot; changed = true; }
+                }
+              }
+            } catch (e) {}
+          }
+
+          // 3. Premiere Auto-Move: If release_date <= today and section === 'futured'
+          if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
+            m.section = 'todo';
+            m.position = 0;
+            movedToTodoCount++;
+            changed = true;
+
+            try {
+              await supabase.from('notifications').insert([{
+                user_id: userId,
+                type: 'release_alert',
+                title: `${m.title} chiqdi!`,
+                message: `"${m.title}" filmining premyerasi bo'lib o'tdi. "Ko'riladi" ustuniga o'tkazildi!`,
+                movie_data: {
+                  ...m,
+                  event_type: 'premiere_alert'
+                },
+                is_read: false,
+                dedup_key: `${userId}_${m.tmdb_id || m.id}_premiere_${m.release_date}`
+              }]);
+            } catch (e) {}
+          }
+
+          if (changed) {
+            updatedCount++;
+            changedMovies.push(m);
+          }
+        }));
+      }
+
+      // 4. Auto re-sort Futured column by release_date ascending
+      const futured = movies.filter(m => m.section === 'futured');
+      if (futured.length > 0) {
+        futured.sort((a, b) => {
+          const da = a.release_date || null;
+          const db = b.release_date || null;
+          if (!da && !db) return 0;
+          if (!da) return 1;
+          if (!db) return -1;
+          return da.localeCompare(db);
+        });
+
+        futured.forEach((m, idx) => {
+          if (m.position !== idx) {
+            m.position = idx;
+            if (!changedMovies.some(cm => cm.id === m.id)) changedMovies.push(m);
+          }
+        });
+      }
+
+      // Persist changes to Supabase
+      if (changedMovies.length > 0) {
+        const now = new Date().toISOString();
+        for (const m of changedMovies) {
+          await supabase.from('movies').update({
+            section: m.section,
+            position: m.position,
+            release_date: m.release_date,
+            release_year: m.release_year,
+            seasons: m.seasons,
+            rating: m.rating,
+            vote_count: m.vote_count,
+            imdb_id: m.imdb_id,
+            genre: m.genre,
+            director: m.director,
+            overview: m.overview,
+            media_type: m.media_type,
+            updated_at: now
+          }).eq('id', m.id);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        updated: updatedCount,
+        movedToTodo: movedToTodoCount,
+        message: `${updatedCount} ta film ma'lumotlari yangilandi` + (movedToTodoCount > 0 ? `, ${movedToTodoCount} ta premyera "Ko'riladi"ga o'tkazildi` : '')
+      });
     }
 
     // ═══════════════════════════════════════
@@ -4674,12 +4944,14 @@ module.exports = async (req, res) => {
           total_movies: 1,
           in_board_count: boardStatus.in_board ? 1 : 0,
           movies: [{
+            id: tmdbMovieId,
             tmdb_id: tmdbMovieId,
             media_type: actualMediaType,
-            title: movieDetail.title || movieDetail.name || 'Untitled',
+            title: movieDetail.title || movieDetail.name,
             release_date: releaseDate,
             release_year: releaseDate ? releaseDate.split('-')[0] : '-',
             rating: movieDetail.vote_average ? Number(movieDetail.vote_average.toFixed(1)) : null,
+            vote_count: movieDetail.vote_count || 0,
             poster_path: movieDetail.poster_path ? `https://image.tmdb.org/t/p/w500${movieDetail.poster_path}` : null,
             overview: movieDetail.overview || '',
             chronology_index: 1,
@@ -4689,7 +4961,7 @@ module.exports = async (req, res) => {
         };
       }
 
-      // Auto-record viewed franchise into Supabase user_settings
+      // Auto-record viewed franchise in background for history
       try {
         const recordKey = matchedUniverseKey || (movieDetail.belongs_to_collection ? `col_${movieDetail.belongs_to_collection.id}` : `movie_${tmdbMovieId}`);
         const recordName = matchedUniverse ? matchedUniverse.name : (movieDetail.belongs_to_collection ? movieDetail.belongs_to_collection.name : (movieDetail.title || movieDetail.name));
@@ -4741,20 +5013,26 @@ module.exports = async (req, res) => {
 
     const notifLastRunMap = global.__notifLastRunMap || (global.__notifLastRunMap = new Map());
 
-    async function runSmartNotifications(targetUserId) {
+    async function runSmartNotifications(targetUserId, options = {}) {
       if (!targetUserId || !TMDB_KEY) return;
       const now = Date.now();
       const lastRun = notifLastRunMap.get(targetUserId) || 0;
-      // Rate-limit smart check to once every 20 minutes per user session
-      if (now - lastRun < 20 * 60 * 1000) return;
+      const force = options?.force === true;
+
+      // Rate-limit smart check to once every 10 minutes unless forced (e.g. catch-up on login)
+      if (!force && (now - lastRun < 10 * 60 * 1000)) return;
       notifLastRunMap.set(targetUserId, now);
 
       try {
-        const [{ data: userMovies }, { data: existingNotifs }, { data: userPref }] = await Promise.all([
+        const [{ data: userMovies }, { data: existingNotifs }, userPrefRes] = await Promise.all([
           supabase.from('movies').select('*').eq('user_id', targetUserId),
           supabase.from('notifications').select('*').eq('user_id', targetUserId).order('created_at', { ascending: false }).limit(60),
-          supabase.from('user_preferences').select('*').eq('id', targetUserId).maybeSingle().catch(() => ({ data: null }))
+          (async () => {
+            try { return await supabase.from('user_preferences').select('*').eq('id', targetUserId).maybeSingle(); }
+            catch (e) { return { data: null }; }
+          })()
         ]);
+        const userPref = userPrefRes?.data || null;
 
         const movies = userMovies || [];
         const notifs = existingNotifs || [];
@@ -4859,7 +5137,7 @@ module.exports = async (req, res) => {
 
         if (newNotifsToInsert.length > 0) {
           for (const notifItem of newNotifsToInsert) {
-            await supabase.from('notifications').insert([notifItem]).catch(() => {});
+            try { await supabase.from('notifications').insert([notifItem]); } catch (e) {}
           }
         }
       } catch (err) {
@@ -4869,9 +5147,31 @@ module.exports = async (req, res) => {
 
     if (path === 'notifications' && req.method === 'GET') {
       try {
-        await runSmartNotifications(userId);
+        const { data: userSettingsRow } = await supabase.from('user_settings').select('settings').eq('id', `active_${userId}`).maybeSingle();
+        const lastActiveStr = userSettingsRow?.settings?.last_active_at;
+        const lastActive = lastActiveStr ? new Date(lastActiveStr).getTime() : 0;
+        const now = Date.now();
+        const wasInactiveOver24h = (now - lastActive) >= (24 * 60 * 60 * 1000);
+
+        if (wasInactiveOver24h && lastActive > 0) {
+          // Instant catch-up on login after > 24 hours absence
+          notifLastRunMap.delete(userId);
+          await runSmartNotifications(userId, { force: true });
+        } else {
+          runSmartNotifications(userId).catch(() => {});
+        }
+
+        // Update last_active_at in Supabase
+        try {
+          await supabase.from('user_settings').upsert({
+            id: `active_${userId}`,
+            user_id: userId,
+            settings: { last_active_at: new Date().toISOString() },
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' });
+        } catch (e) {}
       } catch (e) {
-        console.warn('Error running smart notifications:', e.message);
+        console.warn('Error checking/updating activity for notifications:', e.message);
       }
 
       const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
@@ -4887,21 +5187,25 @@ module.exports = async (req, res) => {
       }
       return res.status(200).json(unique);
     }
+
     if (path === 'notifications/refresh' && req.method === 'POST') {
       notifLastRunMap.delete(userId);
-      await runSmartNotifications(userId);
+      await runSmartNotifications(userId, { force: true });
       const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
       return res.status(200).json(data || []);
     }
+
     const notifReadMatch = path.match(/^notifications\/([^/]+)\/read$/);
     if (notifReadMatch && req.method === 'PATCH') {
       await supabase.from('notifications').update({ is_read: true }).eq('id', notifReadMatch[1]);
       return res.status(200).json({ success: true });
     }
+
     if (path === 'notifications/read-all' && req.method === 'POST') {
       await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
       return res.status(200).json({ success: true });
     }
+
     const notifDelMatch = path.match(/^notifications\/([^/]+)$/);
     if (notifDelMatch && req.method === 'DELETE') {
       await supabase.from('notifications').delete().eq('id', notifDelMatch[1]);

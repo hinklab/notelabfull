@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { readDB, writeDB, getUserSettings, saveUserSettings } = require('../services/database');
-const { createReleaseAlert, generateRecommendations, deleteRecommendationForMovie } = require('../services/notifications');
+const { createReleaseAlert, createNotification, generateRecommendations, deleteRecommendationForMovie } = require('../services/notifications');
 
 function nextId(movies) {
   const ids = movies.map(m => m.id);
@@ -168,7 +168,7 @@ function sanitizeForSupabase(obj) {
   return clean;
 }
 
-function withTimeout(promise, ms = 2500) {
+function withTimeout(promise, ms = 10000) {
   return Promise.race([
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase query timed out')), ms))
@@ -186,13 +186,20 @@ router.get('/', async (req, res) => {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        let query = supabase.from('movies').select('*').eq('user_id', userId);
-        if (note_id) {
-          query = query.eq('note_id', parseInt(note_id));
-        }
-        const { data: cloudMovies, error: cloudErr } = await withTimeout(query, 2500);
-        if (!cloudErr && Array.isArray(cloudMovies) && cloudMovies.length > 0) {
+        let query = supabase.from('movies').select('*').eq('user_id', userId).order('position');
+        const { data: cloudMovies, error: cloudErr } = await withTimeout(query, 10000);
+        if (!cloudErr && Array.isArray(cloudMovies)) {
           movies = cloudMovies;
+          if (note_id) {
+            const targetNoteId = parseInt(note_id);
+            const mismatched = movies.filter(m => !m.note_id || parseInt(m.note_id) !== targetNoteId).map(m => m.id);
+            if (mismatched.length > 0) {
+              supabase.from('movies').update({ note_id: targetNoteId }).in('id', mismatched).then(() => {}).catch(() => {});
+              movies.forEach(m => {
+                if (!m.note_id || parseInt(m.note_id) !== targetNoteId) m.note_id = targetNoteId;
+              });
+            }
+          }
         }
       } catch (cloudEx) {
         console.warn('Cloud fetch for movies failed, falling back to local DB:', cloudEx.message);
@@ -201,9 +208,6 @@ router.get('/', async (req, res) => {
 
     if (!movies) {
       movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
-      if (note_id) {
-        movies = movies.filter(m => (m.note_id ?? null) === (note_id ? parseInt(note_id) : null));
-      }
     }
 
     let cloudRatingsMap = {};
@@ -856,185 +860,249 @@ router.post('/refresh-all', async (req, res) => {
       const now = Date.now();
       if (now - lastTime < 24 * 60 * 60 * 1000) {
         console.log(`[REFRESH-ALL] Auto refresh skipped for userId ${userId}: < 24h passed since ${lastRefreshStr}`);
-        return res.json({ success: true, skipped: true, message: 'Auto refresh skipped (< 24h)' });
+        return res.json({ success: true, skipped: true, message: 'Auto refresh skipped (< 24h)', updated: 0, movedToTodo: 0 });
       }
     }
 
     saveUserSettings(userId, { [lastRefreshKey]: new Date().toISOString() });
 
-    // Respond IMMEDIATELY (< 10ms) to guarantee 0% risk of tunnel or gateway 502 timeouts
-    res.json({
-      success: true,
-      updated: 0,
-      message: "Filmlar ma'lumotlarini yangilash fonda boshlandi...",
-      started: true
-    });
+    console.log(`[REFRESH-ALL] Starting synchronous batch refresh for userId: ${userId}`);
+    let updatedCount = 0;
+    let movedToTodoCount = 0;
+    const todayIso = new Date().toISOString().split('T')[0];
 
-    // Run full refresh batch asynchronously in background worker
-    setImmediate(async () => {
-      console.log(`[REFRESH-ALL BACKGROUND WORKER] Started for userId: ${userId}`);
-      let updatedCount = 0;
-      const movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
+    const movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
+    const changedMovies = [];
 
-      const BATCH_SIZE = 25;
-      for (let i = 0; i < movies.length; i += BATCH_SIZE) {
-        const batch = movies.slice(i, i + BATCH_SIZE);
-        await Promise.allSettled(batch.map(async (m) => {
-          let changed = false;
-          let isTv = m.media_type === 'tv';
-          let isMovie = m.media_type === 'movie';
+    const BATCH_SIZE = 15;
+    for (let i = 0; i < movies.length; i += BATCH_SIZE) {
+      const batch = movies.slice(i, i + BATCH_SIZE);
+      await Promise.allSettled(batch.map(async (m) => {
+        let changed = false;
+        let isTv = m.media_type === 'tv';
+        let isMovie = m.media_type === 'movie';
 
-          // 1. Fetch TMDB details (SAFE: only updates release_date and runtime/seasons; NEVER touches poster_path, title, or tmdb_id)
-          if (m.tmdb_id && tmdbKey) {
-            try {
-              let movieDetail = null;
-              let tvDetail = null;
+        // 1. Fetch TMDB details
+        if (m.tmdb_id && tmdbKey) {
+          try {
+            let movieDetail = null;
+            let tvDetail = null;
 
-              if (isTv) {
-                const res = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
-                if (res.ok) tvDetail = await res.json();
-              } else if (isMovie) {
-                const res = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
-                if (res.ok) movieDetail = await res.json();
+            if (isTv) {
+              const r = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+              if (r.ok) tvDetail = await r.json();
+            } else if (isMovie) {
+              const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+              if (r.ok) movieDetail = await r.json();
+            } else {
+              // Unknown media_type: probe movie first then TV
+              const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+              if (r.ok) {
+                movieDetail = await r.json();
+                m.media_type = 'movie';
+                isMovie = true;
+                changed = true;
               } else {
-                // Unknown media_type: probe movie first then TV
-                const res = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
-                if (res.ok) {
-                  movieDetail = await res.json();
-                  m.media_type = 'movie';
-                  isMovie = true;
+                const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+                if (tvRes.ok) {
+                  tvDetail = await tvRes.json();
+                  m.media_type = 'tv';
+                  isTv = true;
                   changed = true;
-                } else {
-                  const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
-                  if (tvRes.ok) {
-                    tvDetail = await tvRes.json();
-                    m.media_type = 'tv';
-                    isTv = true;
-                    changed = true;
-                  }
                 }
               }
+            }
 
-              if (movieDetail) {
-                if (movieDetail.release_date && !m.release_date) {
-                  m.release_date = movieDetail.release_date;
+            if (movieDetail) {
+              if (movieDetail.release_date && m.release_date !== movieDetail.release_date) {
+                m.release_date = movieDetail.release_date;
+                m.release_year = movieDetail.release_date.split('-')[0];
+                changed = true;
+              }
+              if (movieDetail.runtime && movieDetail.runtime > 0) {
+                const humanDur = formatDurationUz(movieDetail.runtime, false);
+                const richRuntime = `${humanDur} (${movieDetail.runtime} min)`;
+                if (m.seasons !== richRuntime) {
+                  m.seasons = richRuntime;
                   changed = true;
                 }
-                const newRuntime = movieDetail.runtime ? `${movieDetail.runtime} min` : '-';
-                if (m.seasons !== newRuntime && newRuntime !== '-') {
-                  m.seasons = newRuntime;
+              }
+              if (movieDetail.overview && (!m.overview || m.overview === '-')) {
+                m.overview = movieDetail.overview;
+                changed = true;
+              }
+              if (movieDetail.vote_average && m.section !== 'futured') {
+                const newRating = Number(movieDetail.vote_average.toFixed(1));
+                if (m.rating !== newRating) {
+                  m.rating = newRating;
                   changed = true;
                 }
-              } else if (tvDetail) {
-                if (tvDetail.first_air_date && !m.release_date) {
-                  m.release_date = tvDetail.first_air_date;
+                if (movieDetail.vote_count && m.vote_count !== movieDetail.vote_count) {
+                  m.vote_count = movieDetail.vote_count;
                   changed = true;
                 }
+              }
+            } else if (tvDetail) {
+              if (tvDetail.first_air_date && m.release_date !== tvDetail.first_air_date) {
+                m.release_date = tvDetail.first_air_date;
+                m.release_year = tvDetail.first_air_date.split('-')[0];
+                changed = true;
+              }
+
+              // Check if specific season
+              const sMatch = (m.title || '').match(/[-—]\s*Season\s*(\d+)/i);
+              if (sMatch) {
+                const sNum = parseInt(sMatch[1], 10);
+                try {
+                  const sRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}/season/${sNum}?api_key=${encodeURIComponent(tmdbKey)}&language=en-US`, { signal: AbortSignal.timeout(3000) });
+                  if (sRes.ok) {
+                    const sData = await sRes.json();
+                    let sMinutes = 0;
+                    let sExact = 0;
+                    const epCount = sData.episodes?.length || 1;
+                    if (Array.isArray(sData.episodes)) {
+                      sData.episodes.forEach(ep => {
+                        if (ep.runtime && ep.runtime > 0) {
+                          sMinutes += ep.runtime;
+                          sExact++;
+                        }
+                      });
+                    }
+                    if (sExact === 0) sMinutes = epCount * 45;
+                    const humanDuration = formatDurationUz(sMinutes, sExact === 0);
+                    const seasonStr = `Season ${sNum} · ${epCount} ep · ${humanDuration} (${sMinutes} min)`;
+                    if (m.seasons !== seasonStr) {
+                      m.seasons = seasonStr;
+                      changed = true;
+                    }
+                  }
+                } catch (e) {}
+              } else {
                 const newSeasons = await resolveTvRuntime(m.tmdb_id, tmdbKey, tvDetail);
                 if (newSeasons && m.seasons !== newSeasons) {
                   m.seasons = newSeasons;
                   changed = true;
                 }
               }
-            } catch (e) {}
-          }
+            }
+          } catch (e) {}
+        }
 
-          // 2. Fetch Ratings & Metadata from IMDb/OMDb (SAFE: only updates rating, vote_count, genre, director, release_year, overview, imdb_id; NEVER touches poster_path, title, or tmdb_id)
-          if (omdbKey && (m.imdb_id || m.title)) {
-            try {
-              const omdbQuery = m.imdb_id
-                ? `i=${encodeURIComponent(m.imdb_id)}`
-                : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
-              const omdbUrl = `http://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&${omdbQuery}`;
-              const omdbRes = await fetch(omdbUrl, { signal: AbortSignal.timeout(2500) });
-              if (omdbRes.ok) {
-                const omdbData = await omdbRes.json();
-                if (omdbData.Response !== 'False') {
-                  if (omdbData.imdbID && !m.imdb_id) { m.imdb_id = omdbData.imdbID; changed = true; }
-                  const omdbDate = parseOmdbDate(omdbData.Released);
-                  if (omdbDate && m.release_date !== omdbDate) {
-                    m.release_date = omdbDate;
-                    m.release_year = omdbDate.split('-')[0];
+        // 2. Fetch Ratings & Metadata from IMDb/OMDb
+        if (omdbKey && (m.imdb_id || m.title)) {
+          try {
+            const omdbQuery = m.imdb_id
+              ? `i=${encodeURIComponent(m.imdb_id)}`
+              : `t=${encodeURIComponent(m.title)}` + (isTv ? '&type=series' : '');
+            const omdbUrl = `http://www.omdbapi.com/?apikey=${encodeURIComponent(omdbKey)}&${omdbQuery}`;
+            const omdbRes = await fetch(omdbUrl, { signal: AbortSignal.timeout(2500) });
+            if (omdbRes.ok) {
+              const omdbData = await omdbRes.json();
+              if (omdbData.Response !== 'False') {
+                if (omdbData.imdbID && !m.imdb_id) { m.imdb_id = omdbData.imdbID; changed = true; }
+                const omdbDate = parseOmdbDate(omdbData.Released);
+                if (omdbDate && !m.release_date) {
+                  m.release_date = omdbDate;
+                  m.release_year = omdbDate.split('-')[0];
+                  changed = true;
+                }
+                if (m.section !== 'futured') {
+                  if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') {
+                    const newRating = parseFloat(omdbData.imdbRating);
+                    if (m.rating !== newRating) { m.rating = newRating; changed = true; }
+                  }
+                  if (omdbData.imdbVotes && omdbData.imdbVotes !== 'N/A') {
+                    const newVotes = parseInt(omdbData.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
+                    if (m.vote_count !== newVotes) { m.vote_count = newVotes; changed = true; }
+                  }
+                } else {
+                  if (m.rating !== null || m.vote_count !== null) {
+                    m.rating = null;
+                    m.vote_count = null;
                     changed = true;
                   }
-                  if (m.section !== 'futured') {
-                    if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') {
-                      const newRating = parseFloat(omdbData.imdbRating);
-                      if (m.rating !== newRating) { m.rating = newRating; changed = true; }
-                    }
-                    if (omdbData.imdbVotes && omdbData.imdbVotes !== 'N/A') {
-                      const newVotes = parseInt(omdbData.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
-                      if (m.vote_count !== newVotes) { m.vote_count = newVotes; changed = true; }
-                    }
-                  } else {
-                    if (m.rating !== null || m.vote_count !== null) {
-                      m.rating = null;
-                      m.vote_count = null;
-                      changed = true;
-                    }
-                  }
-                  if (omdbData.Genre && omdbData.Genre !== 'N/A' && (!m.genre || m.genre === '-')) { m.genre = omdbData.Genre; changed = true; }
-                  if (omdbData.Director && omdbData.Director !== 'N/A' && (!m.director || m.director === '-')) { m.director = omdbData.Director; changed = true; }
-                  if (omdbData.Year && omdbData.Year !== 'N/A' && (!m.release_year || m.release_year === '-')) { m.release_year = omdbData.Year; changed = true; }
-                  if (omdbData.Plot && omdbData.Plot !== 'N/A' && (!m.overview || m.overview.length < omdbData.Plot.length)) { m.overview = omdbData.Plot; changed = true; }
                 }
+                if (omdbData.Genre && omdbData.Genre !== 'N/A' && (!m.genre || m.genre === '-')) { m.genre = omdbData.Genre; changed = true; }
+                if (omdbData.Director && omdbData.Director !== 'N/A' && (!m.director || m.director === '-')) { m.director = omdbData.Director; changed = true; }
+                if (omdbData.Plot && omdbData.Plot !== 'N/A' && (!m.overview || m.overview.length < omdbData.Plot.length)) { m.overview = omdbData.Plot; changed = true; }
               }
-            } catch (e) {}
-          }
-
-          if (changed) updatedCount++;
-        }));
-      }
-
-      if (updatedCount > 0) writeDB(db);
-
-      // 3. Auto re-sort ONLY the "Futured" column's cards by release_date ascending (soonest first)
-      const freshDb = readDB();
-      const futuredMovies = (freshDb.movies || []).filter(
-        m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === 'futured'
-      );
-
-      if (futuredMovies.length > 0) {
-        futuredMovies.sort((a, b) => {
-          const dateA = a.release_date || null;
-          const dateB = b.release_date || null;
-
-          if (!dateA && !dateB) return 0;
-          if (!dateA) return 1; // null/missing release_date sorts to end
-          if (!dateB) return -1;
-
-          return dateA.localeCompare(dateB);
-        });
-
-        let positionChanged = false;
-        futuredMovies.forEach((m, index) => {
-          if (m.position !== index) {
-            m.position = index;
-            positionChanged = true;
-          }
-        });
-
-        if (positionChanged) {
-          writeDB(freshDb);
-          console.log(`[REFRESH-ALL] Auto re-sorted ${futuredMovies.length} Futured movies by release_date ascending.`);
-
-          const supabase = getSupabase();
-          if (supabase) {
-            try {
-              for (const m of futuredMovies) {
-                await supabase.from('movies').update({ position: m.position }).eq('id', m.id);
-              }
-            } catch (e) {
-              console.error('[REFRESH-ALL] Error persisting sorted Futured positions to Supabase:', e.message);
             }
-          }
+          } catch (e) {}
+        }
+
+        // 3. Premiere Auto-Move: If movie is in 'futured' and its release_date <= today, move to 'todo'
+        if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
+          m.section = 'todo';
+          m.position = 0;
+          movedToTodoCount++;
+          changed = true;
+
+          // Dispatch release alert notification
+          createNotification(userId, {
+            type: 'release_alert',
+            title: `${m.title} chiqdi!`,
+            message: `"${m.title}" filmining premyerasi bo'lib o'tdi. "Ko'riladi" ustuniga o'tkazildi!`,
+            movie_data: {
+              ...m,
+              event_type: 'premiere_alert'
+            },
+            dedup_key: `${userId}_${m.tmdb_id || m.id}_premiere_${m.release_date}`
+          }).catch(() => {});
+        }
+
+        if (changed) {
+          updatedCount++;
+          m.updated_at = new Date().toISOString();
+          changedMovies.push(m);
+        }
+      }));
+    }
+
+    // 4. Auto re-sort ONLY the "Futured" column's cards by release_date ascending (soonest first)
+    const futuredMovies = (db.movies || []).filter(
+      m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === 'futured'
+    );
+
+    if (futuredMovies.length > 0) {
+      futuredMovies.sort((a, b) => {
+        const dateA = a.release_date || null;
+        const dateB = b.release_date || null;
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return dateA.localeCompare(dateB);
+      });
+
+      futuredMovies.forEach((m, index) => {
+        if (m.position !== index) {
+          m.position = index;
+          if (!changedMovies.includes(m)) changedMovies.push(m);
+        }
+      });
+    }
+
+    if (changedMovies.length > 0) {
+      await writeDB(db);
+
+      const supabase = getSupabase();
+      if (supabase) {
+        try {
+          const sanitizedBatch = changedMovies.map(sanitizeForSupabase);
+          await supabase.from('movies').upsert(sanitizedBatch, { onConflict: 'id' });
+        } catch (e) {
+          console.error('[REFRESH-ALL] Error syncing updated movies to Supabase:', e.message);
         }
       }
+    }
 
-      console.log(`[REFRESH-ALL BACKGROUND WORKER] Completed successfully for userId: ${userId}. Updated ${updatedCount} movie(s).`);
-      generateRecommendations(userId).catch(err => {
-        console.error('[REFRESH-ALL] Background recommendations error:', err.message);
-      });
+    console.log(`[REFRESH-ALL] Completed successfully for userId: ${userId}. Updated: ${updatedCount}, MovedToTodo: ${movedToTodoCount}`);
+    generateRecommendations(userId).catch(() => {});
+
+    return res.json({
+      success: true,
+      updated: updatedCount,
+      movedToTodo: movedToTodoCount,
+      message: `${updatedCount} ta film ma'lumotlari yangilandi` + (movedToTodoCount > 0 ? `, ${movedToTodoCount} ta premyera "Ko'riladi"ga o'tkazildi` : '')
     });
 
   } catch (err) {

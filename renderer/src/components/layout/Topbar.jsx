@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { RefreshCw, Settings, Power, Film, Bell, HelpCircle, Sparkles } from 'lucide-react'
 import NotificationPanel from './NotificationPanel.jsx'
+import NotificationToastQueue from './NotificationToastQueue.jsx'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 
 export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onRefresh, refreshing, noteLabel, user, onLogout, onAddMovieSuccess, activeView = 'movies', onViewChange }) {
@@ -53,7 +54,8 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
 
   useEffect(() => {
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, 30000)
+    // Poll every 10 minutes while user is active on the site (saves CPU/network and prevents lag)
+    const interval = setInterval(fetchNotifications, 10 * 60 * 1000)
     return () => clearInterval(interval)
   }, [])
 
@@ -283,9 +285,10 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
         {onRefresh && (
           <div style={{ position: 'relative' }}>
             <button
+              id="topbar-refresh-btn"
               onClick={handleRefreshClick}
               disabled={refreshing}
-              title={t('common.retry')}
+              title={t('common.refresh', 'Yangilash')}
               style={{
                 WebkitAppRegion: 'no-drag',
                 background: 'transparent',
@@ -338,6 +341,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
             <Bell size={15} />
             {unreadCount > 0 && (
               <span
+                key={unreadCount}
                 style={{
                   position: 'absolute',
                   top: -4,
@@ -355,6 +359,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
                   justifyContent: 'center',
                   boxShadow: '0 0 0 2px var(--bg-surface)',
                   lineHeight: 1,
+                  animation: 'badgePop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards',
                 }}
               >
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -375,6 +380,16 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
               onClose={() => setShowNotifications(false)}
             />
           )}
+
+          {/* Top-Right Staggered Animated Toast Queue */}
+          <NotificationToastQueue
+            notifications={notifications}
+            onMarkRead={handleMarkRead}
+            onAddMovieSuccess={() => {
+              if (onAddMovieSuccess) onAddMovieSuccess()
+              fetchNotifications()
+            }}
+          />
         </div>
 
 

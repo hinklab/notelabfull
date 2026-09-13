@@ -410,8 +410,8 @@ export default function NotificationPanel({
 
                   {/* ACTION BUTTONS */}
                   <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    {/* TUR 1: Premiere Alert Action Button ("To Do'ga o'tkazish") */}
-                    {(evType === 'premiere_alert' || (notif.type === 'release_alert' && evType !== 'new_season_alert')) && (
+                    {/* TUR 1: Premiere Alert Action Button ("To Do'ga o'tkazish" - strictly for premieres, NOT trailers or box office stats) */}
+                    {(evType === 'premiere_alert' || (notif.type === 'release_alert' && evType !== 'new_season_alert' && evType !== 'trailer_alert' && evType !== 'box_office_alert')) && (
                       <button
                         onClick={() => handleMoveToTodo(notif)}
                         disabled={isDisabled}
@@ -513,6 +513,27 @@ export default function NotificationPanel({
                         <span>{t('notifications.watchTrailer', null, 'Treylerni ko\'rish')}</span>
                         <ExternalLink size={10} />
                       </a>
+                    )}
+
+                    {/* Box Office Alert: Financial revenue badge */}
+                    {evType === 'box_office_alert' && (notif.movie_data?.revenue_formatted || notif.movie_data?.revenue) && (
+                      <span
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: 6,
+                          background: 'rgba(234, 179, 8, 0.15)',
+                          color: '#eab308',
+                          border: '1px solid rgba(234, 179, 8, 0.3)',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 3
+                        }}
+                      >
+                        <DollarSign size={11} />
+                        <span>Kassa: {notif.movie_data.revenue_formatted || `$${(notif.movie_data.revenue / 1000000).toFixed(1)} mln`}</span>
+                      </span>
                     )}
                   </div>
                 </div>

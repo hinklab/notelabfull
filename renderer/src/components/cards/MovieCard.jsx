@@ -557,7 +557,11 @@ function MovieCard({
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
       setRenderExpanded(true)
       setIsClosing(false)
-      setIsOpen(true)
+      // Delay isOpen by one frame so the browser can first paint maxHeight: 116,
+      // then transition to maxHeight: 1100 — creating the smooth open animation
+      const openRaf = requestAnimationFrame(() => {
+        setIsOpen(true)
+      })
       
       // Immediately on frame 0, trigger seamless speed-graph slide alongside card morph
       const raf = requestAnimationFrame(() => {
@@ -570,6 +574,7 @@ function MovieCard({
       }, 280)
 
       return () => {
+        cancelAnimationFrame(openRaf)
         cancelAnimationFrame(raf)
         clearTimeout(t)
       }

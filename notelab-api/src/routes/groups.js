@@ -3,6 +3,10 @@ const router = express.Router();
 const { readDB, writeDB } = require('../services/database');
 
 const DEFAULT_USER_ID = '0d3da195-1d0e-458b-9f88-2879561e0da6';
+function getSupabase() {
+  try { return require('../services/supabase'); } catch { return null; }
+}
+
 const GROUP_COLORS = [
   '#a78bfa', '#fbbf24', '#34d399', '#60a5fa',
   '#f472b6', '#fb923c', '#4ade80', '#38bdf8',
@@ -16,7 +20,19 @@ router.get('/', async (req, res) => {
     const { note_id } = req.query;
     let groups = (db.note_groups || []).filter(g => (g.user_id || DEFAULT_USER_ID) === userId);
     
-    if (note_id) {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        let q = supabase.from('note_groups').select('*').eq('user_id', userId).order('position');
+        if (note_id) q = q.eq('note_id', parseInt(note_id));
+        const { data: cloudGroups } = await q;
+        if (Array.isArray(cloudGroups) && cloudGroups.length > 0) {
+          groups = cloudGroups;
+        }
+      } catch (e) {}
+    }
+
+    if (note_id && groups.length === 0) {
       const parsedNoteId = parseInt(note_id);
       let noteGroups = groups.filter(g => g.note_id === parsedNoteId);
 

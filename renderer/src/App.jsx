@@ -215,10 +215,10 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
     try {
       const result = await window.api.refreshAllMovies()
       setBoardKey(k => k + 1)
-      const toastMsg = `${result.updated} ta yangilandi` + (result.mismatchesCorrected ? `, ${result.mismatchesCorrected} ta mos kelmaslik tuzatildi` : '') + (result.failedTitles && result.failedTitles.length ? `; Muvaffaqiyatsiz: ${result.failedTitles.join(', ')}` : '')
+      const toastMsg = result.message || (`${result.updated ?? 0} ta film ma'lumotlari yangilandi` + (result.movedToTodo ? `, ${result.movedToTodo} ta "Ko'riladi"ga o'tkazildi` : ''))
       setRefreshToast(result.success ? { success: true, text: toastMsg } : { success: false, text: result.message || 'Yangilanmadi' })
     } catch { setRefreshToast({ success: false, text: 'Xato yuz berdi' }) }
-    finally { setRefreshing(false); setTimeout(() => setRefreshToast(null), 3000) }
+    finally { setRefreshing(false); setTimeout(() => setRefreshToast(null), 4000) }
   }
 
   if (loadingNote || !activeNote) {
