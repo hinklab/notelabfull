@@ -427,87 +427,162 @@ function MovieRatingModal({ movie, currentRating, onRate, onClose }) {
   )
 }
 
-let activeWindowScrollRaf = null
-
-// Custom animated scroll that follows the speed graph (fast explosive start, long smooth exponential glide)
-function smoothSlideWindowTo(targetY, targetX, duration = 280) {
-  if (activeWindowScrollRaf) {
-    cancelAnimationFrame(activeWindowScrollRaf)
-    activeWindowScrollRaf = null
-  }
-
-  const startY = window.pageYOffset || document.documentElement.scrollTop || 0
-  const startX = window.pageXOffset || document.documentElement.scrollLeft || 0
-  const deltaY = targetY - startY
-  const deltaX = targetX - startX
-
-  if (Math.abs(deltaY) < 1 && Math.abs(deltaX) < 1) return
-
-  const startTime = performance.now()
-
-  // Easing curve: rapid initial acceleration, long exponential deceleration
-  function easeOutSpeedGraph(t) {
-    return t === 1 ? 1 : 1 - Math.pow(2, -10.5 * t)
-  }
-
-  function step(currentTime) {
-    const elapsed = currentTime - startTime
-    const progress = Math.min(elapsed / duration, 1)
-    const eased = easeOutSpeedGraph(progress)
-
-    const nextY = Math.round(startY + deltaY * eased)
-    const nextX = Math.round(startX + deltaX * eased)
-
-    window.scrollTo(nextX, nextY)
-
-    if (progress < 1) {
-      activeWindowScrollRaf = requestAnimationFrame(step)
-    } else {
-      activeWindowScrollRaf = null
-      window.scrollTo(Math.round(targetX), Math.round(targetY))
+function getScrollParent(el) {
+  let parent = el?.parentElement
+  while (parent && parent !== document.body && parent !== document.documentElement) {
+    const style = window.getComputedStyle(parent)
+    const overflowY = style.overflowY
+    const overflowX = style.overflowX
+    const canScrollY = (overflowY === 'auto' || overflowY === 'scroll') && parent.scrollHeight > parent.clientHeight + 10
+    const canScrollX = (overflowX === 'auto' || overflowX === 'scroll') && parent.scrollWidth > parent.clientWidth + 10
+    if (canScrollY || canScrollX) {
+      return parent
     }
+    parent = parent.parentElement
   }
-
-  activeWindowScrollRaf = requestAnimationFrame(step)
+  return window
 }
 
-function centerCardEquator(el, duration = 280) {
-  if (!el) return
+let activeSlideRaf = null
+let abortSlideListener = null
 
-  const rect = el.getBoundingClientRect()
-  const currentScrollY = window.pageYOffset || document.documentElement.scrollTop || 0
-  const currentScrollX = window.pageXOffset || document.documentElement.scrollLeft || 0
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 800
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1200
+export function cancelActiveSlide() {
+  if (activeSlideRaf) {
+    cancelAnimationFrame(activeSlideRaf)
+    activeSlideRaf = null
+  }
+  if (abortSlideListener) {
+    abortSlideListener()
+    abortSlideListener = null
+  }
+}
 
-  // 1. Visible boundary: between sticky header bottom and screen bottom
-  const myCol = el.closest('.note-column')
-  const headerEl = myCol?.querySelector('.column-header-sticky') || document.querySelector('.column-header-sticky')
-  const topBoundary = headerEl ? headerEl.getBoundingClientRect().bottom : 96
-  const bottomBoundary = viewportHeight
+function smoothSlideTo(targetY, targetX, container, duration = 380, onComplete) {
+  if (!container) container = window
+  const isWindow = container === window
 
-  // If card is already nicely visible in viewport (not clipped under header and not offscreen below), DO NOT JUMP!
-  const isClippedTop = rect.top < topBoundary + 6
-  const isClippedBottom = rect.bottom > bottomBoundary - 16
-  if (!isClippedTop && !isClippedBottom) {
+  cancelActiveSlide()
+
+  const startY = isWindow ? (window.pageYOffset || document.documentElement.scrollTop || 0) : container.scrollTop
+  const startX = isWindow ? (window.pageXOffset || document.documentElement.scrollLeft || 0) : container.scrollLeft
+
+  const maxScrollY = isWindow
+    ? Math.max(0, (document.documentElement.scrollHeight || document.body.scrollHeight) - window.innerHeight)
+    : Math.max(0, container.scrollHeight - container.clientHeight)
+  const clampedTargetY = Math.min(maxScrollY, Math.max(0, targetY))
+
+  const maxScrollX = isWindow
+    ? Math.max(0, (document.documentElement.scrollWidth || document.body.scrollWidth) - window.innerWidth)
+    : Math.max(0, container.scrollWidth - container.clientWidth)
+  const clampedTargetX = Math.min(maxScrollX, Math.max(0, targetX))
+
+  const deltaY = clampedTargetY - startY
+  const deltaX = clampedTargetX - startX
+
+  // If already at target within 6px, complete immediately
+  if (Math.abs(deltaY) < 6 && Math.abs(deltaX) < 6) {
+    onComplete?.()
     return
   }
 
-  const visibleAreaHeight = Math.max(200, bottomBoundary - topBoundary)
-  const expectedCardHeight = rect.height > 250 ? rect.height : 580
+  const startTime = performance.now()
 
-  let targetScreenTop = topBoundary + 12
-  if (expectedCardHeight < visibleAreaHeight) {
-    targetScreenTop = topBoundary + Math.round((visibleAreaHeight - expectedCardHeight) / 2)
+  const onUserInteract = () => {
+    cancelActiveSlide()
   }
 
-  const cardAbsoluteTop = currentScrollY + rect.top
+  const cleanup = () => {
+    window.removeEventListener('wheel', onUserInteract, { passive: true })
+    window.removeEventListener('touchstart', onUserInteract, { passive: true })
+    window.removeEventListener('keydown', onUserInteract, { passive: true })
+    abortSlideListener = null
+  }
+
+  window.addEventListener('wheel', onUserInteract, { passive: true })
+  window.addEventListener('touchstart', onUserInteract, { passive: true })
+  window.addEventListener('keydown', onUserInteract, { passive: true })
+  abortSlideListener = cleanup
+
+  // Apple-style cubic deceleration curve: f(t) = 1 - (1 - t)^3
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3)
+
+  function step(now) {
+    const elapsed = now - startTime
+    const progress = Math.min(1, Math.max(0, elapsed / duration))
+    const eased = easeOutCubic(progress)
+
+    const currentY = startY + deltaY * eased
+    const currentX = startX + deltaX * eased
+
+    if (isWindow) {
+      window.scrollTo(Math.round(currentX), Math.round(currentY))
+    } else {
+      container.scrollTop = Math.round(currentY)
+      container.scrollLeft = Math.round(currentX)
+    }
+
+    if (progress < 1) {
+      activeSlideRaf = requestAnimationFrame(step)
+    } else {
+      activeSlideRaf = null
+      cleanup()
+      onComplete?.()
+    }
+  }
+
+  activeSlideRaf = requestAnimationFrame(step)
+}
+
+function centerCardEquator(el, duration = 380, onComplete) {
+  if (!el) {
+    onComplete?.()
+    return
+  }
+
+  const scrollContainer = getScrollParent(el)
+  const rect = el.getBoundingClientRect()
+  const isWindow = scrollContainer === window
+
+  const currentScrollY = isWindow ? (window.pageYOffset || document.documentElement.scrollTop || 0) : scrollContainer.scrollTop
+  const currentScrollX = isWindow ? (window.pageXOffset || document.documentElement.scrollLeft || 0) : scrollContainer.scrollLeft
+  const viewportHeight = isWindow ? (window.innerHeight || document.documentElement.clientHeight || 800) : scrollContainer.clientHeight
+  const viewportWidth = isWindow ? (window.innerWidth || document.documentElement.clientWidth || 1200) : scrollContainer.clientWidth
+
+  // Top boundary: sticky column header or topbar
+  const topbar = document.querySelector('.topbar-sticky') || document.querySelector('header')
+  const topbarHeight = topbar ? topbar.offsetHeight : 52
+  const myCol = el.closest('.note-column')
+  const headerEl = myCol?.querySelector('.column-header-sticky') || document.querySelector('.board-mobile-nav')
+  const headerHeight = headerEl ? headerEl.offsetHeight : 42
+  const topBoundary = topbarHeight + headerHeight + 8
+  const bottomBoundary = viewportHeight
+
+  const visibleAreaHeight = Math.max(200, bottomBoundary - topBoundary)
+  const cardHeight = rect.height > 100 ? rect.height : 600
+
+  let targetScreenTop = topBoundary + 16
+  if (cardHeight < visibleAreaHeight) {
+    targetScreenTop = topBoundary + Math.round((visibleAreaHeight - cardHeight) / 2)
+  }
+
+  const containerOffsetTop = isWindow ? 0 : scrollContainer.getBoundingClientRect().top
+  const cardAbsoluteTop = currentScrollY + rect.top - containerOffsetTop
   const targetScrollY = Math.max(0, Math.round(cardAbsoluteTop - targetScreenTop))
 
-  const cardCenterX = rect.left + currentScrollX + (rect.width / 2)
+  const containerOffsetLeft = isWindow ? 0 : scrollContainer.getBoundingClientRect().left
+  const cardCenterX = rect.left + currentScrollX + (rect.width / 2) - containerOffsetLeft
   const targetScrollX = Math.max(0, Math.round(cardCenterX - (viewportWidth / 2)))
 
-  smoothSlideWindowTo(targetScrollY, targetScrollX, duration)
+  const deltaY = Math.abs(targetScrollY - currentScrollY)
+  const deltaX = Math.abs(targetScrollX - currentScrollX)
+
+  // If already centered within 8px, avoid micro-slides
+  if (deltaY < 8 && deltaX < 8) {
+    onComplete?.()
+    return
+  }
+
+  smoothSlideTo(targetScrollY, targetScrollX, scrollContainer, duration, onComplete)
 }
 
 function MovieCard({
@@ -550,36 +625,61 @@ function MovieCard({
   const [isOpen, setIsOpen] = useState(isCardExpanded)
   const [isClosing, setIsClosing] = useState(false)
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(false)
+  const [canMountTrailer, setCanMountTrailer] = useState(false)
   const closeTimerRef = useRef(null)
+  const trailerMountTimerRef = useRef(null)
 
   useEffect(() => {
     if (isCardExpanded) {
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+      if (trailerMountTimerRef.current) clearTimeout(trailerMountTimerRef.current)
       setRenderExpanded(true)
       setIsClosing(false)
-      // Small 30ms delay ensures the browser commits the 116px layout before expanding to 1100px
+      setCanMountTrailer(false)
+
       const openTimer = setTimeout(() => {
         setIsOpen(true)
-      }, 30)
+      }, 20)
 
-      // Smoothly adjust equatorial center after the card starts expanding
+      // Smooth slide animation to center AFTER the card expansion completes (380ms transition + 20ms = 400ms)
       const scrollTimer = setTimeout(() => {
-        centerCardEquator(cardRef.current, 260)
-      }, 180)
+        centerCardEquator(cardRef.current, 380, () => {
+          setCanMountTrailer(true)
+        })
+      }, 400)
+
+      // Fallback in case slide is cancelled or skipped
+      trailerMountTimerRef.current = setTimeout(() => {
+        setCanMountTrailer(true)
+      }, 820)
 
       return () => {
         clearTimeout(openTimer)
         clearTimeout(scrollTimer)
+        if (trailerMountTimerRef.current) clearTimeout(trailerMountTimerRef.current)
       }
     } else {
+      cancelActiveSlide()
       setIsOpen(false)
       setIsClosing(true)
       setIsOverviewExpanded(false)
+      setCanMountTrailer(false)
+      if (trailerMountTimerRef.current) clearTimeout(trailerMountTimerRef.current)
+
+      if (trailerIframeRef.current?.contentWindow) {
+        try {
+          trailerIframeRef.current.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'stopVideo', args: [] }),
+            '*'
+          )
+        } catch (e) {}
+      }
+
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
       closeTimerRef.current = setTimeout(() => {
         setRenderExpanded(false)
         setIsClosing(false)
-      }, 360)
+      }, 400)
       return () => {
         if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
       }
@@ -997,11 +1097,11 @@ function MovieCard({
         background: isVisuallyExpanded ? 'var(--bg-surface)' : (isTouchDragging ? 'transparent' : 'var(--bg-card)'),
         border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px dashed var(--accent, #a78bfa)' : '1px solid var(--border)'),
         borderRadius: 14,
-        boxShadow: 'none',
+        boxShadow: isVisuallyExpanded ? '0 10px 30px -4px rgba(0, 0, 0, 0.45)' : 'none',
         cursor: isCardExpanded ? 'default' : (isTouchDragging ? 'grabbing' : 'pointer'),
         overflow: 'hidden',
         maxHeight: isVisuallyExpanded ? 1100 : 116,
-        transition: 'max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background 0.2s ease, box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, background 0.25s ease, box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
         opacity: isTouchDragging ? 0.35 : 1,
         touchAction: 'pan-y',
         WebkitTouchCallout: 'none',
@@ -1009,8 +1109,8 @@ function MovieCard({
         flexDirection: 'column',
         position: 'relative',
         userSelect: 'none',
-        contain: isCardExpanded ? 'none' : 'layout paint',
-        willChange: hovered ? 'transform, box-shadow' : 'auto'
+        contain: (isCardExpanded || renderExpanded || isClosing) ? 'none' : 'layout paint',
+        willChange: (isCardExpanded || renderExpanded || isClosing || hovered) ? 'max-height, transform, box-shadow' : 'auto'
       }}
       onMouseEnter={e => {
         if (isTouchDragging || isTouchSessionRef.current || isCardExpanded) return
@@ -1031,8 +1131,23 @@ function MovieCard({
       }}
     >
       {/* 1. COLLAPSED VIEW (Compact Horizontal Row) */}
-      {!renderExpanded ? (
-        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', minHeight: 116 }}>
+      <div
+        style={{
+          position: renderExpanded ? 'absolute' : 'relative',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 116,
+          minHeight: 116,
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'stretch',
+          opacity: isVisuallyExpanded ? 0 : 1,
+          pointerEvents: isVisuallyExpanded ? 'none' : 'auto',
+          transition: 'opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+          zIndex: 1,
+        }}
+      >
           {/* Delete button on hover */}
           {onDelete && (
             <button
@@ -1327,14 +1442,16 @@ function MovieCard({
             )}
           </div>
         </div>
-      ) : (
-        /* 2. EXPANDED VIEW (Vertical Rich Accordion in Column) */
+
+      {/* 2. EXPANDED VIEW (Vertical Rich Accordion in Column) */}
+      {renderExpanded && (
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           opacity: isVisuallyExpanded ? 1 : 0,
-          transform: isVisuallyExpanded ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.98)',
-          transition: 'opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
+          transform: isVisuallyExpanded ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.98)',
+          transition: 'opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
+          zIndex: 2,
         }}>
           {/* Top Horizontal Cinema Trailer / Poster Banner */}
           <div
@@ -1351,7 +1468,7 @@ function MovieCard({
               borderBottom: '1px solid var(--border)',
             }}
           >
-            {trailer?.key ? (
+            {trailer?.key && canMountTrailer ? (
               <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
                 <iframe
                   ref={trailerIframeRef}

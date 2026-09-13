@@ -107,20 +107,20 @@ function SeriesGroupCard({
           if (!firstSeason) return
           handleTouchDragEnd?.({ ...firstSeason, _isSeriesGroup: true }, e.changedTouches[0].clientX, e.changedTouches[0].clientY)
         }}
-        onClick={() => onToggleExpandMovie?.(firstSeason.id)}
+        onClick={() => setIsExpanded(prev => !prev)}
         onContextMenu={(e) => onItemContextMenu?.(e, firstSeason)}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          background: hovered ? 'var(--bg-card-hover)' : 'var(--bg-card)',
-          border: `1px solid ${hovered ? 'var(--border-hover)' : 'var(--border)'}`,
+          background: hovered ? 'var(--bg-card-hover)' : (isExpanded ? 'rgba(139, 92, 246, 0.04)' : 'var(--bg-card)'),
+          border: `1px solid ${hovered ? 'var(--border-hover)' : (isExpanded ? 'rgba(139, 92, 246, 0.45)' : 'var(--border)')}`,
           borderRadius: 14,
           display: 'flex',
           minHeight: 116,
           position: 'relative',
           cursor: 'pointer',
           transform: hovered ? 'translateY(-2.5px)' : 'translateY(0)',
-          boxShadow: hovered ? '0 6px 16px -2px rgba(0, 0, 0, 0.3)' : 'none',
+          boxShadow: isExpanded ? '0 4px 14px rgba(124, 58, 237, 0.12)' : (hovered ? '0 6px 16px -2px rgba(0, 0, 0, 0.3)' : 'none'),
           transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, background 0.18s ease',
           userSelect: 'none',
           overflow: 'hidden',
@@ -196,56 +196,23 @@ function SeriesGroupCard({
             gap: 4
           }}
         >
-          {/* Top row: Title + Expand toggle */}
+          {/* Top row: Title */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
-              <div
-                style={{
-                  fontWeight: 600,
-                  fontSize: 13.5,
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.3,
-                  margin: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical'
-                }}
-              >
-                {seriesTitle}
-              </div>
-
-              {/* Expand / Collapse Button */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setIsExpanded(prev => !prev)
-                }}
-                style={{
-                  background: isExpanded ? 'rgba(124, 58, 237, 0.18)' : 'var(--bg-input, rgba(0, 0, 0, 0.04))',
-                  border: '1px solid rgba(124, 58, 237, 0.3)',
-                  borderRadius: 6,
-                  color: 'var(--accent, #7c3aed)',
-                  cursor: 'pointer',
-                  padding: '3px 5px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  transition: 'background 0.15s'
-                }}
-                title={isExpanded ? "Yig'ish" : "Mavsumlarni ko'rish"}
-              >
-                <ChevronDown
-                  size={13}
-                  style={{
-                    transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
-                  }}
-                />
-              </button>
+            <div
+              style={{
+                fontWeight: 600,
+                fontSize: 13.5,
+                color: 'var(--text-primary)',
+                lineHeight: 1.3,
+                margin: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical'
+              }}
+            >
+              {seriesTitle}
             </div>
 
             {/* Subtitle / Genre */}
@@ -329,6 +296,7 @@ function SeriesGroupCard({
                   }}
                   onClick={(e) => {
                     e.stopPropagation()
+                    setIsExpanded(true)
                     onToggleExpandMovie?.(s.id)
                   }}
                   style={{

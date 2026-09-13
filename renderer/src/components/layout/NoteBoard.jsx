@@ -1256,8 +1256,9 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     let max = 0
     groups.forEach(g => {
       if (g.section_key !== 'done') {
-        const items = filteredItemsByGroup[g.id] || filteredItemsByGroup[String(g.id)] || []
-        if (items.length > max) max = items.length
+        const colItems = filteredItemsByGroup[g.id] || filteredItemsByGroup[String(g.id)] || []
+        const entries = groupColumnItems(colItems, g.id)
+        if (entries.length > max) max = entries.length
       }
     })
     return max
@@ -1616,21 +1617,24 @@ function NoteColumn({
   const FOOTER_HEIGHT = 44
 
   const isDoneSection = group.section_key === 'done' || (group.name || '').toLowerCase() === 'done'
-  const isCollapseEligible = isDoneSection && items.length > 10 && items.length > (maxOtherCount || 0)
+  const isCollapseEligible = isDoneSection && columnEntries.length > 10 && columnEntries.length > (maxOtherCount || 0)
   const visibleCardsTarget = Math.max(10, maxOtherCount || 0)
+  const hiddenCardsCount = Math.max(1, columnEntries.length - visibleCardsTarget)
   const defaultCardsHeight = visibleCardsTarget * 126
   const collapsedHeightNumber = Math.max(defaultCardsHeight, measuredHeight || defaultCardsHeight)
 
   const autoExpandedByCard = useMemo(() => {
     if (!isCollapseEligible || !expandedMovieId) return false
-    const expIdx = items.findIndex(item => (
-      String(item.id) === String(expandedMovieId) ||
-      (item._movie && String(item._movie.id) === String(expandedMovieId))
-    ))
+    const expIdx = columnEntries.findIndex(entry => {
+      if (entry.type === 'series_group') {
+        return entry.seasons?.some(s => String(s.id) === String(expandedMovieId) || (s._movie && String(s._movie.id) === String(expandedMovieId)))
+      }
+      return String(entry.item?.id) === String(expandedMovieId) || (entry.item?._movie && String(entry.item._movie.id) === String(expandedMovieId))
+    })
     if (expIdx === -1) return false
     const cardExpandedBottom = 10 + (expIdx * 126) + 620
     return cardExpandedBottom > (collapsedHeightNumber - 20)
-  }, [isCollapseEligible, expandedMovieId, items, collapsedHeightNumber])
+  }, [isCollapseEligible, expandedMovieId, columnEntries, collapsedHeightNumber])
 
   const isDoneExpanded = isManuallyExpanded || autoExpandedByCard
   const shouldCollapse = isCollapseEligible && !isDoneExpanded
@@ -2053,12 +2057,12 @@ function NoteColumn({
           minHeight: 100,
           borderRadius: shouldCollapse ? '0' : '0 0 12px 12px',
           outline: isDragOverColumn ? `2px dashed ${color}` : 'none',
-          transition: 'max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), outline 0.1s ease',
-          maxHeight: shouldCollapse ? collapsedHeight : 'none',
+          transition: 'max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), outline 0.1s ease',
+          maxHeight: shouldCollapse ? collapsedHeight : (cardsRef.current ? `${cardsRef.current.scrollHeight + 300}px` : '30000px'),
           overflow: shouldCollapse ? 'hidden' : 'visible',
           position: 'relative',
-          maskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 65px), transparent 100%)' : 'none',
-          WebkitMaskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 65px), transparent 100%)' : 'none',
+          maskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 75px), transparent 100%)' : 'none',
+          WebkitMaskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 75px), transparent 100%)' : 'none',
         }}
       >
         {columnEntries.map((entry, idx) => {
@@ -2178,10 +2182,19 @@ function NoteColumn({
         }}>
           <button
             onClick={() => {
-           if (isDoneExpanded) {
-              setIsManuallyExpanded(false)
-              onToggleExpandMovie?.(null)
-             } else {
+              if (isDoneExpanded) {
+                setIsManuallyExpanded(false)
+                onToggleExpandMovie?.(null)
+                if (cardsRef.current) {
+                  const myCol = cardsRef.current.closest('.note-column')
+                  if (myCol) {
+                    const rect = myCol.getBoundingClientRect()
+                    if (rect.top < 60) {
+                      myCol.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    }
+                  }
+                }
+              } else {
                 setIsManuallyExpanded(true)
               }
             }}
@@ -2190,30 +2203,39 @@ function NoteColumn({
               border: '1px solid rgba(139, 92, 246, 0.3)',
               color: '#a78bfa',
               borderRadius: 8,
-              padding: '5px 14px',
+              padding: '6px 14px',
               fontSize: 12,
               fontWeight: 600,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              transition: 'background 0.15s',
+              transition: 'background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease',
               fontFamily: 'inherit',
               width: '100%',
-              height: 30,
+              height: 32,
               justifyContent: 'center',
+              boxShadow: '0 2px 6px rgba(139, 92, 246, 0.08)'
             }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.12)'}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.22)'
+              e.currentTarget.style.transform = 'translateY(-1px)'
+              e.currentTarget.style.boxShadow = '0 4px 10px rgba(139, 92, 246, 0.16)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.12)'
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 2px 6px rgba(139, 92, 246, 0.08)'
+            }}
           >
             {shouldCollapse ? (
               <>
-                <span>{t('common.more') || 'Yana'} ({Math.max(1, items.length - visibleCardsTarget)})</span>
+                <span>{t('common.more') || 'Yana'} ({hiddenCardsCount})</span>
                 <ChevronDown size={14} />
               </>
             ) : (
               <>
-                <span>{t('common.close')}</span>
+                <span>{t('common.close') || 'Yopish'}</span>
                 <ChevronUp size={14} />
               </>
             )}

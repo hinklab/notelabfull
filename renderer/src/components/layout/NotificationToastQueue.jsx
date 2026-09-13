@@ -9,7 +9,11 @@ import {
   ArrowRight,
   Check,
   Plus,
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
+  Clock,
+  Calendar,
+  Star
 } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 
@@ -35,11 +39,29 @@ export default function NotificationToastQueue({
   const isProcessingRef = useRef(false)
   const [actionStates, setActionStates] = useState({})
 
-  // 1. Detect new unread notifications and queue them up
+  // 1a. Listen for direct push toasts (e.g. manual refresh movie updates)
+  useEffect(() => {
+    const handlePushToast = (e) => {
+      const notif = e.detail
+      if (!notif) return
+      const key = String(notif.id || `toast_${Date.now()}_${Math.random()}`)
+      notif.id = key
+      shownIdsRef.current.add(key)
+      pendingQueueRef.current.push(notif)
+      if (!isProcessingRef.current) {
+        startQueueProcessor()
+      }
+    }
+
+    window.addEventListener('notelab_push_toast', handlePushToast)
+    return () => window.removeEventListener('notelab_push_toast', handlePushToast)
+  }, [])
+
+  // 1b. Detect new unread notifications and queue them up
   useEffect(() => {
     if (!Array.isArray(notifications)) return
 
-    const unread = notifications.filter(n => n && !n.is_read)
+    const unread = notifications.filter(n => n && !n.is_read && n.type !== 'movie_updated')
     let newItemsEnqueued = false
 
     // Traverse in chronological / received order
@@ -131,7 +153,7 @@ export default function NotificationToastQueue({
       })
     )
 
-    if (notifId && onMarkRead) {
+    if (notifId && onMarkRead && !String(notifId).startsWith('refresh_')) {
       onMarkRead(notifId).catch(() => {})
     }
 
@@ -296,6 +318,10 @@ export default function NotificationToastQueue({
           badgeColor = '#10b981'
           badgeBg = 'rgba(16, 185, 129, 0.15)'
           badgeIcon = <Sparkles size={14} />
+        } else if (evType === 'movie_updated' || notif.type === 'movie_updated') {
+          badgeColor = '#06b6d4'
+          badgeBg = 'rgba(6, 182, 212, 0.15)'
+          badgeIcon = <RefreshCw size={14} />
         } else if (evType === 'new_season_alert' || isTv) {
           badgeColor = '#8b5cf6'
           badgeBg = 'rgba(139, 92, 246, 0.15)'
@@ -369,6 +395,24 @@ export default function NotificationToastQueue({
 
               {/* Text content */}
               <div style={{ flex: 1, minWidth: 0, paddingRight: 16 }}>
+                {(evType === 'movie_updated' || notif.type === 'movie_updated') && (
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: '#06b6d4',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.6px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      marginBottom: 2
+                    }}
+                  >
+                    <RefreshCw size={10} />
+                    <span>Ma'lumot yangilandi</span>
+                  </div>
+                )}
                 <div
                   style={{
                     fontSize: 13,
@@ -384,19 +428,59 @@ export default function NotificationToastQueue({
                 >
                   {notif.title}
                 </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.4,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden'
-                  }}
-                >
-                  {notif.message}
-                </div>
+
+                {(evType === 'movie_updated' || notif.type === 'movie_updated') && Array.isArray(notif.movie_data?.changes) && notif.movie_data.changes.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3.5, marginTop: 4 }}>
+                    {notif.movie_data.changes.slice(0, 3).map((ch, cIdx) => (
+                      <div
+                        key={cIdx}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          fontSize: 11,
+                          color: 'var(--text-secondary)',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: 5,
+                          padding: '1.5px 7px',
+                          maxWidth: '100%',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {ch.field === 'rating' || ch.field === 'imdb_rating' ? <Star size={11} color="#fbbf24" fill="#fbbf24" style={{ flexShrink: 0 }} /> : null}
+                        {ch.field === 'release_date' ? <Calendar size={11} color="#06b6d4" style={{ flexShrink: 0 }} /> : null}
+                        {ch.field === 'runtime' ? <Clock size={11} color="#a78bfa" style={{ flexShrink: 0 }} /> : null}
+                        {ch.field === 'seasons' ? <Tv size={11} color="#c084fc" style={{ flexShrink: 0 }} /> : null}
+                        {ch.field === 'overview' ? <Film size={11} color="#34d399" style={{ flexShrink: 0 }} /> : null}
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ch.text || `${ch.label}: ${ch.newVal || ''}`}
+                        </span>
+                      </div>
+                    ))}
+                    {notif.movie_data.changes.length > 3 && (
+                      <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontStyle: 'italic', paddingLeft: 4 }}>
+                        +{notif.movie_data.changes.length - 3} ta boshqa o'zgarish
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.4,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {notif.message}
+                  </div>
+                )}
 
                 {/* Quick actions row */}
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>

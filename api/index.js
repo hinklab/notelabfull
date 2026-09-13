@@ -3204,47 +3204,6 @@ module.exports = async (req, res) => {
         };
       });
 
-      // Auto-move movies from 'futured' to 'todo' if release_date has arrived (<= today)
-      const todayIso = new Date().toISOString().split('T')[0];
-      const releasedFromFutured = [];
-      movies.forEach(m => {
-        if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
-          m.section = 'todo';
-          releasedFromFutured.push(m);
-        }
-      });
-
-      if (releasedFromFutured.length > 0) {
-        (async () => {
-          try {
-            for (const rm of releasedFromFutured) {
-              await supabase.from('movies').update({ section: 'todo', updated_at: new Date().toISOString() }).eq('id', rm.id);
-              // Insert release_alert notification
-              try {
-                await supabase.from('notifications').insert([{
-                  user_id: userId,
-                  type: 'release_alert',
-                  title: `${rm.title} chiqdi!`,
-                  message: `"${rm.title}" filmining premyerasi bo'lib o'tdi. Film 'To Do' bo'limiga o'tkazildi!`,
-                  movie_data: {
-                    tmdb_id: rm.tmdb_id,
-                    imdb_id: rm.imdb_id,
-                    title: rm.title,
-                    poster_path: rm.poster_path,
-                    rating: rm.rating,
-                    release_date: rm.release_date,
-                    genre: rm.genre
-                  },
-                  is_read: false
-                }]);
-              } catch (e) {}
-            }
-          } catch (e) {
-            console.warn('Auto-move futured error:', e.message);
-          }
-        })();
-      }
-
       // Deduplicate movies by tmdb_id + season or id
       const seenMap = new Map();
       for (const m of movies) {
@@ -3714,16 +3673,7 @@ module.exports = async (req, res) => {
       let movedToTodoCount = 0;
       const todayIso = new Date().toISOString().split('T')[0];
       const changedMovies = [];
-
-      // 1. Instant Premiere Check for ALL futured movies
-      movies.forEach(m => {
-        if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
-          m.section = 'todo';
-          m.position = 0;
-          movedToTodoCount++;
-          if (!changedMovies.some(cm => cm.id === m.id)) changedMovies.push(m);
-        }
-      });
+      const updatedDetailsList = [];
 
       // 2. Select priority movies for external API refresh (max 30 to complete in < 3s)
       const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -3754,6 +3704,7 @@ module.exports = async (req, res) => {
           let changed = false;
           let isTv = m.media_type === 'tv';
           let isMovie = m.media_type === 'movie';
+          const changes = [];
 
           // 1. Fetch TMDB details
           if (m.tmdb_id && TMDB_KEY) {
@@ -3790,6 +3741,7 @@ module.exports = async (req, res) => {
                   m.release_date = movieDetail.release_date;
                   m.release_year = movieDetail.release_date.split('-')[0];
                   changed = true;
+                  changes.push({ field: 'release_date', label: 'Premyera sanasi', text: `Premyera: ${movieDetail.release_date}` });
                 }
                 if (movieDetail.runtime && movieDetail.runtime > 0) {
                   const humanDur = formatDurationUz(movieDetail.runtime, false);
@@ -3797,17 +3749,21 @@ module.exports = async (req, res) => {
                   if (m.seasons !== richRuntime) {
                     m.seasons = richRuntime;
                     changed = true;
+                    changes.push({ field: 'runtime', label: 'Davomiyligi', text: `Davomiyligi: ${richRuntime}` });
                   }
                 }
                 if (movieDetail.overview && (!m.overview || m.overview === '-')) {
                   m.overview = movieDetail.overview;
                   changed = true;
+                  changes.push({ field: 'overview', label: 'Tavsif', text: "Film tavsifi qo'shildi" });
                 }
                 if (movieDetail.vote_average && m.section !== 'futured') {
                   const newRating = Number(movieDetail.vote_average.toFixed(1));
                   if (m.rating !== newRating) {
+                    const oldR = m.rating;
                     m.rating = newRating;
                     changed = true;
+                    changes.push({ field: 'rating', label: 'TMDB Reyting', text: `TMDB: ${oldR != null ? `${oldR} → ` : ''}${newRating}` });
                   }
                   if (movieDetail.vote_count && m.vote_count !== movieDetail.vote_count) {
                     m.vote_count = movieDetail.vote_count;
@@ -3819,6 +3775,7 @@ module.exports = async (req, res) => {
                   m.release_date = tvDetail.first_air_date;
                   m.release_year = tvDetail.first_air_date.split('-')[0];
                   changed = true;
+                  changes.push({ field: 'release_date', label: 'Premyera sanasi', text: `Premyera: ${tvDetail.first_air_date}` });
                 }
 
                 // Season or series check
@@ -3846,6 +3803,7 @@ module.exports = async (req, res) => {
                       if (m.seasons !== seasonStr) {
                         m.seasons = seasonStr;
                         changed = true;
+                        changes.push({ field: 'seasons', label: 'Fasl', text: seasonStr });
                       }
                     }
                   } catch (e) {}
@@ -3868,7 +3826,12 @@ module.exports = async (req, res) => {
                   if (m.section !== 'futured') {
                     if (od.imdbRating && od.imdbRating !== 'N/A') {
                       const nr = parseFloat(od.imdbRating);
-                      if (m.rating !== nr) { m.rating = nr; changed = true; }
+                      if (m.rating !== nr) {
+                        const oldR = m.rating;
+                        m.rating = nr;
+                        changed = true;
+                        changes.push({ field: 'imdb_rating', label: 'IMDb Reyting', text: `IMDb: ${oldR != null ? `${oldR} → ` : ''}${nr}` });
+                      }
                     }
                     if (od.imdbVotes && od.imdbVotes !== 'N/A') {
                       const nv = parseInt(od.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
@@ -3881,62 +3844,38 @@ module.exports = async (req, res) => {
                       changed = true;
                     }
                   }
-                  if (od.Genre && od.Genre !== 'N/A' && (!m.genre || m.genre === '-')) { m.genre = od.Genre; changed = true; }
-                  if (od.Director && od.Director !== 'N/A' && (!m.director || m.director === '-')) { m.director = od.Director; changed = true; }
-                  if (od.Plot && od.Plot !== 'N/A' && (!m.overview || m.overview.length < od.Plot.length)) { m.overview = od.Plot; changed = true; }
+                  if (od.Genre && od.Genre !== 'N/A' && (!m.genre || m.genre === '-')) {
+                    m.genre = od.Genre;
+                    changed = true;
+                    changes.push({ field: 'genre', label: 'Janr', text: `Janr: ${od.Genre}` });
+                  }
+                  if (od.Director && od.Director !== 'N/A' && (!m.director || m.director === '-')) {
+                    m.director = od.Director;
+                    changed = true;
+                    changes.push({ field: 'director', label: 'Rejissyor', text: `Rejissyor: ${od.Director}` });
+                  }
+                  if (od.Plot && od.Plot !== 'N/A' && (!m.overview || m.overview.length < od.Plot.length)) {
+                    m.overview = od.Plot;
+                    changed = true;
+                    changes.push({ field: 'overview', label: 'Tavsif', text: "Tavsif to'ldirildi" });
+                  }
                 }
               }
-            } catch (e) {}
-          }
-
-          // 3. Premiere Auto-Move: If release_date <= today and section === 'futured'
-          if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
-            m.section = 'todo';
-            m.position = 0;
-            movedToTodoCount++;
-            changed = true;
-
-            try {
-              await supabase.from('notifications').insert([{
-                user_id: userId,
-                type: 'release_alert',
-                title: `${m.title} chiqdi!`,
-                message: `"${m.title}" filmining premyerasi bo'lib o'tdi. "Ko'riladi" ustuniga o'tkazildi!`,
-                movie_data: {
-                  ...m,
-                  event_type: 'premiere_alert'
-                },
-                is_read: false,
-                dedup_key: `${userId}_${m.tmdb_id || m.id}_premiere_${m.release_date}`
-              }]);
             } catch (e) {}
           }
 
           if (changed) {
             updatedCount++;
             changedMovies.push(m);
+            updatedDetailsList.push({
+              id: m.id,
+              title: m.title,
+              poster_path: m.poster_path,
+              media_type: m.media_type,
+              changes: changes
+            });
           }
         }));
-      }
-
-      // 4. Auto re-sort Futured column by release_date ascending
-      const futured = movies.filter(m => m.section === 'futured');
-      if (futured.length > 0) {
-        futured.sort((a, b) => {
-          const da = a.release_date || null;
-          const db = b.release_date || null;
-          if (!da && !db) return 0;
-          if (!da) return 1;
-          if (!db) return -1;
-          return da.localeCompare(db);
-        });
-
-        futured.forEach((m, idx) => {
-          if (m.position !== idx) {
-            m.position = idx;
-            if (!changedMovies.some(cm => cm.id === m.id)) changedMovies.push(m);
-          }
-        });
       }
 
       // Persist changes to Supabase
@@ -3966,7 +3905,8 @@ module.exports = async (req, res) => {
         success: true,
         updated: updatedCount,
         movedToTodo: movedToTodoCount,
-        message: `${updatedCount} ta film ma'lumotlari yangilandi` + (movedToTodoCount > 0 ? `, ${movedToTodoCount} ta premyera "Ko'riladi"ga o'tkazildi` : '')
+        message: `${updatedCount} ta film ma'lumotlari yangilandi` + (movedToTodoCount > 0 ? `, ${movedToTodoCount} ta premyera "Ko'riladi"ga o'tkazildi` : ''),
+        updatedDetails: updatedDetailsList
       });
     }
 
@@ -5177,6 +5117,17 @@ module.exports = async (req, res) => {
           for (const notifItem of newNotifsToInsert) {
             try { await supabase.from('notifications').insert([notifItem]); } catch (e) {}
           }
+          try {
+            const { data: allNotifs } = await supabase
+              .from('notifications')
+              .select('id, created_at')
+              .eq('user_id', targetUserId)
+              .order('created_at', { ascending: false });
+            if (allNotifs && allNotifs.length > 20) {
+              const excessIds = allNotifs.slice(20).map(n => n.id);
+              await supabase.from('notifications').delete().in('id', excessIds);
+            }
+          } catch (e) {}
         }
       } catch (err) {
         console.warn('Smart notification generation error:', err.message);
@@ -5233,6 +5184,16 @@ module.exports = async (req, res) => {
         }
       }
 
+      // STRICT 20: Keep only latest 20, prune older ones
+      let finalNotifications = unique;
+      if (unique.length > 20) {
+        const excess = unique.slice(20);
+        for (const ex of excess) {
+          staleNotifIdsToDelete.push(ex.id);
+        }
+        finalNotifications = unique.slice(0, 20);
+      }
+
       if (staleNotifIdsToDelete.length > 0) {
         (async () => {
           try {
@@ -5241,13 +5202,13 @@ module.exports = async (req, res) => {
         })();
       }
 
-      return res.status(200).json(unique);
+      return res.status(200).json(finalNotifications);
     }
 
     if (path === 'notifications/refresh' && req.method === 'POST') {
       notifLastRunMap.delete(userId);
       await runSmartNotifications(userId, { force: true });
-      const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
+      const { data } = await supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(20);
       return res.status(200).json(data || []);
     }
 

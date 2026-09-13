@@ -873,16 +873,9 @@ router.post('/refresh-all', async (req, res) => {
 
     const movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
     const changedMovies = [];
+    const updatedDetailsList = [];
 
-    // 1. Instant Premiere Check for ALL futured movies
-    movies.forEach(m => {
-      if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
-        m.section = 'todo';
-        m.position = 0;
-        movedToTodoCount++;
-        if (!changedMovies.some(cm => cm.id === m.id)) changedMovies.push(m);
-      }
-    });
+    // 1. Manual order is strictly preserved - no automatic premiere auto-move
 
     // 2. Select priority movies for external API refresh (max 30)
     const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -912,6 +905,7 @@ router.post('/refresh-all', async (req, res) => {
         let changed = false;
         let isTv = m.media_type === 'tv';
         let isMovie = m.media_type === 'movie';
+        const changes = [];
 
         // 1. Fetch TMDB details
         if (m.tmdb_id && tmdbKey) {
@@ -949,6 +943,7 @@ router.post('/refresh-all', async (req, res) => {
                 m.release_date = movieDetail.release_date;
                 m.release_year = movieDetail.release_date.split('-')[0];
                 changed = true;
+                changes.push({ field: 'release_date', label: 'Premyera sanasi', text: `Premyera: ${movieDetail.release_date}` });
               }
               if (movieDetail.runtime && movieDetail.runtime > 0) {
                 const humanDur = formatDurationUz(movieDetail.runtime, false);
@@ -956,17 +951,21 @@ router.post('/refresh-all', async (req, res) => {
                 if (m.seasons !== richRuntime) {
                   m.seasons = richRuntime;
                   changed = true;
+                  changes.push({ field: 'runtime', label: 'Davomiyligi', text: `Davomiyligi: ${richRuntime}` });
                 }
               }
               if (movieDetail.overview && (!m.overview || m.overview === '-')) {
                 m.overview = movieDetail.overview;
                 changed = true;
+                changes.push({ field: 'overview', label: 'Tavsif', text: "Film tavsifi qo'shildi" });
               }
               if (movieDetail.vote_average && m.section !== 'futured') {
                 const newRating = Number(movieDetail.vote_average.toFixed(1));
                 if (m.rating !== newRating) {
+                  const oldR = m.rating;
                   m.rating = newRating;
                   changed = true;
+                  changes.push({ field: 'rating', label: 'TMDB Reyting', text: `TMDB: ${oldR != null ? `${oldR} → ` : ''}${newRating}` });
                 }
                 if (movieDetail.vote_count && m.vote_count !== movieDetail.vote_count) {
                   m.vote_count = movieDetail.vote_count;
@@ -978,6 +977,7 @@ router.post('/refresh-all', async (req, res) => {
                 m.release_date = tvDetail.first_air_date;
                 m.release_year = tvDetail.first_air_date.split('-')[0];
                 changed = true;
+                changes.push({ field: 'release_date', label: 'Premyera sanasi', text: `Premyera: ${tvDetail.first_air_date}` });
               }
 
               // Check if specific season
@@ -1005,6 +1005,7 @@ router.post('/refresh-all', async (req, res) => {
                     if (m.seasons !== seasonStr) {
                       m.seasons = seasonStr;
                       changed = true;
+                      changes.push({ field: 'seasons', label: 'Fasl', text: seasonStr });
                     }
                   }
                 } catch (e) {}
@@ -1013,6 +1014,7 @@ router.post('/refresh-all', async (req, res) => {
                 if (newSeasons && m.seasons !== newSeasons) {
                   m.seasons = newSeasons;
                   changed = true;
+                  changes.push({ field: 'seasons', label: 'Fasl', text: newSeasons });
                 }
               }
             }
@@ -1036,11 +1038,17 @@ router.post('/refresh-all', async (req, res) => {
                   m.release_date = omdbDate;
                   m.release_year = omdbDate.split('-')[0];
                   changed = true;
+                  changes.push({ field: 'release_date', label: 'Premyera sanasi', text: `Premyera: ${omdbDate}` });
                 }
                 if (m.section !== 'futured') {
                   if (omdbData.imdbRating && omdbData.imdbRating !== 'N/A') {
                     const newRating = parseFloat(omdbData.imdbRating);
-                    if (m.rating !== newRating) { m.rating = newRating; changed = true; }
+                    if (m.rating !== newRating) {
+                      const oldR = m.rating;
+                      m.rating = newRating;
+                      changed = true;
+                      changes.push({ field: 'imdb_rating', label: 'IMDb Reyting', text: `IMDb: ${oldR != null ? `${oldR} → ` : ''}${newRating}` });
+                    }
                   }
                   if (omdbData.imdbVotes && omdbData.imdbVotes !== 'N/A') {
                     const newVotes = parseInt(omdbData.imdbVotes.replace(/,/g, '').replace(/\./g, ''));
@@ -1053,63 +1061,39 @@ router.post('/refresh-all', async (req, res) => {
                     changed = true;
                   }
                 }
-                if (omdbData.Genre && omdbData.Genre !== 'N/A' && (!m.genre || m.genre === '-')) { m.genre = omdbData.Genre; changed = true; }
-                if (omdbData.Director && omdbData.Director !== 'N/A' && (!m.director || m.director === '-')) { m.director = omdbData.Director; changed = true; }
-                if (omdbData.Plot && omdbData.Plot !== 'N/A' && (!m.overview || m.overview.length < omdbData.Plot.length)) { m.overview = omdbData.Plot; changed = true; }
+                if (omdbData.Genre && omdbData.Genre !== 'N/A' && (!m.genre || m.genre === '-')) {
+                  m.genre = omdbData.Genre;
+                  changed = true;
+                  changes.push({ field: 'genre', label: 'Janr', text: `Janr: ${omdbData.Genre}` });
+                }
+                if (omdbData.Director && omdbData.Director !== 'N/A' && (!m.director || m.director === '-')) {
+                  m.director = omdbData.Director;
+                  changed = true;
+                  changes.push({ field: 'director', label: 'Rejissyor', text: `Rejissyor: ${omdbData.Director}` });
+                }
+                if (omdbData.Plot && omdbData.Plot !== 'N/A' && (!m.overview || m.overview.length < omdbData.Plot.length)) {
+                  m.overview = omdbData.Plot;
+                  changed = true;
+                  changes.push({ field: 'overview', label: 'Tavsif', text: "Tavsif to'ldirildi" });
+                }
               }
             }
           } catch (e) {}
-        }
-
-        // 3. Premiere Auto-Move: If movie is in 'futured' and its release_date <= today, move to 'todo'
-        if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
-          m.section = 'todo';
-          m.position = 0;
-          movedToTodoCount++;
-          changed = true;
-
-          // Dispatch release alert notification
-          createNotification(userId, {
-            type: 'release_alert',
-            title: `${m.title} chiqdi!`,
-            message: `"${m.title}" filmining premyerasi bo'lib o'tdi. "Ko'riladi" ustuniga o'tkazildi!`,
-            movie_data: {
-              ...m,
-              event_type: 'premiere_alert'
-            },
-            dedup_key: `${userId}_${m.tmdb_id || m.id}_premiere_${m.release_date}`
-          }).catch(() => {});
         }
 
         if (changed) {
           updatedCount++;
           m.updated_at = new Date().toISOString();
           changedMovies.push(m);
+          updatedDetailsList.push({
+            id: m.id,
+            title: m.title,
+            poster_path: m.poster_path,
+            media_type: m.media_type,
+            changes: changes
+          });
         }
       }));
-    }
-
-    // 4. Auto re-sort ONLY the "Futured" column's cards by release_date ascending (soonest first)
-    const futuredMovies = (db.movies || []).filter(
-      m => (m.user_id || DEFAULT_USER_ID) === userId && m.section === 'futured'
-    );
-
-    if (futuredMovies.length > 0) {
-      futuredMovies.sort((a, b) => {
-        const dateA = a.release_date || null;
-        const dateB = b.release_date || null;
-        if (!dateA && !dateB) return 0;
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return dateA.localeCompare(dateB);
-      });
-
-      futuredMovies.forEach((m, index) => {
-        if (m.position !== index) {
-          m.position = index;
-          if (!changedMovies.includes(m)) changedMovies.push(m);
-        }
-      });
     }
 
     if (changedMovies.length > 0) {
@@ -1133,7 +1117,8 @@ router.post('/refresh-all', async (req, res) => {
       success: true,
       updated: updatedCount,
       movedToTodo: movedToTodoCount,
-      message: `${updatedCount} ta film ma'lumotlari yangilandi` + (movedToTodoCount > 0 ? `, ${movedToTodoCount} ta premyera "Ko'riladi"ga o'tkazildi` : '')
+      message: `${updatedCount} ta film ma'lumotlari yangilandi` + (movedToTodoCount > 0 ? `, ${movedToTodoCount} ta premyera "Ko'riladi"ga o'tkazildi` : ''),
+      updatedDetails: updatedDetailsList
     });
 
   } catch (err) {

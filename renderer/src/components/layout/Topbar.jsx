@@ -44,7 +44,7 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
             seen.add(key)
             return true
           })
-          setNotifications(unique)
+          setNotifications(unique.slice(0, 20))
         }
       }
     } catch (err) {

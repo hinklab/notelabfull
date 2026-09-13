@@ -174,6 +174,15 @@ async function getNotifications(userId) {
       return true;
     });
 
+    // STRICT 20: keep only latest 20 notifications, auto-delete older ones from DB
+    if (list.length > 20) {
+      const excess = list.slice(20);
+      for (const ex of excess) {
+        if (ex.id) duplicateIdsToDelete.push(ex.id);
+      }
+      list = list.slice(0, 20);
+    }
+
     // Cleanup detected duplicates or added movies from DB asynchronously
     if (duplicateIdsToDelete.length > 0) {
       setImmediate(async () => {
@@ -319,7 +328,45 @@ async function createNotification(userId, { type, title, message, movie_data, de
   const freshDb = readDB();
   if (!freshDb.notifications) freshDb.notifications = [];
   freshDb.notifications.unshift(savedNotif);
+
+  // STRICT 20: Keep only latest 20 for this user, auto-delete older ones
+  const userNotifs = freshDb.notifications.filter(n => n.user_id === userId);
+  if (userNotifs.length > 20) {
+    userNotifs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const excess = userNotifs.slice(20);
+    const excessIdSet = new Set(excess.map(n => n.id));
+    freshDb.notifications = freshDb.notifications.filter(n => !excessIdSet.has(n.id));
+
+    if (supabase) {
+      setImmediate(async () => {
+        try {
+          for (const ex of excess) {
+            await supabase.from('notifications').delete().eq('id', ex.id).catch(() => {});
+          }
+        } catch (_) {}
+      });
+    }
+  }
   writeDB(freshDb);
+
+  // Also ensure Supabase table doesn't exceed 20 rows for this user
+  if (supabase) {
+    setImmediate(async () => {
+      try {
+        const { data: cloudAll } = await supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+        if (cloudAll && cloudAll.length > 20) {
+          const cloudExcess = cloudAll.slice(20);
+          for (const ex of cloudExcess) {
+            await supabase.from('notifications').delete().eq('id', ex.id).catch(() => {});
+          }
+        }
+      } catch (_) {}
+    });
+  }
 
   console.log(`✅ [NOTIFICATION CREATED] Type=${eventType}, Key="${finalDedupKey}", Title="${title}"`);
   return savedNotif;

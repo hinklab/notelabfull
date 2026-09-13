@@ -73,6 +73,7 @@ export default function NotificationPanel({
     const seen = new Set()
     return notifications.filter(n => {
       if (!n) return false
+      if (n.type === 'movie_updated' || n.movie_data?.event_type === 'movie_updated') return false
       const key =
         n.dedup_key ||
         n.movie_data?.dedup_key ||
@@ -80,7 +81,7 @@ export default function NotificationPanel({
       if (seen.has(key)) return false
       seen.add(key)
       return true
-    })
+    }).slice(0, 20)
   }, [notifications])
 
   // TUR 1 Action: Move futured movie to 'todo'

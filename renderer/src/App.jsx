@@ -217,6 +217,29 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
       setBoardKey(k => k + 1)
       const toastMsg = result.message || (`${result.updated ?? 0} ta film ma'lumotlari yangilandi` + (result.movedToTodo ? `, ${result.movedToTodo} ta "Ko'riladi"ga o'tkazildi` : ''))
       setRefreshToast(result.success ? { success: true, text: toastMsg } : { success: false, text: result.message || 'Yangilanmadi' })
+
+      if (Array.isArray(result.updatedDetails) && result.updatedDetails.length > 0) {
+        result.updatedDetails.forEach((upd, idx) => {
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('notelab_push_toast', {
+              detail: {
+                id: `refresh_${upd.id}_${Date.now()}_${idx}`,
+                type: 'movie_updated',
+                title: upd.title,
+                message: upd.changes?.map(c => c.text || `${c.label}: ${c.newVal || ''}`).join(' · ') || "Film ma'lumotlari yangilandi",
+                movie_data: {
+                  event_type: 'movie_updated',
+                  movie_id: upd.id,
+                  title: upd.title,
+                  poster_path: upd.poster_path,
+                  media_type: upd.media_type,
+                  changes: upd.changes || []
+                }
+              }
+            }))
+          }, idx * 40)
+        })
+      }
     } catch (err) {
       console.error('Refresh movies error:', err)
       setRefreshToast({ success: false, text: err?.message || 'Xatolik yuz berdi' })
