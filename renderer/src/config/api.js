@@ -97,7 +97,7 @@ export const api = {
   deleteMovie: (id) => fetchJSON(`${API_BASE}/movies/${id}`, { method: 'DELETE' }),
   moveMovie: (id, section, position) => fetchJSON(`${API_BASE}/movies/move`, { method: 'POST', body: JSON.stringify({ id, section, position }) }),
   reorderMovies: (section, ids) => fetchJSON(`${API_BASE}/movies/reorder`, { method: 'POST', body: JSON.stringify({ section, ids }) }),
-  refreshAllMovies: (params) => fetchJSON(`${API_BASE}/movies/refresh-all${params?.auto ? '?auto=true' : ''}`, { method: 'POST' }),
+  refreshAllMovies: (params) => fetchJSON(`${API_BASE}/movies/refresh-all${params?.auto ? '?auto=true' : ''}`, { method: 'POST', timeout: 45000 }),
 
   // Content Search, Media Images, Watch Providers & Franchises
   searchContent: (type, query, lang) => fetchJSON(`${API_BASE}/content/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query)}&language=${lang === 'ru' ? 'ru-RU' : 'en-US'}`),

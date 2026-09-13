@@ -217,7 +217,10 @@ function MainApp({ user, onLogout, onOpenSurvey }) {
       setBoardKey(k => k + 1)
       const toastMsg = result.message || (`${result.updated ?? 0} ta film ma'lumotlari yangilandi` + (result.movedToTodo ? `, ${result.movedToTodo} ta "Ko'riladi"ga o'tkazildi` : ''))
       setRefreshToast(result.success ? { success: true, text: toastMsg } : { success: false, text: result.message || 'Yangilanmadi' })
-    } catch { setRefreshToast({ success: false, text: 'Xato yuz berdi' }) }
+    } catch (err) {
+      console.error('Refresh movies error:', err)
+      setRefreshToast({ success: false, text: err?.message || 'Xatolik yuz berdi' })
+    }
     finally { setRefreshing(false); setTimeout(() => setRefreshToast(null), 4000) }
   }
 

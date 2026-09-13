@@ -848,8 +848,8 @@ router.post('/refresh-all', async (req, res) => {
     const db = readDB();
     const userId = req.userId || DEFAULT_USER_ID;
     const settings = getUserSettings(userId, db);
-    const tmdbKey = settings.tmdb_key;
-    const omdbKey = settings.omdb_key;
+    const tmdbKey = settings.tmdb_key || 'c34d44f722c298573a97a32fc4df383a';
+    const omdbKey = settings.omdb_key || '563e076e';
 
     const isAuto = req.query.auto === 'true' || req.body?.auto === true;
     const lastRefreshKey = `last_refresh_all_${userId}`;
@@ -874,9 +874,40 @@ router.post('/refresh-all', async (req, res) => {
     const movies = (db.movies || []).filter(m => (m.user_id || DEFAULT_USER_ID) === userId);
     const changedMovies = [];
 
-    const BATCH_SIZE = 15;
-    for (let i = 0; i < movies.length; i += BATCH_SIZE) {
-      const batch = movies.slice(i, i + BATCH_SIZE);
+    // 1. Instant Premiere Check for ALL futured movies
+    movies.forEach(m => {
+      if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
+        m.section = 'todo';
+        m.position = 0;
+        movedToTodoCount++;
+        if (!changedMovies.some(cm => cm.id === m.id)) changedMovies.push(m);
+      }
+    });
+
+    // 2. Select priority movies for external API refresh (max 30)
+    const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const refreshCandidates = movies.filter(m => {
+      if (m.section === 'futured') return true;
+      if (m.section === 'going') return true;
+      if (!m.seasons || m.seasons === '-' || m.seasons === '—') return true;
+      if (m.rating == null) return true;
+      if (m.release_date && m.release_date >= sixMonthsAgo) return true;
+      return false;
+    }).slice(0, 30);
+
+    if (refreshCandidates.length < 15) {
+      const existingIds = new Set(refreshCandidates.map(c => c.id));
+      for (const m of movies) {
+        if (!existingIds.has(m.id)) {
+          refreshCandidates.push(m);
+          if (refreshCandidates.length >= 25) break;
+        }
+      }
+    }
+
+    const BATCH_SIZE = 12;
+    for (let i = 0; i < refreshCandidates.length; i += BATCH_SIZE) {
+      const batch = refreshCandidates.slice(i, i + BATCH_SIZE);
       await Promise.allSettled(batch.map(async (m) => {
         let changed = false;
         let isTv = m.media_type === 'tv';

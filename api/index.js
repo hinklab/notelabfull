@@ -3715,9 +3715,41 @@ module.exports = async (req, res) => {
       const todayIso = new Date().toISOString().split('T')[0];
       const changedMovies = [];
 
+      // 1. Instant Premiere Check for ALL futured movies
+      movies.forEach(m => {
+        if (m.section === 'futured' && m.release_date && m.release_date <= todayIso) {
+          m.section = 'todo';
+          m.position = 0;
+          movedToTodoCount++;
+          if (!changedMovies.some(cm => cm.id === m.id)) changedMovies.push(m);
+        }
+      });
+
+      // 2. Select priority movies for external API refresh (max 30 to complete in < 3s)
+      const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const refreshCandidates = movies.filter(m => {
+        if (m.section === 'futured') return true; // always check upcoming
+        if (m.section === 'going') return true;   // always check current watching
+        if (!m.seasons || m.seasons === '-' || m.seasons === '—') return true; // missing runtime
+        if (m.rating == null) return true; // missing rating
+        if (m.release_date && m.release_date >= sixMonthsAgo) return true; // recent releases
+        return false;
+      }).slice(0, 30);
+
+      // If candidates < 15, supplement with other movies
+      if (refreshCandidates.length < 15) {
+        const existingIds = new Set(refreshCandidates.map(c => c.id));
+        for (const m of movies) {
+          if (!existingIds.has(m.id)) {
+            refreshCandidates.push(m);
+            if (refreshCandidates.length >= 25) break;
+          }
+        }
+      }
+
       const BATCH_SIZE = 12;
-      for (let i = 0; i < movies.length; i += BATCH_SIZE) {
-        const batch = movies.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < refreshCandidates.length; i += BATCH_SIZE) {
+        const batch = refreshCandidates.slice(i, i + BATCH_SIZE);
         await Promise.allSettled(batch.map(async (m) => {
           let changed = false;
           let isTv = m.media_type === 'tv';
@@ -3910,8 +3942,8 @@ module.exports = async (req, res) => {
       // Persist changes to Supabase
       if (changedMovies.length > 0) {
         const now = new Date().toISOString();
-        for (const m of changedMovies) {
-          await supabase.from('movies').update({
+        const updatePromises = changedMovies.map(m =>
+          supabase.from('movies').update({
             section: m.section,
             position: m.position,
             release_date: m.release_date,
@@ -3925,8 +3957,9 @@ module.exports = async (req, res) => {
             overview: m.overview,
             media_type: m.media_type,
             updated_at: now
-          }).eq('id', m.id);
-        }
+          }).eq('id', m.id)
+        );
+        await Promise.allSettled(updatePromises);
       }
 
       return res.status(200).json({
