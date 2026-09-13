@@ -90,12 +90,19 @@ export default function NotificationToastQueue({
           dismissToast(toastId, nextNotif.id)
         }, 8000)
 
-        // Clear 'isPushed' flag after animation completes so re-renders don't replay it
+        // Clear 'isPushed' flag after push animation completes
         setTimeout(() => {
           setActiveToasts(current => current.map(item =>
             item.isPushed ? { ...item, isPushed: false } : item
           ))
         }, 450)
+
+        // Clear 'isNew' flag after entrance animation completes so it becomes stationary
+        setTimeout(() => {
+          setActiveToasts(current => current.map(item =>
+            item.id === toastId ? { ...item, isNew: false } : item
+          ))
+        }, 500)
 
         // Newest enters at the TOP (index 0) so previous items glide downwards smoothly
         return [{ notif: nextNotif, id: toastId, exiting: false, isNew: true, isPushed: false, timeoutId }, ...updated]
@@ -241,8 +248,8 @@ export default function NotificationToastQueue({
         }
         @keyframes toastPushedDown {
           from {
-            transform: translateY(-72px);
-            opacity: 0.85;
+            transform: translateY(calc(-100% - 10px));
+            opacity: 0.95;
           }
           to {
             transform: translateY(0);
@@ -251,6 +258,8 @@ export default function NotificationToastQueue({
         }
         .notelab-toast-card {
           pointer-events: auto;
+          transform: translateY(0) translateX(0);
+          opacity: 1;
         }
         .notelab-toast-card.is-new {
           animation: toastSlideInRight 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -293,8 +302,8 @@ export default function NotificationToastQueue({
           badgeIcon = <Tv size={14} />
         }
 
-        // Determine animation class
-        const animClass = exiting ? 'exiting' : isNew ? 'is-new' : isPushed ? 'is-pushed' : 'is-new'
+        // Determine animation class (never fall back to 'is-new' if neither is active)
+        const animClass = exiting ? 'exiting' : isPushed ? 'is-pushed' : isNew ? 'is-new' : ''
 
         return (
           <div
