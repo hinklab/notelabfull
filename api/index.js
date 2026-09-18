@@ -2669,6 +2669,150 @@ const FRANCHISE_UNIVERSES = {
             "overview": "Medical courier Bryan unwittingly finds himself fighting for survival as one fateful, horrifying night collapses around him in chaos."
         }
     ]
+},
+  "transformers": {
+    "name": "Transformers Universe",
+    "collection_ids": [
+        8650
+    ],
+    "known_tmdb_ids": [
+        698687,
+        424783,
+        667538,
+        1858,
+        8373,
+        38356,
+        91314,
+        335988
+    ],
+    "chronological_order": [
+        {
+            "id": 698687,
+            "type": "movie",
+            "stage": 0,
+            "lane": 0,
+            "connects_to": [
+                424783
+            ],
+            "title": "Transformers One",
+            "release_date": "2024-09-11",
+            "release_year": "2024",
+            "rating": 8,
+            "vote_count": 1765,
+            "poster_path": "https://image.tmdb.org/t/p/w500/iRCgqpdVE4wyLQvGYU3ZP7pAtUc.jpg",
+            "overview": "The untold origin story of Optimus Prime and Megatron, better known as sworn enemies, but once were friends bonded like brothers who changed the fate of Cybertron forever."
+        },
+        {
+            "id": 424783,
+            "type": "movie",
+            "stage": 1,
+            "lane": 0,
+            "connects_to": [
+                667538
+            ],
+            "title": "Bumblebee",
+            "release_date": "2018-11-22",
+            "release_year": "2018",
+            "rating": 6.7,
+            "vote_count": 6830,
+            "poster_path": "https://image.tmdb.org/t/p/w500/fw02ONlDhrYjTSZV8XO6hhU3ds3.jpg",
+            "overview": "On the run in the year 1987, Bumblebee finds refuge in a junkyard in a small Californian beach town. Charlie, on the cusp of turning 18 and trying to find her place in the world, discovers Bumblebee, battle-scarred and broken.  When Charlie revives him, she quickly learns this is no ordinary yellow VW bug."
+        },
+        {
+            "id": 667538,
+            "type": "movie",
+            "stage": 2,
+            "lane": 0,
+            "connects_to": [
+                1858
+            ],
+            "title": "Transformers: Rise of the Beasts",
+            "release_date": "2023-06-06",
+            "release_year": "2023",
+            "rating": 7.2,
+            "vote_count": 5422,
+            "poster_path": "https://image.tmdb.org/t/p/w500/gPbM0MK8CP8A174rmUwGsADNYKD.jpg",
+            "overview": "When a new threat capable of destroying the entire planet emerges, Optimus Prime and the Autobots must team up with a powerful faction known as the Maximals. With the fate of humanity hanging in the balance, humans Noah and Elena will do whatever it takes to help the Transformers as they engage in the ultimate battle to save Earth."
+        },
+        {
+            "id": 1858,
+            "type": "movie",
+            "stage": 3,
+            "lane": 0,
+            "connects_to": [
+                8373
+            ],
+            "title": "Transformers",
+            "release_date": "2007-06-27",
+            "release_year": "2007",
+            "rating": 6.8,
+            "vote_count": 12528,
+            "poster_path": "https://image.tmdb.org/t/p/w500/lkZ9gqCEjzX85lKR6Jjd1uGAXNp.jpg",
+            "overview": "Young teenager Sam Witwicky becomes involved in the ancient struggle between two extraterrestrial factions of transforming robots – the heroic Autobots and the evil Decepticons. Sam holds the clue to unimaginable power and the Decepticons will stop at nothing to retrieve it."
+        },
+        {
+            "id": 8373,
+            "type": "movie",
+            "stage": 4,
+            "lane": 0,
+            "connects_to": [
+                38356
+            ],
+            "title": "Transformers: Revenge of the Fallen",
+            "release_date": "2009-06-19",
+            "release_year": "2009",
+            "rating": 6.2,
+            "vote_count": 9403,
+            "poster_path": "https://image.tmdb.org/t/p/w500/pLBb0whOzVDtJvyD4DPeQyQNOqp.jpg",
+            "overview": "Sam Witwicky leaves the Autobots behind for a normal life. But when his mind is filled with cryptic symbols, the Decepticons target him and he is dragged back into the Transformers' war."
+        },
+        {
+            "id": 38356,
+            "type": "movie",
+            "stage": 5,
+            "lane": 0,
+            "connects_to": [
+                91314
+            ],
+            "title": "Transformers: Dark of the Moon",
+            "release_date": "2011-06-28",
+            "release_year": "2011",
+            "rating": 6.2,
+            "vote_count": 9158,
+            "poster_path": "https://image.tmdb.org/t/p/w500/28YlCLrFhONteYSs9hKjD1Km0Cj.jpg",
+            "overview": "The Autobots continue to work for NEST, now no longer in secret. But after discovering a strange artifact during a mission in Chernobyl, it becomes apparent to Optimus Prime that the United States government has been less than forthright with them."
+        },
+        {
+            "id": 91314,
+            "type": "movie",
+            "stage": 6,
+            "lane": 0,
+            "connects_to": [
+                335988
+            ],
+            "title": "Transformers: Age of Extinction",
+            "release_date": "2014-06-25",
+            "release_year": "2014",
+            "rating": 6,
+            "vote_count": 8943,
+            "poster_path": "https://image.tmdb.org/t/p/w500/jyzrfx2WaeY60kYZpPYepSjGz4S.jpg",
+            "overview": "As humanity picks up the pieces after the battle of Chicago, a shadowy group reveals itself in an attempt to control the direction of history…while an ancient, powerful new menace sets Earth in its crosshairs. With help from Cade Yeager, Optimus Prime and the Autobots rise to meet their most fearsome challenge yet."
+        },
+        {
+            "id": 335988,
+            "type": "movie",
+            "stage": 7,
+            "lane": 0,
+            "connects_to": [],
+            "title": "Transformers: The Last Knight",
+            "release_date": "2017-06-16",
+            "release_year": "2017",
+            "rating": 6.1,
+            "vote_count": 6886,
+            "poster_path": "https://image.tmdb.org/t/p/w500/s5HQf2Gb3lIO2cRcFwNL9sn1o1o.jpg",
+            "overview": "Humans and Transformers are at war. Optimus Prime is gone. The key to saving our future lies buried in the secrets of the past, in the hidden history of Transformers on Earth. Saving our world falls upon the shoulders of an unlikely alliance: Cade Yeager; Bumblebee; an English Lord; and an Oxford Professor."
+        }
+    ]
 }
 };
 
@@ -3328,11 +3472,27 @@ module.exports = async (req, res) => {
       const needsTmdbEnrich = body.tmdb_id && TMDB_KEY && (!poster_path || genre === '-' || seasons === '-' || !seasons);
       if (needsTmdbEnrich) {
         try {
-          const isTv = media_type === 'tv';
+          const isTv = media_type === 'tv' || Boolean(seasons && /season|ep/i.test(seasons)) || /season\s*\d+/i.test(body.title || '');
           const tmdbUrl = `https://api.themoviedb.org/3/${isTv ? 'tv' : 'movie'}/${body.tmdb_id}?api_key=${TMDB_KEY}&append_to_response=credits,external_ids&language=en-US`;
           const tmdbRes = await fetch(tmdbUrl, { signal: AbortSignal.timeout(3000) });
           if (tmdbRes.ok) {
-            const d = await tmdbRes.json();
+            let d = await tmdbRes.json();
+            // Title verification check: ensure returned item matches input title if available
+            const cleanInputTitle = (body.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase();
+            const detailTitle = (d.title || d.name || d.original_title || d.original_name || '').trim().toLowerCase();
+            if (cleanInputTitle && cleanInputTitle.length > 2 && detailTitle && !detailTitle.includes(cleanInputTitle) && !cleanInputTitle.includes(detailTitle)) {
+              try {
+                const fbUrl = `https://api.themoviedb.org/3/${isTv ? 'movie' : 'tv'}/${body.tmdb_id}?api_key=${TMDB_KEY}&append_to_response=credits,external_ids&language=en-US`;
+                const fbRes = await fetch(fbUrl, { signal: AbortSignal.timeout(3000) });
+                if (fbRes.ok) {
+                  const fbDetail = await fbRes.json();
+                  const fbTitle = (fbDetail.title || fbDetail.name || fbDetail.original_title || fbDetail.original_name || '').trim().toLowerCase();
+                  if (fbTitle.includes(cleanInputTitle) || cleanInputTitle.includes(fbTitle)) {
+                    d = fbDetail;
+                  }
+                }
+              } catch (e) {}
+            }
             if (d.first_air_date || d.number_of_seasons) media_type = 'tv';
             else if (d.release_date || d.runtime) media_type = 'movie';
 
@@ -3742,8 +3902,8 @@ module.exports = async (req, res) => {
         const batch = refreshCandidates.slice(i, i + BATCH_SIZE);
         await Promise.allSettled(batch.map(async (m) => {
           let changed = false;
-          let isTv = m.media_type === 'tv';
-          let isMovie = m.media_type === 'movie';
+          let isTv = m.media_type === 'tv' || Boolean(m.seasons && /season|ep/i.test(m.seasons)) || /season\s*\d+/i.test(m.title || '');
+          let isMovie = m.media_type === 'movie' && !isTv;
           const changes = [];
 
           // 1. Fetch TMDB details
@@ -3757,15 +3917,50 @@ module.exports = async (req, res) => {
                 if (r.ok) tvDetail = await r.json();
               } else if (isMovie) {
                 const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
-                if (r.ok) movieDetail = await r.json();
-              } else {
-                const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
                 if (r.ok) {
-                  movieDetail = await r.json();
-                  m.media_type = 'movie';
-                  isMovie = true;
-                  changed = true;
-                } else {
+                  const cand = await r.json();
+                  const cleanT = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase();
+                  const candT = (cand.title || cand.original_title || '').trim().toLowerCase();
+                  if (!cleanT || candT.includes(cleanT) || cleanT.includes(candT)) {
+                    movieDetail = cand;
+                  } else {
+                    const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
+                    if (tvRes.ok) {
+                      tvDetail = await tvRes.json();
+                      m.media_type = 'tv';
+                      isTv = true;
+                      isMovie = false;
+                      changed = true;
+                    }
+                  }
+                }
+              } else {
+                // Unknown media_type: probe based on title/seasons
+                const looksLikeTv = Boolean((m.seasons && /season|ep/i.test(m.seasons)) || /season\s*\d+/i.test(m.title || ''));
+                if (looksLikeTv) {
+                  const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
+                  if (tvRes.ok) {
+                    tvDetail = await tvRes.json();
+                    m.media_type = 'tv';
+                    isTv = true;
+                    changed = true;
+                  }
+                }
+                if (!tvDetail) {
+                  const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
+                  if (r.ok) {
+                    const cand = await r.json();
+                    const cleanT = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase();
+                    const candT = (cand.title || cand.original_title || '').trim().toLowerCase();
+                    if (!cleanT || candT.includes(cleanT) || cleanT.includes(candT)) {
+                      movieDetail = cand;
+                      m.media_type = 'movie';
+                      isMovie = true;
+                      changed = true;
+                    }
+                  }
+                }
+                if (!tvDetail && !movieDetail) {
                   const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${TMDB_KEY}`, { signal: AbortSignal.timeout(3500) });
                   if (tvRes.ok) {
                     tvDetail = await tvRes.json();
@@ -5289,14 +5484,17 @@ module.exports = async (req, res) => {
       { id: 'dcu_gold', universe_key: 'dcu', universe_name: 'DC Universe (Gods and Monsters)', tier: 'gold', threshold: 100, title: 'DCU: Haqiqat va Adolat', title_en: 'DCU: Truth and Justice', description: "Yangi DCU olamidagi barcha loyihalarni 100% to'liq ko'rib bo'ldingiz!", icon: '🥇' },
       { id: 'resident_evil_bronze', universe_key: 'resident_evil', universe_name: 'Resident Evil Universe', tier: 'bronze', threshold: 25, title: 'Resident Evil: Omon Qolgan', title_en: 'Resident Evil: Survivor', description: "Resident Evil olamidagi kamida 25% film va animatsiyalarni ko'rdingiz.", icon: '🥉' },
       { id: 'resident_evil_silver', universe_key: 'resident_evil', universe_name: 'Resident Evil Universe', tier: 'silver', threshold: 60, title: "Resident Evil: S.T.A.R.S. A'zosi", title_en: 'Resident Evil: S.T.A.R.S. Operative', description: "Resident Evil olamidagi 60% dan ortiq loyihalarni tomosha qildingiz.", icon: '🥈' },
-      { id: 'resident_evil_gold', universe_key: 'resident_evil', universe_name: 'Resident Evil Universe', tier: 'gold', threshold: 100, title: 'Resident Evil: Umbrella Halokati', title_en: "Resident Evil: Umbrella's End", description: "Biohazard xavfi bartaraf etildi! Resident Evil koinotidagi barcha film va animatsiyalarni 100% to'liq ko'rdingiz!", icon: '🥇' }
+      { id: 'resident_evil_gold', universe_key: 'resident_evil', universe_name: 'Resident Evil Universe', tier: 'gold', threshold: 100, title: 'Resident Evil: Umbrella Halokati', title_en: "Resident Evil: Umbrella's End", description: "Biohazard xavfi bartaraf etildi! Resident Evil koinotidagi barcha film va animatsiyalarni 100% to'liq ko'rdingiz!", icon: '🥇' },
+      { id: 'transformers_bronze', universe_key: 'transformers', universe_name: 'Transformers Universe', tier: 'bronze', threshold: 25, title: 'Transformers: Autobot Yangi Askar', title_en: 'Transformers: Autobot Recruit', description: "Transformers olamidagi kamida 25% filmlarni tomosha qildingiz.", icon: '🥉' },
+      { id: 'transformers_silver', universe_key: 'transformers', universe_name: 'Transformers Universe', tier: 'silver', threshold: 60, title: 'Transformers: AllSpark Himoyachisi', title_en: 'Transformers: AllSpark Guardian', description: "Transformers koinotidagi 60% dan ortiq filmlarni ko'rib chiqdingiz.", icon: '🥈' },
+      { id: 'transformers_gold', universe_key: 'transformers', universe_name: 'Transformers Universe', tier: 'gold', threshold: 100, title: 'Transformers: Prime Yetakchi', title_en: 'Transformers: Prime Leader', description: "Yetakchilik matritsasi sizda! Transformers olamidagi barcha filmlarni 100% to'liq tomosha qildingiz!", icon: '🥇' }
     ];
 
     if ((path === 'gamification/progress' || path === 'gamification/badges') && req.method === 'GET') {
       const { data: userMovies } = await supabase.from('movies').select('*').eq('user_id', userId);
       const moviesList = userMovies || [];
 
-      const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil'];
+      const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil', 'transformers'];
       const progressMap = {};
 
       curatedKeys.forEach(uKey => {

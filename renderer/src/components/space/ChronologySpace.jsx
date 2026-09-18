@@ -154,6 +154,22 @@ function getFranchiseBrand(item) {
     };
   }
 
+  // Transformers / Autobots / Hasbro - Cybertron Metallic Blue & Deep Slate
+  if (key === 'transformers' || name.includes('transformers') || name.includes('autobot') || name.includes('bumblebee')) {
+    return {
+      name: 'Transformers / Autobots',
+      logoUrl: 'https://image.tmdb.org/t/p/w500/sRdt54X9wXUvCEwG4CdVyxFcC8y.png',
+      fallbackText: 'TF',
+      bgColor: '#0f172a',
+      border: '1.5px solid #0284c7',
+      boxShadow: '0 3px 12px rgba(2, 132, 199, 0.4)',
+      glow: 'rgba(56, 189, 248, 0.55)',
+      filter: 'brightness(1.1)',
+      padding: 3,
+      textColor: '#38bdf8'
+    };
+  }
+
   // Check if item has a poster_path
   if (item?.poster_path) {
     return {
@@ -1363,7 +1379,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   const isHovered = hoveredFranchiseKey === itemKey
                   const isConfirmingDelete = confirmDeleteKey === itemKey
 
-                  const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : null)))))
+                  const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : (item.name && (item.name.toLowerCase().includes('transformers') || item.name.toLowerCase().includes('bumblebee')) ? 'transformers' : null))))))
                   const uProg = uKey ? gamificationProgress[uKey] : null
 
                   return (
@@ -1580,7 +1596,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               {filteredFranchises.map((item, idx) => {
                 const itemKey = item.universe_key || item.key || (item.tmdb_id ? `movie_${item.tmdb_id}` : `idx_${idx}`)
                 const isActive = (item.universe_key && universeData?.universe_key === item.universe_key) || (item.tmdb_id && activeTmdbId === item.tmdb_id)
-                const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : null)))))
+                const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : (item.name && (item.name.toLowerCase().includes('transformers') || item.name.toLowerCase().includes('bumblebee')) ? 'transformers' : null))))))
                 const uProg = uKey ? gamificationProgress[uKey] : null
 
                 return (

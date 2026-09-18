@@ -586,5 +586,37 @@ export const CHRONOLOGY_LOOKUP = {
   "110492_s2": {
     "universe_key": "dcu",
     "chronology_index": 3
+  },
+  "698687": {
+    "universe_key": "transformers",
+    "chronology_index": 1
+  },
+  "424783": {
+    "universe_key": "transformers",
+    "chronology_index": 2
+  },
+  "667538": {
+    "universe_key": "transformers",
+    "chronology_index": 3
+  },
+  "1858": {
+    "universe_key": "transformers",
+    "chronology_index": 4
+  },
+  "8373": {
+    "universe_key": "transformers",
+    "chronology_index": 5
+  },
+  "38356": {
+    "universe_key": "transformers",
+    "chronology_index": 6
+  },
+  "91314": {
+    "universe_key": "transformers",
+    "chronology_index": 7
+  },
+  "335988": {
+    "universe_key": "transformers",
+    "chronology_index": 8
   }
 };

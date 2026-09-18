@@ -355,7 +355,7 @@ router.post('/', async (req, res) => {
     let rating = data.rating || null;
     let vote_count = data.vote_count || null;
 
-    const isTv = data.media_type === 'tv';
+    const isTv = data.media_type === 'tv' || Boolean(data.seasons && /season|ep/i.test(data.seasons)) || /season\s*\d+/i.test(data.title || '');
     let media_type = data.media_type || (isTv ? 'tv' : 'movie');
     let seasons = data.seasons || '-';
 
@@ -376,7 +376,23 @@ router.post('/', async (req, res) => {
           tmdbRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(3000) });
         }
         if (tmdbRes.ok) {
-          const detail = await tmdbRes.json();
+          let detail = await tmdbRes.json();
+          // Title verification check: ensure returned item matches input title if available
+          const cleanInputTitle = (data.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase();
+          const detailTitle = (detail.title || detail.name || detail.original_title || detail.original_name || '').trim().toLowerCase();
+          if (cleanInputTitle && cleanInputTitle.length > 2 && detailTitle && !detailTitle.includes(cleanInputTitle) && !cleanInputTitle.includes(detailTitle)) {
+            // Mismatch! Try fallbackUrl
+            try {
+              const fbRes = await fetch(fallbackUrl, { signal: AbortSignal.timeout(3000) });
+              if (fbRes.ok) {
+                const fbDetail = await fbRes.json();
+                const fbTitle = (fbDetail.title || fbDetail.name || fbDetail.original_title || fbDetail.original_name || '').trim().toLowerCase();
+                if (fbTitle.includes(cleanInputTitle) || cleanInputTitle.includes(fbTitle)) {
+                  detail = fbDetail;
+                }
+              }
+            } catch (e) {}
+          }
           if (detail.first_air_date || detail.number_of_seasons) media_type = 'tv';
           else if (detail.release_date || detail.runtime) media_type = 'movie';
 
@@ -932,9 +948,8 @@ router.post('/refresh-all', async (req, res) => {
     for (let i = 0; i < refreshCandidates.length; i += BATCH_SIZE) {
       const batch = refreshCandidates.slice(i, i + BATCH_SIZE);
       await Promise.allSettled(batch.map(async (m) => {
-        let changed = false;
-        let isTv = m.media_type === 'tv';
-        let isMovie = m.media_type === 'movie';
+        let isTv = m.media_type === 'tv' || Boolean(m.seasons && /season|ep/i.test(m.seasons)) || /season\s*\d+/i.test(m.title || '');
+        let isMovie = m.media_type === 'movie' && !isTv;
         const changes = [];
 
         // 1. Fetch TMDB details
@@ -948,16 +963,50 @@ router.post('/refresh-all', async (req, res) => {
               if (r.ok) tvDetail = await r.json();
             } else if (isMovie) {
               const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
-              if (r.ok) movieDetail = await r.json();
-            } else {
-              // Unknown media_type: probe movie first then TV
-              const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
               if (r.ok) {
-                movieDetail = await r.json();
-                m.media_type = 'movie';
-                isMovie = true;
-                changed = true;
-              } else {
+                const cand = await r.json();
+                const cleanT = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase();
+                const candT = (cand.title || cand.original_title || '').trim().toLowerCase();
+                if (!cleanT || candT.includes(cleanT) || cleanT.includes(candT)) {
+                  movieDetail = cand;
+                } else {
+                  const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+                  if (tvRes.ok) {
+                    tvDetail = await tvRes.json();
+                    m.media_type = 'tv';
+                    isTv = true;
+                    isMovie = false;
+                    changed = true;
+                  }
+                }
+              }
+            } else {
+              // Unknown media_type: probe based on title/seasons
+              const looksLikeTv = Boolean((m.seasons && /season|ep/i.test(m.seasons)) || /season\s*\d+/i.test(m.title || ''));
+              if (looksLikeTv) {
+                const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+                if (tvRes.ok) {
+                  tvDetail = await tvRes.json();
+                  m.media_type = 'tv';
+                  isTv = true;
+                  changed = true;
+                }
+              }
+              if (!tvDetail) {
+                const r = await fetch(`https://api.themoviedb.org/3/movie/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
+                if (r.ok) {
+                  const cand = await r.json();
+                  const cleanT = (m.title || '').replace(/\s*[-—]\s*Season\s*\d+/i, '').trim().toLowerCase();
+                  const candT = (cand.title || cand.original_title || '').trim().toLowerCase();
+                  if (!cleanT || candT.includes(cleanT) || cleanT.includes(candT)) {
+                    movieDetail = cand;
+                    m.media_type = 'movie';
+                    isMovie = true;
+                    changed = true;
+                  }
+                }
+              }
+              if (!tvDetail && !movieDetail) {
                 const tvRes = await fetch(`https://api.themoviedb.org/3/tv/${encodeURIComponent(m.tmdb_id)}?api_key=${encodeURIComponent(tmdbKey)}`, { signal: AbortSignal.timeout(3500) });
                 if (tvRes.ok) {
                   tvDetail = await tvRes.json();

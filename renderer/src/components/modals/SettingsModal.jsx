@@ -451,7 +451,7 @@ export default function SettingsModal({ onClose, onOpenSurvey }) {
 
               {!achievementsLoading && achievementsData && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-                  {['mcu', 'dceu', 'dcu', 'star_wars', 'kurtlar_vadisi', 'resident_evil'].map(uKey => {
+                  {['mcu', 'dceu', 'dcu', 'star_wars', 'kurtlar_vadisi', 'resident_evil', 'transformers'].map(uKey => {
                     const uProg = achievementsData.universes?.[uKey] || { name: uKey, percent: 0, done: 0, total: 0 }
                     const universeBadges = (achievementsData.badges || []).filter(b => b.universe_key === uKey)
 

@@ -100,6 +100,13 @@ function getThematicIcon(universeKey, tier) {
     return ShieldAlert // Survivor
   }
 
+  // 7. Transformers
+  if (u === 'transformers') {
+    if (t === 'gold') return Crown // Prime Leader / Matrix of Leadership
+    if (t === 'silver') return Zap // AllSpark Guardian
+    return ShieldCheck // Autobot Recruit
+  }
+
   // Fallback defaults
   if (t === 'gold') return Crown
   if (t === 'silver') return Star

@@ -224,6 +224,41 @@ const BADGES_CATALOGUE = [
     title_en: "Resident Evil: Umbrella's End",
     description: "Biohazard xavfi bartaraf etildi! Resident Evil koinotidagi barcha film va animatsiyalarni 100% to'liq ko'rdingiz!",
     icon: '🥇'
+  },
+
+  // Transformers Universe
+  {
+    id: 'transformers_bronze',
+    universe_key: 'transformers',
+    universe_name: 'Transformers Universe',
+    tier: 'bronze',
+    threshold: 25,
+    title: 'Transformers: Autobot Yangi Askar',
+    title_en: 'Transformers: Autobot Recruit',
+    description: "Transformers olamidagi kamida 25% filmlarni tomosha qildingiz.",
+    icon: '🥉'
+  },
+  {
+    id: 'transformers_silver',
+    universe_key: 'transformers',
+    universe_name: 'Transformers Universe',
+    tier: 'silver',
+    threshold: 60,
+    title: 'Transformers: AllSpark Himoyachisi',
+    title_en: 'Transformers: AllSpark Guardian',
+    description: "Transformers koinotidagi 60% dan ortiq filmlarni ko'rib chiqdingiz.",
+    icon: '🥈'
+  },
+  {
+    id: 'transformers_gold',
+    universe_key: 'transformers',
+    universe_name: 'Transformers Universe',
+    tier: 'gold',
+    threshold: 100,
+    title: 'Transformers: Prime Yetakchi',
+    title_en: 'Transformers: Prime Leader',
+    description: "Yetakchilik matritsasi sizda! Transformers olamidagi barcha filmlarni 100% to'liq tomosha qildingiz!",
+    icon: '🥇'
   }
 ];
 
@@ -319,7 +354,7 @@ async function computeGamificationProgress(userId) {
   const userMovies = await getAllUserMovies(userId);
   const universes = loadFranchiseUniverses();
 
-  const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil'];
+  const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil', 'transformers'];
   const progressMap = {};
 
   curatedKeys.forEach(uKey => {
