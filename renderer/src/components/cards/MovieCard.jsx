@@ -858,8 +858,16 @@ function MovieCard({
       try {
         if (!e.data) return
         const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
-        if (data.event === 'onStateChange' && (data.info === 1 || data.info === 3)) {
-          if (active) setIsVideoReady(true)
+        if (data.event === 'onStateChange') {
+          if (data.info === 1 || data.info === 3) {
+            if (active) setIsVideoReady(true)
+          } else if (data.info === 0) {
+            // Automatically loop when video ends
+            trailerIframeRef.current?.contentWindow?.postMessage(
+              JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+              '*'
+            )
+          }
         }
       } catch (_) {}
     }
@@ -1479,23 +1487,25 @@ function MovieCard({
             ref={trailerContainerRef}
             style={{
               position: 'relative',
-              width: '100%',
-              maxWidth: '100%',
+              width: isSeriesSeason ? 'calc(100% - 24px)' : '100%',
+              maxWidth: isSeriesSeason ? 'calc(100% - 24px)' : '100%',
+              margin: isSeriesSeason ? '10px auto 4px auto' : '0',
+              borderRadius: isSeriesSeason ? 12 : '13px 13px 0 0',
+              border: isSeriesSeason ? '1px solid rgba(255, 255, 255, 0.12)' : 'none',
+              borderBottom: '1px solid var(--border)',
               boxSizing: 'border-box',
               aspectRatio: '16 / 10',
-              maxHeight: isSeriesSeason ? 230 : 250,
+              maxHeight: isSeriesSeason ? 220 : 250,
               overflow: 'hidden',
               background: '#09090b',
-              borderTopLeftRadius: 13,
-              borderTopRightRadius: 13,
-              borderBottom: '1px solid var(--border)',
+              isolation: 'isolate',
             }}
           >
             {trailer?.key && canMountTrailer ? (
               <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
                 <iframe
                   ref={trailerIframeRef}
-                  src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${trailer.key}&disablekb=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+                  src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&disablekb=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
                   title={`${displayTitle} trailer`}
                   referrerPolicy="strict-origin-when-cross-origin"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -1552,13 +1562,15 @@ function MovieCard({
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: 12,
-                    right: isSeriesSeason ? 14 : 12,
-                    zIndex: 25,
+                    bottom: 10,
+                    right: 10,
+                    zIndex: 40,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    pointerEvents: 'auto'
+                    pointerEvents: 'auto',
+                    transform: 'translate3d(0, 0, 20px)',
+                    WebkitTransform: 'translate3d(0, 0, 20px)',
                   }}
                 >
                   {/* 1. Ovozsizni o'chirish / yoqish (Mute / Unmute) */}
@@ -1567,10 +1579,8 @@ function MovieCard({
                     onClick={handleToggleMute}
                     title={isMuted ? "Ovozni yoqish (Unmute)" : "Ovozsiz qilish (Mute)"}
                     style={{
-                      background: isMuted ? 'rgba(0, 0, 0, 0.65)' : 'rgba(59, 130, 246, 0.85)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: isMuted ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(147, 197, 253, 0.6)',
+                      background: isMuted ? 'rgba(15, 15, 18, 0.85)' : 'rgba(59, 130, 246, 0.95)',
+                      border: isMuted ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid rgba(147, 197, 253, 0.7)',
                       borderRadius: '50%',
                       color: '#fff',
                       width: 32,
@@ -1579,7 +1589,7 @@ function MovieCard({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
                       transition: 'all 0.18s ease'
                     }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
@@ -1594,10 +1604,8 @@ function MovieCard({
                     onClick={handleToggleFullscreen}
                     title="Kattalashtirish (Fullscreen)"
                     style={{
-                      background: 'rgba(0, 0, 0, 0.65)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      background: 'rgba(15, 15, 18, 0.85)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
                       borderRadius: '50%',
                       color: '#fff',
                       width: 32,
@@ -1606,7 +1614,7 @@ function MovieCard({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
                       transition: 'all 0.18s ease'
                     }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
@@ -1651,12 +1659,10 @@ function MovieCard({
               style={{
                 position: 'absolute',
                 top: 8,
-                right: isSeriesSeason ? 10 : 8,
-                zIndex: 30,
-                background: 'rgba(0, 0, 0, 0.75)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
+                right: 8,
+                zIndex: 50,
+                background: 'rgba(15, 15, 18, 0.85)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
                 borderRadius: '50%',
                 color: '#fff',
                 width: 28,
@@ -1665,17 +1671,19 @@ function MovieCard({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                transition: 'all 0.15s ease'
+                boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+                transition: 'all 0.15s ease',
+                transform: 'translate3d(0, 0, 20px)',
+                WebkitTransform: 'translate3d(0, 0, 20px)',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)'
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.95)'
                 e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 1)'
                 e.currentTarget.style.transform = 'scale(1.08)'
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.75)'
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
+                e.currentTarget.style.background = 'rgba(15, 15, 18, 0.85)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
                 e.currentTarget.style.transform = 'scale(1)'
               }}
             >
@@ -1685,7 +1693,7 @@ function MovieCard({
 
           {/* Expanded Card Body Details */}
           <div style={{
-            padding: isSeriesSeason ? '6px 12px 14px' : '6px 16px 16px',
+            padding: isSeriesSeason ? '6px 14px 14px' : '6px 16px 16px',
             display: 'flex',
             flexDirection: 'column',
             gap: 12,
@@ -1705,43 +1713,77 @@ function MovieCard({
                   </div>
                 ) : null}
               </div>
-              {movie.tmdb_id && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    if (onOpenChronology) onOpenChronology(movie.tmdb_id, movie.media_type)
-                  }}
-                  title={t('card.chronology')}
-                  style={{
-                    background: 'rgba(124, 58, 237, 0.18)',
-                    border: '1px solid rgba(167, 139, 250, 0.4)',
-                    color: '#a78bfa',
-                    borderRadius: 20,
-                    padding: '4px 10px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(124, 58, 237, 0.35)'
-                    e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.7)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(124, 58, 237, 0.18)'
-                    e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.4)'
-                  }}
-                >
-                  <Sparkles size={11} />
-                  <span>{t('card.chronology')}</span>
-                </button>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                {movie.tmdb_id && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      if (onOpenChronology) onOpenChronology(movie.tmdb_id, movie.media_type)
+                    }}
+                    title={t('card.chronology')}
+                    style={{
+                      background: 'rgba(124, 58, 237, 0.18)',
+                      border: '1px solid rgba(167, 139, 250, 0.4)',
+                      color: '#a78bfa',
+                      borderRadius: 20,
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(124, 58, 237, 0.35)'
+                      e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.7)'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(124, 58, 237, 0.18)'
+                      e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.4)'
+                    }}
+                  >
+                    <Sparkles size={11} />
+                    <span>{t('card.chronology')}</span>
+                  </button>
+                )}
+                {isSeriesSeason && (
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    title={t('common.close')}
+                    style={{
+                      background: 'var(--bg-input, rgba(255, 255, 255, 0.08))',
+                      border: '1px solid var(--border)',
+                      borderRadius: '50%',
+                      color: 'var(--text-muted)',
+                      width: 26,
+                      height: 26,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'
+                      e.currentTarget.style.borderColor = '#ef4444'
+                      e.currentTarget.style.color = '#ef4444'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'var(--bg-input, rgba(255, 255, 255, 0.08))'
+                      e.currentTarget.style.borderColor = 'var(--border)'
+                      e.currentTarget.style.color = 'var(--text-muted)'
+                    }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
             </div>
             {/* Meta Tags Row */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11.5, color: 'var(--text-muted)' }}>
