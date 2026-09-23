@@ -1,1 +1,0 @@
-{item.Icon && <item.Icon size={12} />}

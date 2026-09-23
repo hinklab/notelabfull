@@ -589,6 +589,7 @@ function MovieCard({
   movie,
   sectionKey,
   isExpanded = false,
+  isSeriesSeason = false,
   onToggleExpand,
   onClose,
   onMoveSection,
@@ -1094,6 +1095,9 @@ function MovieCard({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
       style={{
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
         background: isVisuallyExpanded ? 'var(--bg-surface)' : (isTouchDragging ? 'transparent' : 'var(--bg-card)'),
         border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px dashed var(--accent, #a78bfa)' : '1px solid var(--border)'),
         borderRadius: 14,
@@ -1462,6 +1466,9 @@ function MovieCard({
         <div style={{
           display: 'flex',
           flexDirection: 'column',
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
           opacity: isVisuallyExpanded ? 1 : 0,
           transform: isVisuallyExpanded ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.98)',
           transition: 'opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -1473,8 +1480,10 @@ function MovieCard({
             style={{
               position: 'relative',
               width: '100%',
+              maxWidth: '100%',
+              boxSizing: 'border-box',
               aspectRatio: '16 / 10',
-              maxHeight: 250,
+              maxHeight: isSeriesSeason ? 230 : 250,
               overflow: 'hidden',
               background: '#09090b',
               borderTopLeftRadius: 13,
@@ -1544,7 +1553,7 @@ function MovieCard({
                   style={{
                     position: 'absolute',
                     bottom: 12,
-                    right: 12,
+                    right: isSeriesSeason ? 14 : 12,
                     zIndex: 25,
                     display: 'flex',
                     alignItems: 'center',
@@ -1642,7 +1651,7 @@ function MovieCard({
               style={{
                 position: 'absolute',
                 top: 8,
-                right: 8,
+                right: isSeriesSeason ? 10 : 8,
                 zIndex: 30,
                 background: 'rgba(0, 0, 0, 0.75)',
                 backdropFilter: 'blur(12px)',
@@ -1675,7 +1684,15 @@ function MovieCard({
           </div>
 
           {/* Expanded Card Body Details */}
-          <div style={{ padding: '6px 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{
+            padding: isSeriesSeason ? '6px 12px 14px' : '6px 16px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box'
+          }}>
             {/* Title, Tagline & Chronology Button Row */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -2100,6 +2117,7 @@ function MovieCard({
 
 function areMovieCardPropsEqual(prev, next) {
   if (Boolean(prev.isExpanded) !== Boolean(next.isExpanded)) return false
+  if (prev.isSeriesSeason !== next.isSeriesSeason) return false
   if (prev.sectionKey !== next.sectionKey) return false
   if (prev.noDrag !== next.noDrag) return false
 

@@ -79,7 +79,10 @@ function SeriesGroupCard({
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        gap: 6
+        gap: 6,
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box'
       }}
     >
       {/* ============================================================
@@ -347,7 +350,10 @@ function SeriesGroupCard({
           gridTemplateRows: isExpanded ? '1fr' : '0fr',
           transition: 'grid-template-rows 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease',
           opacity: isExpanded ? 1 : 0,
-          overflow: 'hidden'
+          overflow: 'hidden',
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box'
         }}
       >
         <div
@@ -357,17 +363,22 @@ function SeriesGroupCard({
             flexDirection: 'column',
             gap: 6,
             paddingLeft: 8,
+            paddingRight: 6,
             borderLeft: '2px solid rgba(139, 92, 246, 0.4)',
             marginTop: isExpanded ? 2 : 0,
             transform: isExpanded ? 'translateY(0)' : 'translateY(-10px)',
-            transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)'
+            transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box'
           }}
         >
           {sortedSeasons.map(seasonItem => (
-            <div key={seasonItem.id} style={{ position: 'relative' }}>
+            <div key={seasonItem.id} style={{ position: 'relative', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
               <MovieCard
                 movie={seasonItem._movie || seasonItem}
                 sectionKey={group.section_key}
+                isSeriesSeason={true}
                 isExpanded={
                   expandedMovieId != null &&
                   (String(expandedMovieId) === String(seasonItem.id) ||
