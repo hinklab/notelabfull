@@ -7,11 +7,13 @@ export default defineConfig({
   root: 'renderer',
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'renderer/src'),
-      'react': path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom')
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, 'renderer/src') },
+      { find: 'react-dom/client', replacement: path.resolve(__dirname, 'node_modules/react-dom/client.js') },
+      { find: 'react/jsx-runtime', replacement: path.resolve(__dirname, 'node_modules/react/jsx-runtime.js') },
+      { find: /^react-dom$/, replacement: path.resolve(__dirname, 'node_modules/react-dom') },
+      { find: /^react$/, replacement: path.resolve(__dirname, 'node_modules/react') }
+    ],
     dedupe: ['react', 'react-dom']
   },
   server: {
