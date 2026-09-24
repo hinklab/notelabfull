@@ -2092,6 +2092,9 @@ function NoteColumn({
                 data-item-id={entryItemId}
                 style={{
                   position: 'relative',
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
                   transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
                 }}
               >

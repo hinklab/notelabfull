@@ -92,7 +92,19 @@ html { scrollbar-gutter: stable; }
   --space-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+/* Universal Card & Series Tree Container Box-Sizing Enforcement */
+.series-group-card-wrapper,
+.series-unified-card,
+.movie-card-expanded,
+.movie-card-closing,
+[data-card-id],
+.column-cards,
+.note-column {
+  box-sizing: border-box !important;
+}
 
 html, body {
   background: var(--bg-base);
