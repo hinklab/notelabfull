@@ -362,6 +362,37 @@ router.get('/trailer', async (req, res) => {
 
 // Cache for localized movie details: `${tmdb_id}_${type}_${lang}` -> item
 const localizedDetailsCache = new Map();
+const translationMemoryCache = new Map();
+
+async function translateTextToUzbek(text) {
+  if (!text || typeof text !== 'string' || !text.trim()) return '';
+  const trimmed = text.trim();
+  const cacheKey = `uz_${trimmed.slice(0, 60)}_${trimmed.length}`;
+  if (translationMemoryCache.has(cacheKey)) {
+    return translationMemoryCache.get(cacheKey);
+  }
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=uz&dt=t&q=${encodeURIComponent(trimmed)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && Array.isArray(data[0])) {
+        const translated = data[0].map(s => (s && s[0]) ? s[0] : '').filter(Boolean).join('');
+        if (translated) {
+          if (translationMemoryCache.size > 2000) {
+            const firstKey = translationMemoryCache.keys().next().value;
+            translationMemoryCache.delete(firstKey);
+          }
+          translationMemoryCache.set(cacheKey, translated);
+          return translated;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Backend translation failed:', e.message);
+  }
+  return trimmed;
+}
 
 // Helper to normalize language param
 function resolveLocale(raw) {
@@ -378,8 +409,11 @@ router.get('/details', async (req, res) => {
     if (!tmdbId) return res.status(400).json({ error: 'tmdb_id is required' });
 
     const mediaType = req.query.media_type === 'tv' ? 'tv' : 'movie';
-    const lang = resolveLocale(req.query.language || req.headers['x-language']);
-    const cacheKey = `${tmdbId}_${mediaType}_${lang}`;
+    const rawLang = req.query.language || req.headers['x-language'];
+    const isUz = rawLang && (rawLang.toLowerCase() === 'uz' || rawLang.toLowerCase().startsWith('uz-'));
+    const isRu = rawLang && (rawLang.toLowerCase() === 'ru' || rawLang.toLowerCase().startsWith('ru-'));
+    const lang = isRu ? 'ru-RU' : 'en-US';
+    const cacheKey = `${tmdbId}_${mediaType}_${isUz ? 'uz' : lang}`;
 
     if (localizedDetailsCache.has(cacheKey)) {
       return res.json(localizedDetailsCache.get(cacheKey));
@@ -400,14 +434,22 @@ router.get('/details', async (req, res) => {
     const director = d.credits?.crew?.find(c => c.job === 'Director')?.name || null;
     const genres = (d.genres || []).map(g => g.name).join(', ') || null;
 
+    let overview = d.overview || null;
+    if (isUz && overview) {
+      try {
+        const uz = await translateTextToUzbek(overview);
+        if (uz) overview = uz;
+      } catch (e) {}
+    }
+
     const result = {
       tmdb_id: d.id,
       media_type: mediaType,
-      language: lang,
+      language: isUz ? 'uz' : lang,
       title: d.title || d.name || d.original_title || d.original_name,
       original_title: d.original_title || d.original_name || null,
       tagline: d.tagline || null,
-      overview: d.overview || null,
+      overview,
       genre: genres,
       director,
       poster_path: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : null,
@@ -425,11 +467,29 @@ router.get('/details', async (req, res) => {
   }
 });
 
+// GET / POST /api/content/translate
+router.all('/translate', async (req, res) => {
+  try {
+    const text = req.body?.text || req.query?.text || '';
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return res.json({ translatedText: '' });
+    }
+    const translatedText = await translateTextToUzbek(text);
+    return res.json({ translatedText });
+  } catch (err) {
+    console.error('Translate error:', err);
+    return res.status(500).json({ error: err.message, translatedText: req.body?.text || req.query?.text || '' });
+  }
+});
+
 // POST /api/content/translations (batch fetch for multiple movies)
 router.post('/translations', async (req, res) => {
   try {
     const items = req.body.items || [];
-    const lang = resolveLocale(req.body.language || req.headers['x-language']);
+    const rawLang = req.body.language || req.headers['x-language'];
+    const isUz = rawLang && (rawLang.toLowerCase() === 'uz' || rawLang.toLowerCase().startsWith('uz-'));
+    const isRu = rawLang && (rawLang.toLowerCase() === 'ru' || rawLang.toLowerCase().startsWith('ru-'));
+    const lang = isRu ? 'ru-RU' : 'en-US';
     if (!Array.isArray(items) || items.length === 0) {
       return res.json({});
     }
@@ -445,7 +505,7 @@ router.post('/translations', async (req, res) => {
     items.forEach(item => {
       if (!item.tmdb_id) return;
       const mediaType = item.media_type === 'tv' ? 'tv' : 'movie';
-      const cacheKey = `${item.tmdb_id}_${mediaType}_${lang}`;
+      const cacheKey = `${item.tmdb_id}_${mediaType}_${isUz ? 'uz' : lang}`;
       if (localizedDetailsCache.has(cacheKey)) {
         translationsMap[item.tmdb_id] = localizedDetailsCache.get(cacheKey);
       } else {
@@ -460,13 +520,20 @@ router.post('/translations', async (req, res) => {
           const r = await fetch(url, { signal: AbortSignal.timeout(3500) });
           if (r.ok) {
             const d = await r.json();
+            let overview = d.overview || null;
+            if (isUz && overview) {
+              try {
+                const uz = await translateTextToUzbek(overview);
+                if (uz) overview = uz;
+              } catch (e) {}
+            }
             const localized = {
               tmdb_id: d.id,
               media_type,
-              language: lang,
+              language: isUz ? 'uz' : lang,
               title: d.title || d.name || d.original_title || d.original_name,
               tagline: d.tagline || null,
-              overview: d.overview || null,
+              overview,
               genre: (d.genres || []).map(g => g.name).join(', ') || null
             };
             localizedDetailsCache.set(cacheKey, localized);

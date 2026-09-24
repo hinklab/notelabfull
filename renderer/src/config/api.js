@@ -101,8 +101,43 @@ export const api = {
 
   // Content Search, Media Images, Watch Providers & Franchises
   searchContent: (type, query, lang) => fetchJSON(`${API_BASE}/content/search?type=${encodeURIComponent(type)}&query=${encodeURIComponent(query)}&language=${lang === 'ru' ? 'ru-RU' : 'en-US'}`),
-  getMovieDetails: (tmdb_id, media_type, lang) => fetchJSON(`${API_BASE}/content/details?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}&language=${lang === 'ru' ? 'ru-RU' : 'en-US'}`),
-  getMovieTranslations: (items, lang) => fetchJSON(`${API_BASE}/content/translations`, { method: 'POST', body: JSON.stringify({ items, language: lang === 'ru' ? 'ru-RU' : 'en-US' }) }),
+  getMovieDetails: (tmdb_id, media_type, lang) => {
+    const l = lang === 'ru' ? 'ru-RU' : (lang === 'uz' ? 'uz' : 'en-US');
+    return fetchJSON(`${API_BASE}/content/details?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}&language=${l}`);
+  },
+  getMovieTranslations: (items, lang) => {
+    const l = lang === 'ru' ? 'ru-RU' : (lang === 'uz' ? 'uz' : 'en-US');
+    return fetchJSON(`${API_BASE}/content/translations`, { method: 'POST', body: JSON.stringify({ items, language: l }) });
+  },
+  translateText: async (text, targetLang = 'uz') => {
+    if (!text || typeof text !== 'string' || !text.trim()) return '';
+    try {
+      const res = await fetchJSON(`${API_BASE}/content/translate`, {
+        method: 'POST',
+        body: JSON.stringify({ text, to: targetLang }),
+        timeout: 5000
+      });
+      if (res && res.translatedText) {
+        return res.translatedText;
+      }
+    } catch (err) {
+      // Backend unavailable -> direct client-side fallback
+      try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text.trim())}`;
+        const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        if (r.ok) {
+          const d = await r.json();
+          if (Array.isArray(d) && Array.isArray(d[0])) {
+            const clientResult = d[0].map(s => (s && s[0]) ? s[0] : '').filter(Boolean).join('');
+            if (clientResult) return clientResult;
+          }
+        }
+      } catch (clientErr) {
+        console.warn('Direct translation failed:', clientErr);
+      }
+    }
+    return text;
+  },
   getMovieImages: (tmdb_id, media_type) => fetchJSON(`${API_BASE}/content/images?tmdb_id=${encodeURIComponent(tmdb_id)}&media_type=${encodeURIComponent(media_type || 'movie')}`),
   getMovieTrailer: (tmdb_id, media_type, title) => {
     const params = new URLSearchParams();

@@ -45,6 +45,37 @@ async function resolveImdbId(tmdbId, mediaType, tmdbKey) {
 // In-memory cache for TMDB responses
 const tmdbDetailsCache = new Map();
 const tmdbTrailerCache = new Map();
+const translationMemoryCache = new Map();
+
+async function translateTextToUzbek(text) {
+  if (!text || typeof text !== 'string' || !text.trim()) return '';
+  const trimmed = text.trim();
+  const cacheKey = `uz_${trimmed.slice(0, 60)}_${trimmed.length}`;
+  if (translationMemoryCache.has(cacheKey)) {
+    return translationMemoryCache.get(cacheKey);
+  }
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=uz&dt=t&q=${encodeURIComponent(trimmed)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && Array.isArray(data[0])) {
+        const translated = data[0].map(s => (s && s[0]) ? s[0] : '').filter(Boolean).join('');
+        if (translated) {
+          if (translationMemoryCache.size > 2000) {
+            const firstKey = translationMemoryCache.keys().next().value;
+            translationMemoryCache.delete(firstKey);
+          }
+          translationMemoryCache.set(cacheKey, translated);
+          return translated;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Backend translation failed:', e.message);
+  }
+  return trimmed;
+}
 
 const FRANCHISE_UNIVERSES = {
   "mcu": {
@@ -4348,7 +4379,9 @@ module.exports = async (req, res) => {
       if (!tmdb_id || !TMDB_KEY) return res.status(400).json({ error: 'tmdb_id required' });
       const media_type = query.media_type === 'tv' ? 'tv' : 'movie';
       const rawLang = query.language || req.headers['x-language'];
-      const lang = (rawLang && (rawLang.toLowerCase() === 'ru' || rawLang.toLowerCase().startsWith('ru-'))) ? 'ru-RU' : 'en-US';
+      const isUz = rawLang && (rawLang.toLowerCase() === 'uz' || rawLang.toLowerCase().startsWith('uz-'));
+      const isRu = rawLang && (rawLang.toLowerCase() === 'ru' || rawLang.toLowerCase().startsWith('ru-'));
+      const lang = isRu ? 'ru-RU' : 'en-US';
 
       try {
         const url = `https://api.themoviedb.org/3/${media_type}/${encodeURIComponent(tmdb_id)}?api_key=${TMDB_KEY}&language=${lang}&append_to_response=credits`;
@@ -4360,14 +4393,24 @@ module.exports = async (req, res) => {
         const director = d.credits?.crew?.find(c => c.job === 'Director')?.name || null;
         const genres = (d.genres || []).map(g => g.name).join(', ') || null;
 
+        let overview = d.overview || null;
+        if (isUz && overview) {
+          try {
+            const translatedOverview = await translateTextToUzbek(overview);
+            if (translatedOverview) {
+              overview = translatedOverview;
+            }
+          } catch (e) {}
+        }
+
         return res.status(200).json({
           tmdb_id: d.id,
           media_type,
-          language: lang,
+          language: isUz ? 'uz' : lang,
           title: d.title || d.name || d.original_title || d.original_name,
           original_title: d.original_title || d.original_name || null,
           tagline: d.tagline || null,
-          overview: d.overview || null,
+          overview,
           genre: genres,
           director,
           poster_path: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : null,
@@ -4381,12 +4424,39 @@ module.exports = async (req, res) => {
       }
     }
 
+    // GET / POST /api/content/translate
+    if (path === 'content/translate' && (req.method === 'GET' || req.method === 'POST')) {
+      let text = '';
+      let targetLang = 'uz';
+      if (req.method === 'POST') {
+        const body = await parseBody(req);
+        text = body.text || '';
+        targetLang = body.to || body.targetLang || 'uz';
+      } else {
+        text = query.text || '';
+        targetLang = query.to || query.targetLang || 'uz';
+      }
+
+      if (!text || typeof text !== 'string' || !text.trim()) {
+        return res.status(200).json({ translatedText: '' });
+      }
+
+      try {
+        const translatedText = await translateTextToUzbek(text);
+        return res.status(200).json({ translatedText });
+      } catch (err) {
+        return res.status(500).json({ error: err.message, translatedText: text });
+      }
+    }
+
     // POST /api/content/translations
     if (path === 'content/translations' && req.method === 'POST') {
       const body = await parseBody(req);
       const items = body.items || [];
       const rawLang = body.language || req.headers['x-language'];
-      const lang = (rawLang && (rawLang.toLowerCase() === 'ru' || rawLang.toLowerCase().startsWith('ru-'))) ? 'ru-RU' : 'en-US';
+      const isUz = rawLang && (rawLang.toLowerCase() === 'uz' || rawLang.toLowerCase().startsWith('uz-'));
+      const isRu = rawLang && (rawLang.toLowerCase() === 'ru' || rawLang.toLowerCase().startsWith('ru-'));
+      const lang = isRu ? 'ru-RU' : 'en-US';
 
       if (!Array.isArray(items) || items.length === 0 || !TMDB_KEY) {
         return res.status(200).json({});
@@ -4401,13 +4471,20 @@ module.exports = async (req, res) => {
           const r = await fetch(url, { signal: AbortSignal.timeout(3500) });
           if (r.ok) {
             const d = await r.json();
+            let overview = d.overview || null;
+            if (isUz && overview) {
+              try {
+                const uz = await translateTextToUzbek(overview);
+                if (uz) overview = uz;
+              } catch (e) {}
+            }
             translationsMap[item.tmdb_id] = {
               tmdb_id: d.id,
               media_type: mediaType,
-              language: lang,
+              language: isUz ? 'uz' : lang,
               title: d.title || d.name || d.original_title || d.original_name,
               tagline: d.tagline || null,
-              overview: d.overview || null,
+              overview,
               genre: (d.genres || []).map(g => g.name).join(', ') || null
             };
           }

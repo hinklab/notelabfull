@@ -535,7 +535,7 @@ const SpaceNodeCard = React.memo(function SpaceNodeCard({
 })
 
 export default function ChronologySpace({ targetTmdbId = null, targetMediaType = null, noteId = null, onMovieAdded = null }) {
-  const { language, t } = useLanguage()
+  const { language, t, getMovieOverview, fetchSingleMovieTranslation } = useLanguage()
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 300, y: 120 })
   const [isPanning, setIsPanning] = useState(false)
@@ -568,6 +568,14 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
   const [isModalFullscreen, setIsModalFullscreen] = useState(false)
   const modalTrailerIframeRef = useRef(null)
   const modalTrailerContainerRef = useRef(null)
+
+  useEffect(() => {
+    if (selectedMovie && (selectedMovie.tmdb_id || selectedMovie.overview)) {
+      if (language === 'uz' || language === 'ru') {
+        fetchSingleMovieTranslation(selectedMovie.tmdb_id, selectedMovie.media_type, selectedMovie)
+      }
+    }
+  }, [selectedMovie, language])
 
   useEffect(() => {
     if (!selectedMovie) {
@@ -2355,13 +2363,13 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               </div>
 
               {/* Overview / Story Plot */}
-              {selectedMovie.overview && (
+              {(getMovieOverview ? (getMovieOverview(selectedMovie) || selectedMovie.overview) : selectedMovie.overview) && (
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     {t('space.storyPlot')}
                   </div>
                   <div style={{ fontSize: 14.5, lineHeight: 1.7, color: 'var(--text-primary)' }}>
-                    {selectedMovie.overview}
+                    {getMovieOverview ? (getMovieOverview(selectedMovie) || selectedMovie.overview) : selectedMovie.overview}
                   </div>
                 </div>
               )}

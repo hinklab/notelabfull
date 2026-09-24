@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { translations } from '../i18n/translations';
+import api from '../config/api';
 
 const LanguageContext = createContext({
   language: 'uz',
@@ -102,6 +103,15 @@ export function LanguageProvider({ children }) {
     }
   });
 
+  const [movieTranslationsUz, setMovieTranslationsUz] = useState(() => {
+    try {
+      const saved = localStorage.getItem('notelab_movie_translations_uz');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   // Save translation cache to localStorage on updates (debounced/pruned)
   const saveTranslationsToStorage = (updated) => {
     try {
@@ -111,12 +121,21 @@ export function LanguageProvider({ children }) {
     }
   };
 
+  const saveUzTranslationsToStorage = (updated) => {
+    try {
+      localStorage.setItem('notelab_movie_translations_uz', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed saving Uzbek translations to storage:', e);
+    }
+  };
+
   /**
    * Batch prefetch translations for an array of movies
    */
   const prefetchMovieTranslations = async (movies) => {
     if (language !== 'ru' || !Array.isArray(movies) || movies.length === 0) return;
-    if (!window.api || !window.api.getMovieTranslations) return;
+    const client = (typeof window !== 'undefined' && window.api) || api;
+    if (!client || !client.getMovieTranslations) return;
 
     const missing = [];
     movies.forEach(m => {
@@ -128,7 +147,7 @@ export function LanguageProvider({ children }) {
     if (missing.length === 0) return;
 
     try {
-      const res = await window.api.getMovieTranslations(missing, 'ru');
+      const res = await client.getMovieTranslations(missing, 'ru');
       if (res && Object.keys(res).length > 0) {
         setMovieTranslations(prev => {
           const next = { ...prev, ...res };
@@ -142,23 +161,66 @@ export function LanguageProvider({ children }) {
   };
 
   /**
-   * Fetch single movie translation if needed
+   * Fetch single movie translation if needed (Russian or Uzbek)
    */
-  const fetchSingleMovieTranslation = async (tmdbId, mediaType) => {
-    if (language !== 'ru' || !tmdbId || movieTranslations[tmdbId]) return;
-    if (!window.api || !window.api.getMovieDetails) return;
+  const fetchSingleMovieTranslation = async (tmdbId, mediaType, movieObj = null) => {
+    const client = (typeof window !== 'undefined' && window.api) || api;
 
-    try {
-      const res = await window.api.getMovieDetails(tmdbId, mediaType || 'movie', 'ru');
-      if (res && res.title) {
-        setMovieTranslations(prev => {
-          const next = { ...prev, [tmdbId]: res };
-          saveTranslationsToStorage(next);
-          return next;
-        });
+    // Uzbek translation handling (translates overview/synopsis to Uzbek)
+    if (language === 'uz') {
+      const key = String(tmdbId || movieObj?.id || movieObj?.title || '').trim();
+      if (!key) return;
+      if (movieTranslationsUz[key]) return;
+
+      let sourceText = movieObj?.overview || movieObj?.note || '';
+
+      // If movie has no overview locally, fetch official synopsis from TMDB
+      if (!sourceText.trim() && tmdbId && client && client.getMovieDetails) {
+        try {
+          const details = await client.getMovieDetails(tmdbId, mediaType || 'movie', 'en');
+          if (details && details.overview) {
+            sourceText = details.overview;
+          }
+        } catch (e) {}
       }
-    } catch (err) {
-      console.warn(`Error fetching translation for tmdb_id ${tmdbId}:`, err);
+
+      if (sourceText && typeof sourceText === 'string' && sourceText.trim()) {
+        try {
+          const translateFn = client?.translateText || api?.translateText;
+          if (translateFn) {
+            const translated = await translateFn(sourceText.trim(), 'uz');
+            if (translated && translated.trim()) {
+              setMovieTranslationsUz(prev => {
+                const next = { ...prev, [key]: translated.trim() };
+                saveUzTranslationsToStorage(next);
+                return next;
+              });
+            }
+          }
+        } catch (err) {
+          console.warn(`Error translating overview to Uzbek for ${key}:`, err);
+        }
+      }
+      return;
+    }
+
+    // Russian translation handling
+    if (language === 'ru') {
+      if (!tmdbId || movieTranslations[tmdbId]) return;
+      if (!client || !client.getMovieDetails) return;
+
+      try {
+        const res = await client.getMovieDetails(tmdbId, mediaType || 'movie', 'ru');
+        if (res && res.title) {
+          setMovieTranslations(prev => {
+            const next = { ...prev, [tmdbId]: res };
+            saveTranslationsToStorage(next);
+            return next;
+          });
+        }
+      } catch (err) {
+        console.warn(`Error fetching translation for tmdb_id ${tmdbId}:`, err);
+      }
     }
   };
 
@@ -178,13 +240,20 @@ export function LanguageProvider({ children }) {
    */
   const getMovieOverview = (movie) => {
     if (!movie) return '';
+    const key = String(movie.tmdb_id || movie.id || movie.title || '').trim();
+    if (language === 'uz') {
+      if (key && movieTranslationsUz[key]) {
+        return movieTranslationsUz[key];
+      }
+      return movie.overview || movie.note || '';
+    }
     if (language === 'ru' && movie.tmdb_id && movieTranslations[movie.tmdb_id]?.overview) {
       return movieTranslations[movie.tmdb_id].overview;
     }
     return movie.overview || movie.note || '';
   };
 
-  /**
+    /**
    * Get localized genre for a movie/item
    */
   const getMovieGenre = (movie) => {
@@ -213,6 +282,7 @@ export function LanguageProvider({ children }) {
       t,
       tmdbLocale: language === 'ru' ? 'ru-RU' : 'en-US',
       movieTranslations,
+      movieTranslationsUz,
       prefetchMovieTranslations,
       fetchSingleMovieTranslation,
       getMovieTitle,

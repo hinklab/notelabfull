@@ -806,10 +806,14 @@ function MovieCard({
   }, [movie?.user_rating])
 
   useEffect(() => {
-    if (isCardExpanded && movie?.tmdb_id && language === 'ru') {
-      fetchSingleMovieTranslation(movie.tmdb_id, movie.media_type)
+    if (isCardExpanded && (movie?.tmdb_id || movie?.overview || movie?.note)) {
+      if (language === 'ru' && movie?.tmdb_id) {
+        fetchSingleMovieTranslation(movie.tmdb_id, movie.media_type, movie)
+      } else if (language === 'uz') {
+        fetchSingleMovieTranslation(movie.tmdb_id, movie.media_type, movie)
+      }
     }
-  }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, language])
+  }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, movie?.overview, movie?.note, language])
 
   useEffect(() => {
     if (!isCardExpanded) return
