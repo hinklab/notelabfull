@@ -112,8 +112,24 @@ function SeriesGroupCard({
         }}
         onClick={() => setIsExpanded(prev => !prev)}
         onContextMenu={(e) => onItemContextMenu?.(e, firstSeason)}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseEnter={(e) => {
+          if (isExpanded) return
+          setHovered(true)
+          e.currentTarget.style.borderColor = 'var(--border-hover)'
+          e.currentTarget.style.background = 'var(--bg-card-hover)'
+          e.currentTarget.style.transform = 'scale3d(1.02, 1.02, 1)'
+          e.currentTarget.style.boxShadow = '0 8px 24px -4px rgba(0, 0, 0, 0.38)'
+          e.currentTarget.style.zIndex = '10'
+        }}
+        onMouseLeave={(e) => {
+          if (isExpanded) return
+          setHovered(false)
+          e.currentTarget.style.borderColor = 'var(--border)'
+          e.currentTarget.style.background = 'var(--bg-card)'
+          e.currentTarget.style.transform = 'scale3d(1, 1, 1)'
+          e.currentTarget.style.boxShadow = 'none'
+          e.currentTarget.style.zIndex = '1'
+        }}
         style={{
           background: hovered ? 'var(--bg-card-hover)' : (isExpanded ? 'rgba(139, 92, 246, 0.04)' : 'var(--bg-card)'),
           border: `1px solid ${hovered ? 'var(--border-hover)' : (isExpanded ? 'rgba(139, 92, 246, 0.45)' : 'var(--border)')}`,
@@ -125,13 +141,17 @@ function SeriesGroupCard({
           minHeight: 116,
           position: 'relative',
           cursor: 'pointer',
-          transform: hovered ? 'translateY(-2.5px)' : 'translateY(0)',
-          boxShadow: isExpanded ? '0 4px 14px rgba(124, 58, 237, 0.12)' : (hovered ? '0 6px 16px -2px rgba(0, 0, 0, 0.3)' : 'none'),
-          transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, background 0.18s ease',
+          transformOrigin: 'center center',
+          transform: isExpanded ? 'none' : (hovered ? 'scale3d(1.02, 1.02, 1)' : 'scale3d(1, 1, 1)'),
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
+          zIndex: isExpanded ? 20 : (hovered ? 10 : 1),
+          boxShadow: isExpanded ? '0 4px 14px rgba(124, 58, 237, 0.12)' : (hovered ? '0 8px 24px -4px rgba(0, 0, 0, 0.38)' : 'none'),
+          transition: 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, background 0.22s ease',
           userSelect: 'none',
           overflow: 'hidden',
-          contain: isExpanded ? 'none' : 'layout paint',
-          willChange: hovered ? 'transform, box-shadow' : 'auto'
+          contain: (isExpanded || hovered) ? 'none' : 'layout paint',
+          willChange: (hovered || isExpanded) ? 'transform, box-shadow' : 'auto'
         }}
       >
         {/* Left: Poster thumbnail */}

@@ -2371,17 +2371,37 @@ function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTo
         background: isTouchDragging ? 'var(--bg-card-hover)' : 'var(--bg-card)',
         border: isTouchDragging ? '1.5px solid var(--accent, #7c3aed)' : '1px solid var(--border)',
         borderRadius: 8, padding: '10px 12px',
-        cursor: 'pointer', transition: isTouchDragging ? 'none' : 'border-color 0.15s, background 0.15s, transform 0.15s',
+        cursor: 'pointer',
+        transition: isTouchDragging ? 'none' : 'border-color 0.18s ease, background 0.18s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         position: 'relative', overflow: 'hidden', userSelect: 'none',
         minHeight: 52,
-        transform: isTouchDragging ? `translate3d(${touchDelta.x}px, ${touchDelta.y}px, 0) scale(1.04)` : 'none',
+        transformOrigin: 'center center',
+        WebkitBackfaceVisibility: 'hidden',
+        backfaceVisibility: 'hidden',
+        transform: isTouchDragging ? `translate3d(${touchDelta.x}px, ${touchDelta.y}px, 0) scale(1.04)` : 'scale3d(1, 1, 1)',
         boxShadow: isTouchDragging ? '0 20px 45px rgba(0,0,0,0.8)' : 'none',
         zIndex: isTouchDragging ? 99999 : 1,
         opacity: isTouchDragging ? 0.95 : 1,
         touchAction: 'pan-y',
       }}
-      onMouseEnter={e => { if (!isTouchDragging) { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'var(--bg-card-hover)'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
-      onMouseLeave={e => { if (!isTouchDragging) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.transform = 'translateY(0)' } }}
+      onMouseEnter={e => {
+        if (!isTouchDragging) {
+          e.currentTarget.style.borderColor = 'var(--border-hover)'
+          e.currentTarget.style.background = 'var(--bg-card-hover)'
+          e.currentTarget.style.transform = 'scale3d(1.018, 1.018, 1)'
+          e.currentTarget.style.boxShadow = '0 6px 18px -2px rgba(0, 0, 0, 0.35)'
+          e.currentTarget.style.zIndex = '10'
+        }
+      }}
+      onMouseLeave={e => {
+        if (!isTouchDragging) {
+          e.currentTarget.style.borderColor = 'var(--border)'
+          e.currentTarget.style.background = 'var(--bg-card)'
+          e.currentTarget.style.transform = 'scale3d(1, 1, 1)'
+          e.currentTarget.style.boxShadow = 'none'
+          e.currentTarget.style.zIndex = '1'
+        }
+      }}
     >
       {/* Cover xira background */}
       {item.cover_url && (

@@ -714,6 +714,7 @@ function MovieCard({
       e.stopPropagation()
     }
     if (Date.now() - touchStartPos.current.time < 350 && isTouchDraggingRef.current) return
+    setHovered(false)
     if (onToggleExpand) {
       onToggleExpand()
     } else {
@@ -948,12 +949,14 @@ function MovieCard({
 
   const handleDragStart = (e) => {
     if (isCardExpanded) return
+    setHovered(false)
     e.dataTransfer.setData('movieId', String(movie.id))
     e.dataTransfer.setData('itemId', String(movie.id))
     if (sectionKey) e.dataTransfer.setData('fromSection', sectionKey)
     e.dataTransfer.effectAllowed = 'move'
     
     const el = e.currentTarget
+    if (el) el.style.transform = 'scale3d(1, 1, 1)'
     setTimeout(() => {
       if (el) el.style.opacity = '0'
     }, 0)
@@ -963,8 +966,9 @@ function MovieCard({
 
   const handleDragEnd = (e) => {
     if (e.currentTarget) {
-      e.currentTarget.style.transition = 'opacity 0.2s ease'
+      e.currentTarget.style.transition = 'opacity 0.2s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)'
       e.currentTarget.style.opacity = '1'
+      e.currentTarget.style.transform = 'scale3d(1, 1, 1)'
     }
     if (onDragEnd) onDragEnd(e)
   }
@@ -1110,40 +1114,47 @@ function MovieCard({
         width: '100%',
         maxWidth: '100%',
         boxSizing: 'border-box',
-        background: isVisuallyExpanded ? 'var(--bg-surface)' : (isTouchDragging ? 'transparent' : 'var(--bg-card)'),
-        border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px dashed var(--accent, #a78bfa)' : '1px solid var(--border)'),
+        background: isVisuallyExpanded ? 'var(--bg-surface)' : (isTouchDragging ? 'transparent' : (hovered ? 'var(--bg-card-hover)' : 'var(--bg-card)')),
+        border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px dashed var(--accent, #a78bfa)' : (hovered ? '1px solid var(--border-hover)' : '1px solid var(--border)')),
         borderRadius: 14,
-        boxShadow: isVisuallyExpanded ? '0 10px 30px -4px rgba(0, 0, 0, 0.45)' : 'none',
+        boxShadow: isVisuallyExpanded ? '0 10px 30px -4px rgba(0, 0, 0, 0.45)' : (hovered ? '0 8px 24px -4px rgba(0, 0, 0, 0.38)' : 'none'),
         cursor: isCardExpanded ? 'default' : (isTouchDragging ? 'grabbing' : 'pointer'),
         overflow: 'hidden',
         maxHeight: isVisuallyExpanded ? 1100 : 116,
-        transition: 'max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, background 0.25s ease, box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+        transformOrigin: 'center center',
+        transform: isVisuallyExpanded ? 'none' : (hovered ? 'scale3d(1.02, 1.02, 1)' : 'scale3d(1, 1, 1)'),
+        WebkitBackfaceVisibility: 'hidden',
+        backfaceVisibility: 'hidden',
+        transition: 'max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, background 0.22s ease, box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         opacity: isTouchDragging ? 0.35 : 1,
         touchAction: 'pan-y',
         WebkitTouchCallout: 'none',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
+        zIndex: (isCardExpanded || renderExpanded) ? 20 : (hovered ? 10 : 1),
         userSelect: 'none',
-        contain: (isCardExpanded || renderExpanded || isClosing) ? 'none' : 'layout paint',
+        contain: (isCardExpanded || renderExpanded || isClosing || hovered) ? 'none' : 'layout paint',
         willChange: (isCardExpanded || renderExpanded || isClosing || hovered) ? 'max-height, transform, box-shadow' : 'auto'
       }}
       onMouseEnter={e => {
-        if (isTouchDragging || isTouchSessionRef.current || isCardExpanded) return
+        if (isTouchDragging || isTouchSessionRef.current || isCardExpanded || isVisuallyExpanded || renderExpanded) return
         setHovered(true)
         prefetchTrailer(movie, displayTitle)
         e.currentTarget.style.borderColor = 'var(--border-hover)'
         e.currentTarget.style.background = 'var(--bg-card-hover)'
-        e.currentTarget.style.transform = 'translateY(-2.5px)'
-        e.currentTarget.style.boxShadow = '0 6px 16px -2px rgba(0, 0, 0, 0.3)'
+        e.currentTarget.style.transform = 'scale3d(1.02, 1.02, 1)'
+        e.currentTarget.style.boxShadow = '0 8px 24px -4px rgba(0, 0, 0, 0.38)'
+        e.currentTarget.style.zIndex = '10'
       }}
       onMouseLeave={e => {
         if (isTouchDragging || isCardExpanded) return
         setHovered(false)
         e.currentTarget.style.borderColor = 'var(--border)'
         e.currentTarget.style.background = 'var(--bg-card)'
-        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.transform = 'scale3d(1, 1, 1)'
         e.currentTarget.style.boxShadow = 'none'
+        e.currentTarget.style.zIndex = '1'
       }}
     >
       {/* 1. COLLAPSED VIEW (Compact Horizontal Row) */}
