@@ -3,33 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>saqlab</title>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=4" />
-    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=4" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/colba-w.png?v=4" media="(prefers-color-scheme: dark)" id="favicon-dark" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/colba-b.png?v=4" media="(prefers-color-scheme: light)" id="favicon-light" />
-    <link rel="icon" type="image/png" href="/colba-w.png?v=4" id="favicon-default" />
-    <link rel="apple-touch-icon" href="/colba-w.png?v=4" />
+    <title>Saqlab — Kino va seriallarni kuzatib borish</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Saqlab — ko'rilgan va ko'rish rejalashtirilgan kino hamda seriallarni qulay ro'yxatga olish, treylerlarni tomosha qilish va yangi premyeralarni kuzatib borish platformasi." />
+    <meta name="keywords" content="saqlab, kino, serial, film, treyler, premeyra, hinklab, kino ro'yxati, filmlar" />
+    <meta name="author" content="Hinklab Production" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph (Facebook, Telegram, WhatsApp) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Saqlab — Kino va seriallarni kuzatib borish" />
+    <meta property="og:description" content="Saqlab — ko'rilgan va ko'rish rejalashtirilgan kino hamda seriallarni qulay ro'yxatga olish, treylerlarni tomosha qilish va yangi premyeralarni kuzatib borish platformasi." />
+    <meta property="og:url" content="https://www.saqlab.uz" />
+    <meta property="og:site_name" content="Saqlab" />
+    <meta property="og:image" content="https://www.saqlab.uz/apple-touch-icon.png?v=5" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Saqlab — Kino va seriallarni kuzatib borish" />
+    <meta name="twitter:description" content="Saqlab — ko'rilgan va ko'rish rejalashtirilgan kino hamda seriallarni qulay ro'yxatga olish, treylerlarni tomosha qilish va yangi premyeralarni kuzatib borish platformasi." />
+    <meta name="twitter:image" content="https://www.saqlab.uz/apple-touch-icon.png?v=5" />
+
+    <!-- Mobile Browser & PWA Support -->
+    <meta name="theme-color" content="#09090b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Saqlab" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Icons: Solid Dark Badge for Mobile Shortcuts, New Tab & Home Screen -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=5" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=5" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=5" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=5" />
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5" />
+
+    <!-- Dynamic Browser Tab Favicon (for desktop tabs adapting to light/dark themes) -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/colba-w.png?v=5" media="(prefers-color-scheme: dark)" id="favicon-dark" data-tab-favicon="true" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/colba-b.png?v=5" media="(prefers-color-scheme: light)" id="favicon-light" data-tab-favicon="true" />
+
     <script>
       (function() {
-        function updateFavicon() {
+        function updateTabFavicon() {
           var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var targetHref = isDark ? '/colba-w.png?v=4' : '/colba-b.png?v=4';
-          var favs = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]');
-          favs.forEach(function(el) {
+          var targetHref = isDark ? '/colba-w.png?v=5' : '/colba-b.png?v=5';
+          var tabFavicons = document.querySelectorAll('link[data-tab-favicon]');
+          tabFavicons.forEach(function(el) {
             el.href = targetHref;
           });
         }
-        updateFavicon();
+        updateTabFavicon();
         if (window.matchMedia) {
           try {
-            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateFavicon);
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTabFavicon);
           } catch(e) {
-            window.matchMedia('(prefers-color-scheme: dark)').addListener(updateFavicon);
+            window.matchMedia('(prefers-color-scheme: dark)').addListener(updateTabFavicon);
           }
         }
       })();
     </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://www.youtube-nocookie.com" />
@@ -44,6 +78,11 @@
     <link rel="stylesheet" crossorigin href="/assets/index-BWp12PCG.css">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="display:none" aria-hidden="true">
+        <h1>Saqlab — Kino va seriallarni kuzatib borish</h1>
+        <p>Saqlab — ko'rilgan va ko'rish rejalashtirilgan kino hamda seriallarni qulay ro'yxatga olish, treylerlarni tomosha qilish va yangi premyeralarni kuzatib borish platformasi.</p>
+      </div>
+    </div>
   </body>
 </html>
