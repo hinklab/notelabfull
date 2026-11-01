@@ -31,7 +31,10 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
   const [notifications, setNotifications] = useState([])
   const panelRef = useRef(null)
 
-  const fetchNotifications = async () => {
+  const lastFetchRef = useRef(0)
+  const fetchNotifications = async (force = false) => {
+    if (!force && Date.now() - lastFetchRef.current < 30000) return
+    lastFetchRef.current = Date.now()
     try {
       if (window.api && window.api.getNotifications) {
         const data = await window.api.getNotifications()
@@ -53,10 +56,23 @@ export default function Topbar({ search, onSearch, onSettings, onOpenSurvey, onR
   }
 
   useEffect(() => {
-    fetchNotifications()
+    fetchNotifications(true)
     // Poll every 10 minutes while user is active on the site (saves CPU/network and prevents lag)
-    const interval = setInterval(fetchNotifications, 10 * 60 * 1000)
-    return () => clearInterval(interval)
+    const interval = setInterval(() => fetchNotifications(true), 10 * 60 * 1000)
+
+    const handleActive = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications()
+      }
+    }
+    document.addEventListener('visibilitychange', handleActive)
+    window.addEventListener('focus', handleActive)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleActive)
+      window.removeEventListener('focus', handleActive)
+    }
   }, [])
 
   useEffect(() => {

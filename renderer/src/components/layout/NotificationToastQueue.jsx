@@ -30,16 +30,112 @@ export default function NotificationToastQueue({
   onAddMovieSuccess
 }) {
   const { t } = useLanguage()
-  // activeToasts: array of { notif, id, exiting: boolean, timeoutId }
+  // activeToasts: array of { notif, id, exiting: boolean, isNew: boolean, isPushed: boolean, timeoutId, startTime, remainingMs, isPaused, isHovered }
   const [activeToasts, setActiveToasts] = useState([])
-  
+  const activeToastsRef = useRef([])
+
   // Track IDs that have already been queued/shown in this session so they aren't repeated
   const shownIdsRef = useRef(new Set())
   const pendingQueueRef = useRef([])
   const isProcessingRef = useRef(false)
+  const isSiteActiveRef = useRef(true)
   const [actionStates, setActionStates] = useState({})
 
-  // 1a. Listen for direct push toasts (e.g. manual refresh movie updates)
+  const updateActiveToasts = (updater) => {
+    setActiveToasts(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      activeToastsRef.current = next
+      return next
+    })
+  }
+
+  // 1. Precise check for whether the site is currently active/visible to the user
+  const checkIsSiteActive = () => {
+    if (typeof document === 'undefined') return true
+    if (document.hidden || document.visibilityState !== 'visible') return false
+    if (typeof document.hasFocus === 'function' && !document.hasFocus()) return false
+    return true
+  }
+
+  // Pause active on-screen toast countdown timers (e.g. when user switches tab or minimizes)
+  const pauseActiveToasts = () => {
+    const now = Date.now()
+    activeToastsRef.current.forEach(item => {
+      if (item.timeoutId) {
+        clearTimeout(item.timeoutId)
+        item.timeoutId = null
+      }
+      if (!item.isPaused && item.startTime) {
+        const elapsed = now - item.startTime
+        item.remainingMs = Math.max(3500, (item.remainingMs || 8000) - elapsed)
+        item.isPaused = true
+      }
+    })
+  }
+
+  // Resume active on-screen toast countdown timers (when user returns to the tab)
+  const resumeActiveToasts = () => {
+    const now = Date.now()
+    activeToastsRef.current.forEach(item => {
+      if (item.isPaused && !item.isHovered && !item.exiting) {
+        item.isPaused = false
+        item.startTime = now
+        const delay = Math.max(3500, item.remainingMs || 8000)
+        item.timeoutId = setTimeout(() => {
+          dismissToast(item.id, item.notif.id, false)
+        }, delay)
+      }
+    })
+  }
+
+  // 2. Lifecycle: listen for tab visibility & window focus changes
+  useEffect(() => {
+    isSiteActiveRef.current = checkIsSiteActive()
+
+    const onActive = () => {
+      const active = checkIsSiteActive()
+      isSiteActiveRef.current = active
+      if (!active) return
+
+      // Resume timers on already visible toasts
+      resumeActiveToasts()
+
+      // When the user enters / focuses the site ("saytga kirishda"):
+      // If notifications were received while inactive, trigger the slide animation!
+      if (pendingQueueRef.current.length > 0 && !isProcessingRef.current) {
+        setTimeout(() => {
+          if (checkIsSiteActive() && pendingQueueRef.current.length > 0 && !isProcessingRef.current) {
+            startQueueProcessor()
+          }
+        }, 600)
+      }
+    }
+
+    const onInactive = () => {
+      isSiteActiveRef.current = false
+      pauseActiveToasts()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        onActive()
+      } else {
+        onInactive()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', onActive)
+    window.addEventListener('blur', onInactive)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', onActive)
+      window.removeEventListener('blur', onInactive)
+    }
+  }, [])
+
+  // 3a. Listen for direct push toasts (e.g. manual refresh movie updates)
   useEffect(() => {
     const handlePushToast = (e) => {
       const notif = e.detail
@@ -48,7 +144,7 @@ export default function NotificationToastQueue({
       notif.id = key
       shownIdsRef.current.add(key)
       pendingQueueRef.current.push(notif)
-      if (!isProcessingRef.current) {
+      if (checkIsSiteActive() && !isProcessingRef.current) {
         startQueueProcessor()
       }
     }
@@ -57,15 +153,15 @@ export default function NotificationToastQueue({
     return () => window.removeEventListener('notelab_push_toast', handlePushToast)
   }, [])
 
-  // 1b. Detect new unread notifications and queue them up
+  // 3b. Detect new unread notifications and queue them up
   useEffect(() => {
     if (!Array.isArray(notifications)) return
 
     const unread = notifications.filter(n => n && !n.is_read && n.type !== 'movie_updated')
     let newItemsEnqueued = false
 
-    // Traverse in chronological / received order
-    const toEnqueue = [...unread].reverse()
+    // Queue at most the 3 newest unread notifications so user is not overwhelmed on initial entry
+    const toEnqueue = unread.slice(0, 3).reverse()
     for (const notif of toEnqueue) {
       const key = String(notif.id)
       if (!shownIdsRef.current.has(key)) {
@@ -75,17 +171,35 @@ export default function NotificationToastQueue({
       }
     }
 
-    if (newItemsEnqueued && !isProcessingRef.current) {
-      startQueueProcessor()
+    if (newItemsEnqueued) {
+      // If the site is currently active, start queue processor with a smooth delay;
+      // if site is NOT active, keep them in pendingQueueRef until the user enters the site!
+      if (checkIsSiteActive()) {
+        setTimeout(() => {
+          if (checkIsSiteActive() && pendingQueueRef.current.length > 0 && !isProcessingRef.current) {
+            startQueueProcessor()
+          }
+        }, 500)
+      }
     }
   }, [notifications])
 
-  // 2. Queue processor with 2-second stagger
+  // 4. Queue processor with 2-second stagger
   const startQueueProcessor = () => {
+    if (!checkIsSiteActive()) {
+      isProcessingRef.current = false
+      return
+    }
     if (isProcessingRef.current) return
     isProcessingRef.current = true
 
     const processNext = () => {
+      // Pause if site became inactive while waiting between notifications
+      if (!checkIsSiteActive()) {
+        isProcessingRef.current = false
+        return
+      }
+
       if (pendingQueueRef.current.length === 0) {
         isProcessingRef.current = false
         return
@@ -94,10 +208,30 @@ export default function NotificationToastQueue({
       const nextNotif = pendingQueueRef.current.shift()
       const toastId = `${nextNotif.id}_${Date.now()}`
 
-      setActiveToasts(prev => {
+      const now = Date.now()
+      const initialRemainingMs = 8000
+      let timeoutId = setTimeout(() => {
+        dismissToast(toastId, nextNotif.id, false)
+      }, initialRemainingMs)
+
+      const newToastItem = {
+        notif: nextNotif,
+        id: toastId,
+        exiting: false,
+        isNew: true,
+        isPushed: false,
+        timeoutId,
+        startTime: now,
+        remainingMs: initialRemainingMs,
+        isPaused: false,
+        isHovered: false
+      }
+
+      updateActiveToasts(prev => {
         // Enforce max 3 visible toasts: any toast at index >= 2 will be slid out to the right
         const updated = prev.map((item, idx) => {
           if (idx >= 2 && !item.exiting) {
+            if (item.timeoutId) clearTimeout(item.timeoutId)
             setTimeout(() => {
               removeToastById(item.id)
             }, 350)
@@ -107,53 +241,82 @@ export default function NotificationToastQueue({
           return { ...item, isPushed: true, isNew: false }
         })
 
-        // Auto-dismiss after 8 seconds
-        const timeoutId = setTimeout(() => {
-          dismissToast(toastId, nextNotif.id)
-        }, 8000)
-
-        // Clear 'isPushed' flag after push animation completes
-        setTimeout(() => {
-          setActiveToasts(current => current.map(item =>
-            item.isPushed ? { ...item, isPushed: false } : item
-          ))
-        }, 450)
-
-        // Clear 'isNew' flag after entrance animation completes so it becomes stationary
-        setTimeout(() => {
-          setActiveToasts(current => current.map(item =>
-            item.id === toastId ? { ...item, isNew: false } : item
-          ))
-        }, 500)
-
-        // Newest enters at the TOP (index 0) so previous items glide downwards smoothly
-        return [{ notif: nextNotif, id: toastId, exiting: false, isNew: true, isPushed: false, timeoutId }, ...updated]
+        return [newToastItem, ...updated]
       })
+
+      // Clear 'isPushed' flag after push animation completes
+      setTimeout(() => {
+        updateActiveToasts(current => current.map(item =>
+          item.isPushed ? { ...item, isPushed: false } : item
+        ))
+      }, 450)
+
+      // Clear 'isNew' flag after entrance animation completes so it becomes stationary
+      setTimeout(() => {
+        updateActiveToasts(current => current.map(item =>
+          item.id === toastId ? { ...item, isNew: false } : item
+        ))
+      }, 500)
 
       // Schedule next notification in 2000ms (2-second delay)
       if (pendingQueueRef.current.length > 0) {
-        setTimeout(processNext, 2000)
+        setTimeout(() => {
+          if (checkIsSiteActive()) {
+            processNext()
+          } else {
+            isProcessingRef.current = false
+          }
+        }, 2000)
       } else {
         isProcessingRef.current = false
       }
     }
 
-    // Immediately show the first available notification
     processNext()
   }
 
-  const dismissToast = (toastId, notifId) => {
-    setActiveToasts(prev =>
+  // Hover handlers: pause timer while mouse is over toast, resume when mouse leaves
+  const handleToastMouseEnter = (toastId) => {
+    const item = activeToastsRef.current.find(t => t.id === toastId)
+    if (item) {
+      item.isHovered = true
+      if (item.timeoutId) {
+        clearTimeout(item.timeoutId)
+        item.timeoutId = null
+      }
+      if (item.startTime) {
+        const elapsed = Date.now() - item.startTime
+        item.remainingMs = Math.max(3000, (item.remainingMs || 8000) - elapsed)
+      }
+    }
+  }
+
+  const handleToastMouseLeave = (toastId) => {
+    const item = activeToastsRef.current.find(t => t.id === toastId)
+    if (item) {
+      item.isHovered = false
+      if (checkIsSiteActive() && !item.exiting && !item.isPaused) {
+        item.startTime = Date.now()
+        const delay = Math.max(3500, item.remainingMs || 4000)
+        item.timeoutId = setTimeout(() => {
+          dismissToast(item.id, item.notif.id, false)
+        }, delay)
+      }
+    }
+  }
+
+  const dismissToast = (toastId, notifId, markRead = false) => {
+    updateActiveToasts(prev =>
       prev.map(item => {
         if (item.id === toastId) {
-          clearTimeout(item.timeoutId)
+          if (item.timeoutId) clearTimeout(item.timeoutId)
           return { ...item, exiting: true }
         }
         return item
       })
     )
 
-    if (notifId && onMarkRead && !String(notifId).startsWith('refresh_')) {
+    if (markRead && notifId && onMarkRead && !String(notifId).startsWith('refresh_')) {
       onMarkRead(notifId).catch(() => {})
     }
 
@@ -163,7 +326,7 @@ export default function NotificationToastQueue({
   }
 
   const removeToastById = (toastId) => {
-    setActiveToasts(prev => prev.filter(item => item.id !== toastId))
+    updateActiveToasts(prev => prev.filter(item => item.id !== toastId))
   }
 
   // Quick action: Move to 'todo'
@@ -335,6 +498,8 @@ export default function NotificationToastQueue({
           <div
             key={toastId}
             className={`notelab-toast-card ${animClass}`}
+            onMouseEnter={() => handleToastMouseEnter(toastId)}
+            onMouseLeave={() => handleToastMouseLeave(toastId)}
             style={{
               background: 'var(--bg-surface)',
               border: '1px solid var(--border)',
@@ -585,7 +750,7 @@ export default function NotificationToastQueue({
 
               {/* Dismiss [X] button */}
               <button
-                onClick={() => dismissToast(toastId, notif.id)}
+                onClick={() => dismissToast(toastId, notif.id, true)}
                 title="Yopish"
                 style={{
                   background: 'transparent',

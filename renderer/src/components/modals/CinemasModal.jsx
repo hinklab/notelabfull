@@ -215,7 +215,7 @@ export default function CinemasModal({ movie, onClose }) {
           background: 'var(--bg-surface, #161616)',
           border: '1px solid var(--border, #2a2a2a)',
           borderRadius: 20,
-          width: 'min(680px, 96vw)',
+          width: 'min(860px, 95vw)',
           maxHeight: '90vh',
           overflow: 'hidden',
           boxShadow: '0 25px 80px rgba(0,0,0,0.7)',
@@ -228,7 +228,7 @@ export default function CinemasModal({ movie, onClose }) {
         {/* Header */}
         <div
           style={{
-            padding: '18px 22px',
+            padding: '18px 24px',
             borderBottom: '1px solid var(--border, #2a2a2a)',
             display: 'flex',
             alignItems: 'center',
@@ -301,10 +301,10 @@ export default function CinemasModal({ movie, onClose }) {
             flex: 1,
             overflowY: 'auto',
             overflowX: 'hidden',
-            padding: '20px 22px',
+            padding: '22px 24px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 20,
+            gap: 22,
             boxSizing: 'border-box'
           }}
         >
@@ -312,34 +312,34 @@ export default function CinemasModal({ movie, onClose }) {
           {/* 1. AFISHA.UZ & ITICKET CHIPTALAR HUB            */}
           {/* ═══════════════════════════════════════════════ */}
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Sparkles size={14} color="#f87171" />
               <span>{t('cinema.onlineTicketsTitle', null, 'Chiptalar va Onlayn Seanslar')}</span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
               {/* Afisha.uz Card */}
               <div style={{
                 background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.08))',
                 border: '1.5px solid rgba(239, 68, 68, 0.3)',
                 borderRadius: 14,
-                padding: '16px',
+                padding: '16px 18px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                gap: 12,
+                gap: 14,
                 boxShadow: '0 4px 18px rgba(239, 68, 68, 0.08)'
               }}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 15.5, fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 7 }}>
                       <span style={{ background: '#ef4444', color: '#fff', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 900 }}>
                         AFISHA.UZ
                       </span>
                       <span>Kino Seanslari</span>
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.45 }}>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.5 }}>
                     <strong style={{ color: '#f87171' }}>{movieTitle}</strong> filmining Toshkent va O'zbekiston kinoteatrlaridagi bugungi seanslari va narxlari.
                   </div>
                 </div>
@@ -377,23 +377,23 @@ export default function CinemasModal({ movie, onClose }) {
                 background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(124, 58, 237, 0.08))',
                 border: '1.5px solid rgba(56, 189, 248, 0.28)',
                 borderRadius: 14,
-                padding: '16px',
+                padding: '16px 18px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                gap: 12,
+                gap: 14,
                 boxShadow: '0 4px 18px rgba(56, 189, 248, 0.06)'
               }}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 15.5, fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 7 }}>
                       <span style={{ background: '#0284c7', color: '#fff', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 900 }}>
                         iTICKET
                       </span>
                       <span>Elektron Chipta</span>
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.45 }}>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.5 }}>
                     Kino zallaridagi qator va o'rindiqlarni tanlab, to'g'ridan-to'g'ri onlayn chipta sotib olish.
                   </div>
                 </div>
@@ -479,9 +479,9 @@ export default function CinemasModal({ movie, onClose }) {
                   background: 'var(--bg-input, #1e1e1e)',
                   border: '1px solid var(--border, #2a2a2a)',
                   borderRadius: 10,
-                  padding: '9px 12px 9px 36px',
+                  padding: '10px 14px 10px 38px',
                   color: 'var(--text-primary, #ffffff)',
-                  fontSize: 12.5,
+                  fontSize: 13,
                   outline: 'none',
                   boxSizing: 'border-box'
                 }}
@@ -498,19 +498,18 @@ export default function CinemasModal({ movie, onClose }) {
                       background: 'var(--bg-input, #1e1e1e)',
                       border: '1px solid var(--border, #2a2a2a)',
                       borderRadius: 14,
-                      padding: '14px 16px',
+                      padding: '14px 18px',
                       display: 'flex',
-                      flexWrap: 'wrap',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: 12,
+                      gap: 16,
                       transition: 'border-color 0.15s ease, transform 0.15s ease'
                     }}
                   >
                     {/* Left: Info */}
-                    <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                    <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary, #ffffff)' }}>
+                        <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-primary, #ffffff)' }}>
                           {cinema.name}
                         </span>
                         {cinema.mall && (
@@ -519,9 +518,10 @@ export default function CinemasModal({ movie, onClose }) {
                             color: '#a78bfa',
                             border: '1px solid rgba(124, 58, 237, 0.3)',
                             borderRadius: 6,
-                            padding: '1px 6px',
-                            fontSize: 10.5,
-                            fontWeight: 700
+                            padding: '2px 7px',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap'
                           }}>
                             {cinema.mall}
                           </span>
@@ -531,9 +531,10 @@ export default function CinemasModal({ movie, onClose }) {
                             background: 'rgba(255, 255, 255, 0.07)',
                             color: 'var(--text-muted, #94a3b8)',
                             borderRadius: 6,
-                            padding: '1px 6px',
-                            fontSize: 10.5,
-                            fontWeight: 600
+                            padding: '2px 7px',
+                            fontSize: 11,
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap'
                           }}>
                             ~{cinema.distance_km} km
                           </span>
@@ -541,14 +542,14 @@ export default function CinemasModal({ movie, onClose }) {
                       </div>
 
                       {cinema.address && (
-                        <div style={{ fontSize: 11.5, color: 'var(--text-muted, #94a3b8)', marginTop: 4, lineHeight: 1.4 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted, #94a3b8)', marginTop: 5, lineHeight: 1.45 }}>
                           {cinema.address}
                         </div>
                       )}
                     </div>
 
                     {/* Right: Actions */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                       {/* Afisha link for specific cinema */}
                       <a
                         href={cinema.afisha_url || `https://www.afisha.uz/uz/search/?query=${encodeURIComponent(cinema.name)}`}
@@ -558,14 +559,15 @@ export default function CinemasModal({ movie, onClose }) {
                           background: 'rgba(239, 68, 68, 0.12)',
                           border: '1px solid rgba(239, 68, 68, 0.3)',
                           color: '#f87171',
-                          padding: '7px 12px',
+                          padding: '8px 14px',
                           borderRadius: 8,
-                          fontSize: 11.5,
+                          fontSize: 12,
                           fontWeight: 600,
                           textDecoration: 'none',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 5,
+                          gap: 6,
+                          whiteSpace: 'nowrap',
                           transition: 'all 0.15s'
                         }}
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.22)' }}
@@ -584,14 +586,15 @@ export default function CinemasModal({ movie, onClose }) {
                           background: 'rgba(56, 189, 248, 0.12)',
                           border: '1px solid rgba(56, 189, 248, 0.3)',
                           color: '#38bdf8',
-                          padding: '7px 12px',
+                          padding: '8px 14px',
                           borderRadius: 8,
-                          fontSize: 11.5,
+                          fontSize: 12,
                           fontWeight: 600,
                           textDecoration: 'none',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 5,
+                          gap: 6,
+                          whiteSpace: 'nowrap',
                           transition: 'all 0.15s'
                         }}
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56, 189, 248, 0.22)' }}

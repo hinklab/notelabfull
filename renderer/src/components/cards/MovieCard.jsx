@@ -589,6 +589,7 @@ function MovieCard({
   movie,
   sectionKey,
   isExpanded = false,
+  isSeriesSeason = false,
   onToggleExpand,
   onClose,
   onMoveSection,
@@ -714,6 +715,7 @@ function MovieCard({
       e.stopPropagation()
     }
     if (Date.now() - touchStartPos.current.time < 350 && isTouchDraggingRef.current) return
+    setHovered(false)
     if (onToggleExpand) {
       onToggleExpand()
     } else {
@@ -806,10 +808,14 @@ function MovieCard({
   }, [movie?.user_rating])
 
   useEffect(() => {
-    if (isCardExpanded && movie?.tmdb_id && language === 'ru') {
-      fetchSingleMovieTranslation(movie.tmdb_id, movie.media_type)
+    if (isCardExpanded && (movie?.tmdb_id || movie?.overview || movie?.note)) {
+      if (language === 'ru' && movie?.tmdb_id) {
+        fetchSingleMovieTranslation(movie.tmdb_id, movie.media_type, movie)
+      } else if (language === 'uz') {
+        fetchSingleMovieTranslation(movie.tmdb_id, movie.media_type, movie)
+      }
     }
-  }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, language])
+  }, [isCardExpanded, movie?.tmdb_id, movie?.media_type, movie?.overview, movie?.note, language])
 
   useEffect(() => {
     if (!isCardExpanded) return
@@ -858,8 +864,16 @@ function MovieCard({
       try {
         if (!e.data) return
         const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
-        if (data.event === 'onStateChange' && (data.info === 1 || data.info === 3)) {
-          if (active) setIsVideoReady(true)
+        if (data.event === 'onStateChange') {
+          if (data.info === 1 || data.info === 3) {
+            if (active) setIsVideoReady(true)
+          } else if (data.info === 0) {
+            // Automatically loop when video ends
+            trailerIframeRef.current?.contentWindow?.postMessage(
+              JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+              '*'
+            )
+          }
         }
       } catch (_) {}
     }
@@ -936,12 +950,14 @@ function MovieCard({
 
   const handleDragStart = (e) => {
     if (isCardExpanded) return
+    setHovered(false)
     e.dataTransfer.setData('movieId', String(movie.id))
     e.dataTransfer.setData('itemId', String(movie.id))
     if (sectionKey) e.dataTransfer.setData('fromSection', sectionKey)
     e.dataTransfer.effectAllowed = 'move'
     
     const el = e.currentTarget
+    if (el) el.style.transform = 'scale3d(1, 1, 1)'
     setTimeout(() => {
       if (el) el.style.opacity = '0'
     }, 0)
@@ -951,8 +967,9 @@ function MovieCard({
 
   const handleDragEnd = (e) => {
     if (e.currentTarget) {
-      e.currentTarget.style.transition = 'opacity 0.2s ease'
+      e.currentTarget.style.transition = 'opacity 0.2s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)'
       e.currentTarget.style.opacity = '1'
+      e.currentTarget.style.transform = 'scale3d(1, 1, 1)'
     }
     if (onDragEnd) onDragEnd(e)
   }
@@ -1095,40 +1112,50 @@ function MovieCard({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
       style={{
-        background: isVisuallyExpanded ? 'var(--bg-surface)' : (isTouchDragging ? 'transparent' : 'var(--bg-card)'),
-        border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px dashed var(--accent, #a78bfa)' : '1px solid var(--border)'),
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        background: isVisuallyExpanded ? 'var(--bg-surface)' : (isTouchDragging ? 'transparent' : (hovered ? 'var(--bg-card-hover)' : 'var(--bg-card)')),
+        border: isVisuallyExpanded ? '1px solid var(--accent, #a78bfa)' : (isTouchDragging ? '1.5px dashed var(--accent, #a78bfa)' : (hovered ? '1px solid var(--border-hover)' : '1px solid var(--border)')),
         borderRadius: 14,
-        boxShadow: isVisuallyExpanded ? '0 10px 30px -4px rgba(0, 0, 0, 0.45)' : 'none',
+        boxShadow: isVisuallyExpanded ? '0 10px 30px -4px rgba(0, 0, 0, 0.45)' : (hovered ? '0 8px 24px -4px rgba(0, 0, 0, 0.38)' : 'none'),
         cursor: isCardExpanded ? 'default' : (isTouchDragging ? 'grabbing' : 'pointer'),
         overflow: 'hidden',
         maxHeight: isVisuallyExpanded ? 1100 : (isFullscreenColumn ? 280 : 116),
-        transition: 'max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, background 0.22s ease, box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        transformOrigin: 'center center',
+        transform: isVisuallyExpanded ? 'none' : (hovered ? 'scale3d(1.02, 1.02, 1)' : 'scale3d(1, 1, 1)'),
+        WebkitBackfaceVisibility: 'hidden',
+        backfaceVisibility: 'hidden',
+        transition: 'max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, background 0.22s ease, box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         opacity: isTouchDragging ? 0.35 : 1,
         touchAction: 'pan-y',
         WebkitTouchCallout: 'none',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
+        zIndex: (isCardExpanded || renderExpanded) ? 20 : (hovered ? 10 : 1),
         userSelect: 'none',
-        contain: (isCardExpanded || renderExpanded || isClosing) ? 'none' : 'layout paint',
+        contain: (isCardExpanded || renderExpanded || isClosing || hovered) ? 'none' : 'layout paint',
         willChange: (isCardExpanded || renderExpanded || isClosing || hovered) ? 'max-height, transform, box-shadow' : 'auto'
       }}
       onMouseEnter={e => {
-        if (isTouchDragging || isTouchSessionRef.current || isCardExpanded) return
+        if (isTouchDragging || isTouchSessionRef.current || isCardExpanded || isVisuallyExpanded || renderExpanded) return
         setHovered(true)
         prefetchTrailer(movie, displayTitle)
         e.currentTarget.style.borderColor = 'var(--border-hover)'
         e.currentTarget.style.background = 'var(--bg-card-hover)'
-        e.currentTarget.style.transform = 'translateY(-2.5px)'
-        e.currentTarget.style.boxShadow = '0 6px 16px -2px rgba(0, 0, 0, 0.3)'
+        e.currentTarget.style.transform = 'scale3d(1.02, 1.02, 1)'
+        e.currentTarget.style.boxShadow = '0 8px 24px -4px rgba(0, 0, 0, 0.38)'
+        e.currentTarget.style.zIndex = '10'
       }}
       onMouseLeave={e => {
         if (isTouchDragging || isCardExpanded) return
         setHovered(false)
         e.currentTarget.style.borderColor = 'var(--border)'
         e.currentTarget.style.background = 'var(--bg-card)'
-        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.transform = 'scale3d(1, 1, 1)'
         e.currentTarget.style.boxShadow = 'none'
+        e.currentTarget.style.zIndex = '1'
       }}
     >
       {/* 1. COLLAPSED VIEW (Compact Horizontal Row) */}
@@ -1489,6 +1516,9 @@ function MovieCard({
         <div style={{
           display: 'flex',
           flexDirection: 'column',
+          width: '100%',
+          maxWidth: '100%',
+          boxSizing: 'border-box',
           opacity: isVisuallyExpanded ? 1 : 0,
           transform: isVisuallyExpanded ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.98)',
           transition: 'opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), transform 0.38s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -1500,20 +1530,24 @@ function MovieCard({
             style={{
               position: 'relative',
               width: '100%',
+              maxWidth: '100%',
+              margin: 0,
+              borderRadius: '13px 13px 0 0',
+              border: 'none',
+              borderBottom: '1px solid var(--border)',
+              boxSizing: 'border-box',
               aspectRatio: '16 / 10',
               maxHeight: 250,
               overflow: 'hidden',
               background: '#09090b',
-              borderTopLeftRadius: 13,
-              borderTopRightRadius: 13,
-              borderBottom: '1px solid var(--border)',
+              isolation: 'isolate',
             }}
           >
             {trailer?.key && canMountTrailer ? (
               <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
                 <iframe
                   ref={trailerIframeRef}
-                  src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=${trailer.key}&disablekb=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+                  src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&enablejsapi=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&disablekb=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
                   title={`${displayTitle} trailer`}
                   referrerPolicy="strict-origin-when-cross-origin"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -1570,13 +1604,15 @@ function MovieCard({
                 <div
                   style={{
                     position: 'absolute',
-                    bottom: 12,
-                    right: 12,
-                    zIndex: 25,
+                    bottom: 10,
+                    right: 10,
+                    zIndex: 40,
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    pointerEvents: 'auto'
+                    pointerEvents: 'auto',
+                    transform: 'translate3d(0, 0, 20px)',
+                    WebkitTransform: 'translate3d(0, 0, 20px)',
                   }}
                 >
                   {/* 1. Ovozsizni o'chirish / yoqish (Mute / Unmute) */}
@@ -1585,10 +1621,8 @@ function MovieCard({
                     onClick={handleToggleMute}
                     title={isMuted ? "Ovozni yoqish (Unmute)" : "Ovozsiz qilish (Mute)"}
                     style={{
-                      background: isMuted ? 'rgba(0, 0, 0, 0.65)' : 'rgba(59, 130, 246, 0.85)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: isMuted ? '1px solid rgba(255, 255, 255, 0.25)' : '1px solid rgba(147, 197, 253, 0.6)',
+                      background: isMuted ? 'rgba(15, 15, 18, 0.85)' : 'rgba(59, 130, 246, 0.95)',
+                      border: isMuted ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid rgba(147, 197, 253, 0.7)',
                       borderRadius: '50%',
                       color: '#fff',
                       width: 32,
@@ -1597,7 +1631,7 @@ function MovieCard({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
                       transition: 'all 0.18s ease'
                     }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
@@ -1612,10 +1646,8 @@ function MovieCard({
                     onClick={handleToggleFullscreen}
                     title="Kattalashtirish (Fullscreen)"
                     style={{
-                      background: 'rgba(0, 0, 0, 0.65)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      border: '1px solid rgba(255, 255, 255, 0.25)',
+                      background: 'rgba(15, 15, 18, 0.85)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
                       borderRadius: '50%',
                       color: '#fff',
                       width: 32,
@@ -1624,7 +1656,7 @@ function MovieCard({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
                       transition: 'all 0.18s ease'
                     }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
@@ -1670,11 +1702,9 @@ function MovieCard({
                 position: 'absolute',
                 top: 8,
                 right: 8,
-                zIndex: 30,
-                background: 'rgba(0, 0, 0, 0.75)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
+                zIndex: 50,
+                background: 'rgba(15, 15, 18, 0.85)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
                 borderRadius: '50%',
                 color: '#fff',
                 width: 28,
@@ -1683,17 +1713,19 @@ function MovieCard({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-                transition: 'all 0.15s ease'
+                boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+                transition: 'all 0.15s ease',
+                transform: 'translate3d(0, 0, 20px)',
+                WebkitTransform: 'translate3d(0, 0, 20px)',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.9)'
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.95)'
                 e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 1)'
                 e.currentTarget.style.transform = 'scale(1.08)'
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.75)'
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
+                e.currentTarget.style.background = 'rgba(15, 15, 18, 0.85)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
                 e.currentTarget.style.transform = 'scale(1)'
               }}
             >
@@ -1702,7 +1734,15 @@ function MovieCard({
           </div>
 
           {/* Expanded Card Body Details */}
-          <div style={{ padding: '6px 16px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{
+            padding: isSeriesSeason ? '6px 14px 14px' : '6px 16px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box'
+          }}>
             {/* Title, Tagline & Chronology Button Row */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1715,43 +1755,77 @@ function MovieCard({
                   </div>
                 ) : null}
               </div>
-              {movie.tmdb_id && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    if (onOpenChronology) onOpenChronology(movie.tmdb_id, movie.media_type)
-                  }}
-                  title={t('card.chronology')}
-                  style={{
-                    background: 'rgba(124, 58, 237, 0.18)',
-                    border: '1px solid rgba(167, 139, 250, 0.4)',
-                    color: '#a78bfa',
-                    borderRadius: 20,
-                    padding: '4px 10px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(124, 58, 237, 0.35)'
-                    e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.7)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(124, 58, 237, 0.18)'
-                    e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.4)'
-                  }}
-                >
-                  <Sparkles size={11} />
-                  <span>{t('card.chronology')}</span>
-                </button>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                {movie.tmdb_id && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      if (onOpenChronology) onOpenChronology(movie.tmdb_id, movie.media_type)
+                    }}
+                    title={t('card.chronology')}
+                    style={{
+                      background: 'rgba(124, 58, 237, 0.18)',
+                      border: '1px solid rgba(167, 139, 250, 0.4)',
+                      color: '#a78bfa',
+                      borderRadius: 20,
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(124, 58, 237, 0.35)'
+                      e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.7)'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(124, 58, 237, 0.18)'
+                      e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.4)'
+                    }}
+                  >
+                    <Sparkles size={11} />
+                    <span>{t('card.chronology')}</span>
+                  </button>
+                )}
+                {isSeriesSeason && (
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    title={t('common.close')}
+                    style={{
+                      background: 'var(--bg-input, rgba(255, 255, 255, 0.08))',
+                      border: '1px solid var(--border)',
+                      borderRadius: '50%',
+                      color: 'var(--text-muted)',
+                      width: 26,
+                      height: 26,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.15s ease'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'
+                      e.currentTarget.style.borderColor = '#ef4444'
+                      e.currentTarget.style.color = '#ef4444'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'var(--bg-input, rgba(255, 255, 255, 0.08))'
+                      e.currentTarget.style.borderColor = 'var(--border)'
+                      e.currentTarget.style.color = 'var(--text-muted)'
+                    }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
             </div>
             {/* Meta Tags Row */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 11.5, color: 'var(--text-muted)' }}>
@@ -2127,6 +2201,7 @@ function MovieCard({
 
 function areMovieCardPropsEqual(prev, next) {
   if (Boolean(prev.isExpanded) !== Boolean(next.isExpanded)) return false
+  if (prev.isSeriesSeason !== next.isSeriesSeason) return false
   if (prev.sectionKey !== next.sectionKey) return false
   if (prev.noDrag !== next.noDrag) return false
 
