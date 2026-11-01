@@ -259,6 +259,41 @@ const BADGES_CATALOGUE = [
     title_en: 'Transformers: Prime Leader',
     description: "Yetakchilik matritsasi sizda! Transformers olamidagi barcha filmlarni 100% to'liq tomosha qildingiz!",
     icon: '🥇'
+  },
+
+  // Dexter Universe
+  {
+    id: 'dexter_bronze',
+    universe_key: 'dexter',
+    universe_name: 'Dexter Universe',
+    tier: 'bronze',
+    threshold: 25,
+    title: "Dexter: Qorong'u Yo'lovchi",
+    title_en: 'Dexter: Dark Passenger',
+    description: "Dexter olamidagi kamida 25% qismlarini tomosha qildingiz.",
+    icon: '🥉'
+  },
+  {
+    id: 'dexter_silver',
+    universe_key: 'dexter',
+    universe_name: 'Dexter Universe',
+    tier: 'silver',
+    threshold: 60,
+    title: 'Dexter: Garri Kodi',
+    title_en: 'Dexter: Code of Harry',
+    description: "Dexter olamidagi 60% dan ortiq mavsum va loyihalarni ko'rib chiqdingiz.",
+    icon: '🥈'
+  },
+  {
+    id: 'dexter_gold',
+    universe_key: 'dexter',
+    universe_name: 'Dexter Universe',
+    tier: 'gold',
+    threshold: 100,
+    title: "Dexter: Qotillik San'ati",
+    title_en: 'Dexter: Master of the Kill',
+    description: "Barcha 12 ta mavsum va loyihalarni 100% to'liq ko'rib chiqdingiz!",
+    icon: '🥇'
   }
 ];
 
@@ -354,7 +389,7 @@ async function computeGamificationProgress(userId) {
   const userMovies = await getAllUserMovies(userId);
   const universes = loadFranchiseUniverses();
 
-  const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil', 'transformers'];
+  const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil', 'transformers', 'dexter'];
   const progressMap = {};
 
   curatedKeys.forEach(uKey => {

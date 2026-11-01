@@ -75,7 +75,10 @@ export const api = {
   deleteNote: (id) => fetchJSON(`${API_BASE}/notes/${id}`, { method: 'DELETE' }),
 
   // Groups
-  getGroups: (note_id) => fetchJSON(`${API_BASE}/groups?note_id=${note_id}`),
+  getGroups: (note_id) => {
+    const q = (note_id && note_id !== 'null' && note_id !== 'undefined') ? `?note_id=${note_id}` : ''
+    return fetchJSON(`${API_BASE}/groups${q}`)
+  },
   createGroup: (note_id, name) => fetchJSON(`${API_BASE}/groups`, { method: 'POST', body: JSON.stringify({ note_id, name }) }),
   updateGroup: (id, data) => fetchJSON(`${API_BASE}/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteGroup: (id) => fetchJSON(`${API_BASE}/groups/${id}`, { method: 'DELETE' }),

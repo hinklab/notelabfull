@@ -601,7 +601,8 @@ function MovieCard({
   onTouchDragStart,
   onTouchDragMove,
   onTouchDragEnd,
-  onOpenChronology
+  onOpenChronology,
+  isFullscreenColumn = false
 }) {
   const {
     language,
@@ -1100,8 +1101,8 @@ function MovieCard({
         boxShadow: isVisuallyExpanded ? '0 10px 30px -4px rgba(0, 0, 0, 0.45)' : 'none',
         cursor: isCardExpanded ? 'default' : (isTouchDragging ? 'grabbing' : 'pointer'),
         overflow: 'hidden',
-        maxHeight: isVisuallyExpanded ? 1100 : 116,
-        transition: 'max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, background 0.25s ease, box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+        maxHeight: isVisuallyExpanded ? 1100 : (isFullscreenColumn ? 280 : 116),
+        transition: 'max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease, background 0.22s ease, box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         opacity: isTouchDragging ? 0.35 : 1,
         touchAction: 'pan-y',
         WebkitTouchCallout: 'none',
@@ -1137,7 +1138,7 @@ function MovieCard({
           top: 0,
           left: 0,
           right: 0,
-          height: 116,
+          height: isFullscreenColumn ? 'auto' : 116,
           minHeight: 116,
           display: 'flex',
           flexDirection: 'row',
@@ -1189,8 +1190,8 @@ function MovieCard({
           {/* Left: Poster thumbnail */}
           {posterSrc ? (
             <div className="movie-poster-thumb" style={{
-              width: 82,
-              minWidth: 82,
+              width: isFullscreenColumn ? 94 : 82,
+              minWidth: isFullscreenColumn ? 94 : 82,
               flexShrink: 0,
               overflow: 'hidden',
               borderRadius: '13px 0 0 13px',
@@ -1198,6 +1199,7 @@ function MovieCard({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              transition: 'width 0.3s ease, min-width 0.3s ease',
             }}>
               <img
                 src={posterSrc}
@@ -1214,8 +1216,8 @@ function MovieCard({
             </div>
           ) : (
             <div className="movie-poster-thumb" style={{
-              width: 82,
-              minWidth: 82,
+              width: isFullscreenColumn ? 94 : 82,
+              minWidth: isFullscreenColumn ? 94 : 82,
               flexShrink: 0,
               borderRadius: '13px 0 0 13px',
               background: 'var(--bg-base, #141414)',
@@ -1223,14 +1225,15 @@ function MovieCard({
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--text-muted)',
-              borderRight: '1px solid var(--border)'
+              borderRight: '1px solid var(--border)',
+              transition: 'width 0.3s ease, min-width 0.3s ease',
             }}>
               <Film size={22} color="var(--text-muted)" />
             </div>
           )}
 
           {/* Right: Text info */}
-          <div className="movie-info-wrap" style={{ flex: 1, padding: '10px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
+          <div className="movie-info-wrap" style={{ flex: 1, padding: isFullscreenColumn ? '12px 18px' : '10px 14px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: isFullscreenColumn ? 5 : 4 }}>
             <div className="movie-card-title" style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)', lineHeight: 1.3, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
               <span>{displayTitle}</span>
               {movie.year && movie.year !== '—' && (
@@ -1452,6 +1455,30 @@ function MovieCard({
               <div style={{ color: 'var(--text-muted)', fontSize: 11, display: 'flex', alignItems: 'flex-start', gap: 5, marginTop: 1 }}>
                 <Clock size={11} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: 2 }} />
                 <span style={{ lineHeight: 1.35, wordBreak: 'break-word' }}>{formatCardRuntime(movie.seasons, language)}</span>
+              </div>
+            )}
+
+            {(displayOverview || movie.overview || movie.note) && (
+              <div
+                className="movie-card-fullscreen-overview"
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: 12.5,
+                  lineHeight: 1.5,
+                  marginTop: isFullscreenColumn ? 4 : 0,
+                  maxHeight: isFullscreenColumn ? 68 : 0,
+                  opacity: isFullscreenColumn ? 0.9 : 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  transition: 'max-height 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, margin-top 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
+                  pointerEvents: isFullscreenColumn ? 'auto' : 'none',
+                  maxWidth: '100%',
+                }}
+              >
+                {displayOverview || movie.overview || movie.note}
               </div>
             )}
           </div>

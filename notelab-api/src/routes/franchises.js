@@ -281,7 +281,17 @@ router.get('/:tmdbMovieId', async (req, res) => {
           const stage = (typeof item === 'object' && item.stage !== undefined) ? item.stage : null;
           const lane = (typeof item === 'object' && item.lane !== undefined) ? item.lane : null;
           const connects_to = (typeof item === 'object' && Array.isArray(item.connects_to)) ? item.connects_to : [];
-          const userM = userMovieMap.get(String(baseTmdbId));
+          const userM = userMovies.find(m => {
+            if (Number(m.tmdb_id) !== baseTmdbId) return false;
+            if (seasonNumber) {
+              const titleMatch = m.title && m.title.match(/(?:—|-|\b)\s*(?:Season|mavsum|sezon|s)\s*(\d+)\b/i);
+              if (titleMatch) {
+                return parseInt(titleMatch[1], 10) === Number(seasonNumber);
+              }
+              return false;
+            }
+            return true;
+          }) || (seasonNumber ? null : userMovieMap.get(String(baseTmdbId)));
 
           if (userM && targetLang === 'en-US') {
             return {

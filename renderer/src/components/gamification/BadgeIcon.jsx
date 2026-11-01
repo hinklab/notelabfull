@@ -107,6 +107,13 @@ function getThematicIcon(universeKey, tier) {
     return ShieldCheck // Autobot Recruit
   }
 
+  // 8. Dexter
+  if (u === 'dexter') {
+    if (t === 'gold') return Flame // Master of the Kill
+    if (t === 'silver') return Scale // Code of Harry
+    return Footprints // Dark Passenger
+  }
+
   // Fallback defaults
   if (t === 'gold') return Crown
   if (t === 'silver') return Star

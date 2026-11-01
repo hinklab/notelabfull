@@ -170,6 +170,22 @@ function getFranchiseBrand(item) {
     };
   }
 
+  // Dexter Universe / Showtime - Blood-Wine Charcoal & Forensic Crimson Theme
+  if (key === 'dexter' || name.includes('dexter')) {
+    return {
+      name: 'Dexter / Showtime',
+      logoUrl: 'https://image.tmdb.org/t/p/w500/rwjo9lVSmBJkZtHgyNfsYMHYBL4.png',
+      fallbackText: 'DEXTER',
+      bgColor: '#181114',
+      border: '1.5px solid #dc2626',
+      boxShadow: '0 3px 12px rgba(220, 38, 38, 0.4)',
+      glow: 'rgba(239, 68, 68, 0.65)',
+      filter: 'brightness(1.15)',
+      padding: 3,
+      textColor: '#ef4444'
+    };
+  }
+
   // Check if item has a poster_path
   if (item?.poster_path) {
     return {
@@ -1379,7 +1395,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
                   const isHovered = hoveredFranchiseKey === itemKey
                   const isConfirmingDelete = confirmDeleteKey === itemKey
 
-                  const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : (item.name && (item.name.toLowerCase().includes('transformers') || item.name.toLowerCase().includes('bumblebee')) ? 'transformers' : null))))))
+                  const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : (item.name && (item.name.toLowerCase().includes('transformers') || item.name.toLowerCase().includes('bumblebee')) ? 'transformers' : (item.name && item.name.toLowerCase().includes('dexter') ? 'dexter' : null)))))))
                   const uProg = uKey ? gamificationProgress[uKey] : null
 
                   return (
@@ -1596,7 +1612,7 @@ export default function ChronologySpace({ targetTmdbId = null, targetMediaType =
               {filteredFranchises.map((item, idx) => {
                 const itemKey = item.universe_key || item.key || (item.tmdb_id ? `movie_${item.tmdb_id}` : `idx_${idx}`)
                 const isActive = (item.universe_key && universeData?.universe_key === item.universe_key) || (item.tmdb_id && activeTmdbId === item.tmdb_id)
-                const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : (item.name && (item.name.toLowerCase().includes('transformers') || item.name.toLowerCase().includes('bumblebee')) ? 'transformers' : null))))))
+                const uKey = item.universe_key || (item.key && gamificationProgress[item.key] ? item.key : (item.name && item.name.toLowerCase().includes('marvel') ? 'mcu' : (item.name && item.name.toLowerCase().includes('star wars') ? 'star_wars' : (item.name && item.name.toLowerCase().includes('kurtlar') ? 'kurtlar_vadisi' : (item.name && (item.name.toLowerCase().includes('resident evil') || item.name.toLowerCase().includes('biohazard')) ? 'resident_evil' : (item.name && (item.name.toLowerCase().includes('transformers') || item.name.toLowerCase().includes('bumblebee')) ? 'transformers' : (item.name && item.name.toLowerCase().includes('dexter') ? 'dexter' : null)))))))
                 const uProg = uKey ? gamificationProgress[uKey] : null
 
                 return (

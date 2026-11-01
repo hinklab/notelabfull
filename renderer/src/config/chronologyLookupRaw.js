@@ -618,5 +618,57 @@ export const CHRONOLOGY_LOOKUP = {
   "335988": {
     "universe_key": "transformers",
     "chronology_index": 8
+  },
+  "219937": {
+    "universe_key": "dexter",
+    "chronology_index": 1
+  },
+  "49530": {
+    "universe_key": "dexter",
+    "chronology_index": 2
+  },
+  "1405": {
+    "universe_key": "dexter",
+    "chronology_index": 3
+  },
+  "1405_s1": {
+    "universe_key": "dexter",
+    "chronology_index": 3
+  },
+  "1405_s2": {
+    "universe_key": "dexter",
+    "chronology_index": 4
+  },
+  "1405_s3": {
+    "universe_key": "dexter",
+    "chronology_index": 5
+  },
+  "1405_s4": {
+    "universe_key": "dexter",
+    "chronology_index": 6
+  },
+  "1405_s5": {
+    "universe_key": "dexter",
+    "chronology_index": 7
+  },
+  "1405_s6": {
+    "universe_key": "dexter",
+    "chronology_index": 8
+  },
+  "1405_s7": {
+    "universe_key": "dexter",
+    "chronology_index": 9
+  },
+  "1405_s8": {
+    "universe_key": "dexter",
+    "chronology_index": 10
+  },
+  "131927": {
+    "universe_key": "dexter",
+    "chronology_index": 11
+  },
+  "259909": {
+    "universe_key": "dexter",
+    "chronology_index": 12
   }
 };

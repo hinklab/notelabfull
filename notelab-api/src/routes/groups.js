@@ -18,63 +18,103 @@ router.get('/', async (req, res) => {
     const db = readDB();
     const userId = req.userId || DEFAULT_USER_ID;
     const { note_id } = req.query;
-    let groups = (db.note_groups || []).filter(g => (g.user_id || DEFAULT_USER_ID) === userId);
-    
+
+    // 1. Resolve targetNoteId safely
+    let targetNoteId = null;
+    if (note_id && note_id !== 'null' && note_id !== 'undefined') {
+      const parsed = parseInt(note_id, 10);
+      if (!isNaN(parsed) && parsed > 0) targetNoteId = parsed;
+    }
+
+    if (!targetNoteId) {
+      const movieNote = (db.notes || []).find(n => (n.is_movie || n.type === 'movie') && (n.user_id || DEFAULT_USER_ID) === userId);
+      targetNoteId = movieNote ? movieNote.id : ((db.notes || [])[0]?.id || 6);
+    }
+
+    // 2. Fetch groups STRICTLY for targetNoteId
+    let groups = (db.note_groups || []).filter(g =>
+      (g.user_id || DEFAULT_USER_ID) === userId &&
+      Number(g.note_id) === Number(targetNoteId)
+    );
+
     const supabase = getSupabase();
     if (supabase) {
       try {
-        let q = supabase.from('note_groups').select('*').eq('user_id', userId).order('position');
-        if (note_id) q = q.eq('note_id', parseInt(note_id));
-        const { data: cloudGroups } = await q;
+        const { data: cloudGroups } = await supabase
+          .from('note_groups')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('note_id', targetNoteId)
+          .order('position');
         if (Array.isArray(cloudGroups) && cloudGroups.length > 0) {
           groups = cloudGroups;
         }
       } catch (e) {}
     }
 
-    if (note_id && groups.length === 0) {
-      const parsedNoteId = parseInt(note_id);
-      let noteGroups = groups.filter(g => g.note_id === parsedNoteId);
+    const currentNote = (db.notes || []).find(n => n.id === targetNoteId);
+    const isMovie = targetNoteId === 6 || (currentNote && (currentNote.is_movie || currentNote.type === 'movie'));
 
-      const note = (db.notes || []).find(n => n.id === parsedNoteId && (n.user_id || DEFAULT_USER_ID) === userId);
-      if (noteGroups.length === 0 && note && (note.is_movie || note.type === 'movie')) {
-        const defaultGroups = [
-          { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
-          { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
-          { name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
-          { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
-        ];
+    if (isMovie) {
+      const canonicalSections = [
+        { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
+        { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
+        { name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
+        { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
+      ];
 
-        if (!db.note_groups) db.note_groups = [];
-        for (const dg of defaultGroups) {
-          const nextGroupId = db.note_groups.length ? Math.max(...db.note_groups.map(g => g.id)) + 1 : 1;
-          const newG = {
-            id: nextGroupId,
-            note_id: parsedNoteId,
-            user_id: userId,
-            name: dg.name,
-            color: dg.color,
-            section_key: dg.section_key,
-            position: dg.position,
-          };
-          db.note_groups.push(newG);
-          noteGroups.push(newG);
+      const canonicalMap = new Map();
+      for (const g of groups) {
+        let secKey = g.section_key;
+        if (!secKey) {
+          const lowerName = (g.name || '').toLowerCase().trim();
+          if (lowerName === 'futured' || lowerName === 'future') secKey = 'futured';
+          else if (lowerName === 'to do' || lowerName === 'todo') secKey = 'todo';
+          else if (lowerName === 'going' || lowerName === 'doing') secKey = 'doing';
+          else if (lowerName === 'done') secKey = 'done';
         }
-        writeDB(db);
+        if (secKey && ['futured', 'todo', 'doing', 'done'].includes(secKey)) {
+          if (!canonicalMap.has(secKey)) {
+            const canon = canonicalSections.find(c => c.section_key === secKey);
+            canonicalMap.set(secKey, {
+              ...g,
+              section_key: secKey,
+              name: canon.name,
+              color: canon.color,
+              position: canon.position,
+            });
+          }
+        }
       }
 
-      groups = noteGroups;
+      for (const canon of canonicalSections) {
+        if (!canonicalMap.has(canon.section_key)) {
+          canonicalMap.set(canon.section_key, {
+            id: `g_${canon.section_key}`,
+            note_id: targetNoteId,
+            user_id: userId,
+            name: canon.name,
+            color: canon.color,
+            section_key: canon.section_key,
+            position: canon.position,
+          });
+        }
+      }
+
+      const result = Array.from(canonicalMap.values()).sort((a, b) => a.position - b.position);
+      return res.json(result);
     }
-    
+
     groups.sort((a, b) => a.position - b.position);
 
-    // Deduplicate by section_key
-    const seenSections = new Set();
+    // Deduplicate by section_key or name
+    const seenKeys = new Set();
     const deduped = [];
     for (const g of groups) {
-      if (g.section_key) {
-        if (seenSections.has(g.section_key)) continue;
-        seenSections.add(g.section_key);
+      const key = g.section_key || g.name;
+      if (key) {
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
       }
       deduped.push(g);
     }

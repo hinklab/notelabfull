@@ -247,6 +247,24 @@ input, textarea, [contenteditable="true"] {
   flex-direction: column;
 }
 
+.board.board-has-fullscreen {
+  gap: 0px !important;
+}
+
+.board .note-column.column-inactive {
+  min-width: 0px !important;
+  max-width: 0px !important;
+  flex: 0 0 0px !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+.board .note-column.column-fullscreen {
+  min-width: 0px !important;
+  max-width: 100% !important;
+  flex: 1 1 100% !important;
+}
+
 /* Responsive mobile layout */
 .board-responsive {
   display: flex;

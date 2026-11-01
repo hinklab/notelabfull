@@ -4,7 +4,7 @@ import { Modal } from '../modals/SettingsModal.jsx'
 import MovieCard, { prefetchTrailer } from '../cards/MovieCard.jsx'
 import SeriesGroupCard from '../cards/SeriesGroupCard.jsx'
 import BadgeCelebrationModal from '../modals/BadgeCelebrationModal.jsx'
-import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard, ChevronLeft, ChevronRight, Minimize2 } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getMovieFranchiseInfo } from '../../config/chronologyData.js'
 
@@ -352,10 +352,6 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
   const cacheKey = `notelab_board_cache_${noteId || 'default'}`
 
   const [groups, setGroups] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`${cacheKey}_groups`)
-      if (saved) return JSON.parse(saved)
-    } catch {}
     if (isMovieNote) {
       return [
         { id: 'g_futured', name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
@@ -364,6 +360,10 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         { id: 'g_done', name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
       ]
     }
+    try {
+      const saved = localStorage.getItem(`${cacheKey}_groups`)
+      if (saved) return JSON.parse(saved)
+    } catch {}
     return []
   })
 
@@ -388,6 +388,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
   const [ratePromptItem, setRatePromptItem] = useState(null)
   const [celebrationBadges, setCelebrationBadges] = useState(null)
   const [expandedMovieId, setExpandedMovieId] = useState(null)
+  const [fullscreenColumnId, setFullscreenColumnId] = useState(null)
   const [toastMessage, setToastMessage] = useState(null)
   const groupDragOver = useRef(null)
   const [confirmState, setConfirmState] = useState(null)
@@ -481,22 +482,62 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         window.api.getGroups(noteId),
         isMovieNote ? window.api.getMovies(noteId) : Promise.resolve([])
       ])
-      const rawGroups = groups || []
-      const seenSectionKeys = new Set()
-      const validGroups = []
-      for (const g of rawGroups) {
-        const key = g.section_key || `group_${g.id}`
-        if (!seenSectionKeys.has(key)) {
-          seenSectionKeys.add(key)
-          validGroups.push(g)
-        }
-      }
-      setGroups(validGroups)
       const map = {}
       if (isMovieNote) {
+        const canonicalSections = [
+          { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
+          { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
+          { name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
+          { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
+        ]
+
+        const canonicalMap = new Map()
+        for (const g of (groups || [])) {
+          let secKey = g.section_key
+          if (!secKey) {
+            const lower = (g.name || '').toLowerCase().trim()
+            if (lower === 'futured' || lower === 'future') secKey = 'futured'
+            else if (lower === 'to do' || lower === 'todo') secKey = 'todo'
+            else if (lower === 'going' || lower === 'doing') secKey = 'doing'
+            else if (lower === 'done') secKey = 'done'
+          }
+          if (secKey && ['futured', 'todo', 'doing', 'done'].includes(secKey)) {
+            if (!canonicalMap.has(secKey)) {
+              const canon = canonicalSections.find(c => c.section_key === secKey)
+              canonicalMap.set(secKey, {
+                ...g,
+                section_key: secKey,
+                name: canon.name,
+                color: canon.color, // Always enforce canonical section color!
+                position: canon.position,
+              })
+            }
+          }
+        }
+
+        // Fill any missing canonical sections
+        for (const canon of canonicalSections) {
+          if (!canonicalMap.has(canon.section_key)) {
+            canonicalMap.set(canon.section_key, {
+              id: `g_${canon.section_key}`,
+              name: canon.name,
+              section_key: canon.section_key,
+              color: canon.color,
+              position: canon.position,
+            })
+          }
+        }
+
+        const validGroups = Array.from(canonicalMap.values()).sort((a, b) => a.position - b.position)
+        setGroups(validGroups)
+
         const validMovies = movies || []
         for (const g of validGroups) {
-          const secMovies = validMovies.filter(m => m.section === g.section_key)
+          const secMovies = validMovies.filter(m =>
+            m.section === g.section_key ||
+            (g.section_key === 'doing' && (m.section === 'going' || m.section === 'doing')) ||
+            (g.section_key === 'futured' && (m.section === 'future' || m.section === 'futured'))
+          )
           const sorted = sortMoviesForSection(secMovies, g.section_key)
           const clustered = clusterSeriesItems(sorted)
           map[g.id] = clustered
@@ -521,6 +562,17 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
           }, 800)
         }
       } else {
+        const rawGroups = groups || []
+        const seenSectionKeys = new Set()
+        const validGroups = []
+        for (const g of rawGroups) {
+          const key = g.section_key || `group_${g.id}`
+          if (!seenSectionKeys.has(key)) {
+            seenSectionKeys.add(key)
+            validGroups.push(g)
+          }
+        }
+        setGroups(validGroups)
         await Promise.all(validGroups.map(async g => {
           map[g.id] = await window.api.getItems(g.id)
         }))
@@ -551,6 +603,25 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     window.addEventListener('click', close)
     return () => window.removeEventListener('click', close)
   }, [])
+
+  // Escape key handler: prioritize closing expanded movie card, then fullscreen column
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return
+
+        if (expandedMovieId) {
+          setExpandedMovieId(null)
+          return
+        }
+        if (fullscreenColumnId) {
+          setFullscreenColumnId(null)
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [expandedMovieId, fullscreenColumnId])
 
   useEffect(() => {
     const handleRemoteMovieAdded = (e) => {
@@ -590,6 +661,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     if (!ok) return
     const result = await window.api.deleteGroup(group.id)
     if (result?.error) { alert(result.error); return }
+    if (fullscreenColumnId === group.id) setFullscreenColumnId(null)
     await loadGroups()
   }
 
@@ -1264,50 +1336,65 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     return max
   }, [groups, filteredItemsByGroup])
 
-  const renderColumn = (group) => (
-    <MemoNoteColumn
-      key={group.id}
-      group={group}
-      items={filteredItemsByGroup[group.id] || []}
-      maxOtherCount={maxOtherCount}
-      boardCardPositionsRef={boardCardPositionsRef}
-      itemClipboard={itemClipboard}
-      expandedMovieId={expandedMovieId}
-      onToggleExpandMovie={(id) => setExpandedMovieId(prev => String(prev) === String(id) ? null : id)}
-      onMoveMovieSection={handleMoveMovieSection}
-      onAdd={() => setAddItemGroup(group.id)}
-      renameSignal={renameGroupId === group.id}
-      onRenameConsumed={() => setRenameGroupId(null)}
-      onRename={() => setRenameGroupId(group.id)}
-      onDelete={() => handleDeleteGroup(group)}
-      onItemContextMenu={(e, item) => { e.preventDefault(); e.stopPropagation(); setItemContextMenu({ x: e.clientX, y: e.clientY, item }) }}
-      onItemClick={(item) => setEditItem(item)}
-      onItemDelete={(item) => handleDeleteItem(item)}
-      onMoveItem={handleMoveItem}
-      onReorderItem={handleReorderItem}
-      onSaveRating={handleSaveMovieRating}
-      onOpenChronology={onOpenChronology}
-      isDragging={draggingGroupId === group.id}
-      onGroupDragStart={() => handleGroupDragStart(group.id)}
-      onGroupDragEnd={handleGroupDragEnd}
-      onGroupDragOver={() => handleGroupDragOverCol(group.id)}
-      onGroupDrop={handleGroupDrop}
-      onDragHoverEdge={handleDragHoverEdge}
-      onDragHoverEdgeEnd={clearEdgeHover}
-      isColumnDraggingItem={draggingFromGroupId === group.id}
-      onItemDragStart={(gId) => setDraggingFromGroupId(gId)}
-      onItemDragEnd={() => setDraggingFromGroupId(null)}
-      isMobileVertical={isMobileVertical}
-      activeSection={activeSection}
-      groups={groups}
-    />
-  )
+  const renderColumn = (group) => {
+    const colIdx = groups.findIndex(g => g.id === group.id)
+    const isColFullscreen = fullscreenColumnId === group.id
+    const isAnyColFullscreen = fullscreenColumnId !== null
+    const fullscreenColIdx = fullscreenColumnId ? groups.findIndex(g => g.id === fullscreenColumnId) : -1
+
+    return (
+      <MemoNoteColumn
+        key={group.id}
+        group={group}
+        items={filteredItemsByGroup[group.id] || []}
+        maxOtherCount={maxOtherCount}
+        boardCardPositionsRef={boardCardPositionsRef}
+        itemClipboard={itemClipboard}
+        expandedMovieId={expandedMovieId}
+        onToggleExpandMovie={(id) => setExpandedMovieId(prev => String(prev) === String(id) ? null : id)}
+        onMoveMovieSection={handleMoveMovieSection}
+        onAdd={() => setAddItemGroup(group.id)}
+        renameSignal={renameGroupId === group.id}
+        onRenameConsumed={() => setRenameGroupId(null)}
+        onRename={() => setRenameGroupId(group.id)}
+        onDelete={() => handleDeleteGroup(group)}
+        onItemContextMenu={(e, item) => { e.preventDefault(); e.stopPropagation(); setItemContextMenu({ x: e.clientX, y: e.clientY, item }) }}
+        onItemClick={(item) => setEditItem(item)}
+        onItemDelete={(item) => handleDeleteItem(item)}
+        onMoveItem={handleMoveItem}
+        onReorderItem={handleReorderItem}
+        onSaveRating={handleSaveMovieRating}
+        onOpenChronology={onOpenChronology}
+        isDragging={draggingGroupId === group.id}
+        onGroupDragStart={() => handleGroupDragStart(group.id)}
+        onGroupDragEnd={handleGroupDragEnd}
+        onGroupDragOver={() => handleGroupDragOverCol(group.id)}
+        onGroupDrop={handleGroupDrop}
+        onDragHoverEdge={handleDragHoverEdge}
+        onDragHoverEdgeEnd={clearEdgeHover}
+        isColumnDraggingItem={draggingFromGroupId === group.id}
+        onItemDragStart={(gId) => setDraggingFromGroupId(gId)}
+        onItemDragEnd={() => setDraggingFromGroupId(null)}
+        isMobileVertical={isMobileVertical}
+        activeSection={activeSection}
+        groups={groups}
+        isFullscreen={isColFullscreen}
+        isAnyColumnFullscreen={isAnyColFullscreen}
+        columnIndex={colIdx}
+        fullscreenColumnIndex={fullscreenColIdx}
+        onToggleFullscreen={() => {
+          if (isMobileVertical) return
+          setFullscreenColumnId(prev => prev === group.id ? null : group.id)
+        }}
+      />
+    )
+  }
 
   const activeGroup = isMobileVertical ? groups.find(g => g.section_key === activeSection) : null
   const showTmdbFallback = (search || '').trim().length >= 2 && totalFilteredCount === 0
 
   return (
-    <div ref={boardRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+    <div ref={boardRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'clip' }}>
       {showTmdbFallback && (
         <TmdbFallbackSearchPanel
           search={search}
@@ -1401,7 +1488,13 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
           })()}
         </div>
       ) : (
-        <div className="board">
+        <div
+          className={`board ${fullscreenColumnId ? 'board-has-fullscreen' : ''}`}
+          style={{
+            gap: fullscreenColumnId ? 0 : 14,
+            transition: 'gap 0.32s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
           {groups.map(group => renderColumn(group))}
         </div>
       )}
@@ -1596,7 +1689,12 @@ function NoteColumn({
   isMobileVertical,
   onDragHoverEdge,
   onDragHoverEdgeEnd,
-  activeSection
+  activeSection,
+  isFullscreen = false,
+  isAnyColumnFullscreen = false,
+  columnIndex = -1,
+  fullscreenColumnIndex = -1,
+  onToggleFullscreen
 }) {
   const { t, language } = useLanguage()
   const color = group.color || '#a78bfa'
@@ -1610,6 +1708,7 @@ function NoteColumn({
   const [isManuallyExpanded, setIsManuallyExpanded] = useState(false)
   const cardsRef = useRef(null)
   const rafRef = useRef(null)
+  const didDragRef = useRef(false)
 
   const columnEntries = useMemo(() => groupColumnItems(items, group?.id), [items, group?.id])
 
@@ -1636,7 +1735,7 @@ function NoteColumn({
     return cardExpandedBottom > (collapsedHeightNumber - 20)
   }, [isCollapseEligible, expandedMovieId, columnEntries, collapsedHeightNumber])
 
-  const isDoneExpanded = isManuallyExpanded || autoExpandedByCard
+  const isDoneExpanded = isManuallyExpanded || autoExpandedByCard || isFullscreen
   const shouldCollapse = isCollapseEligible && !isDoneExpanded
 
   useEffect(() => {
@@ -1908,9 +2007,65 @@ function NoteColumn({
     }
   }
 
+  let columnStyle = {
+    background: 'var(--bg-surface)',
+    borderRadius: 12,
+    border: `1px solid var(--border)`,
+    display: 'flex',
+    flexDirection: 'column',
+    userSelect: 'none',
+    position: 'relative',
+  }
+
+  if (isFullscreen) {
+    columnStyle = {
+      ...columnStyle,
+      flex: '1 1 100%',
+      minWidth: 0,
+      maxWidth: '100%',
+      opacity: 1,
+      transform: 'none',
+      pointerEvents: 'auto',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)',
+      zIndex: 25,
+      transition: 'flex 0.32s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease',
+      willChange: 'flex',
+    }
+  } else if (isAnyColumnFullscreen) {
+    const isToLeft = columnIndex < fullscreenColumnIndex
+    columnStyle = {
+      ...columnStyle,
+      flex: '0 0 0px',
+      minWidth: 0,
+      maxWidth: 0,
+      opacity: 0,
+      transform: isToLeft ? 'translateX(-80px)' : 'translateX(80px)',
+      pointerEvents: 'none',
+      overflow: 'hidden',
+      borderColor: 'transparent',
+      zIndex: 1,
+      transition: 'flex 0.32s cubic-bezier(0.16, 1, 0.3, 1), transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease',
+      willChange: 'flex, transform, opacity',
+    }
+  } else {
+    columnStyle = {
+      ...columnStyle,
+      flex: 1,
+      minWidth: 280,
+      maxWidth: 'none',
+      opacity: 1,
+      transform: 'none',
+      pointerEvents: 'auto',
+      boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
+      zIndex: 2,
+      transition: 'flex 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease',
+      willChange: isAnyColumnFullscreen ? 'flex' : 'auto',
+    }
+  }
+
   return (
     <div
-      className="note-column"
+      className={`note-column ${isFullscreen ? 'column-fullscreen' : (isAnyColumnFullscreen ? 'column-inactive' : '')}`}
       data-group-id={group.id}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('groupdrag')) {
@@ -1934,32 +2089,36 @@ function NoteColumn({
         }
       }}
       style={{
-        background: 'var(--bg-surface)',
-        borderRadius: 12,
-        border: `1px solid var(--border)`,
-        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: 280,
-        flex: 1,
-        userSelect: 'none',
-        position: 'relative',
-        transition: 'opacity 0.15s, border-color 0.15s, box-shadow 0.15s',
+        ...columnStyle,
+        opacity: isDragging ? 0.35 : columnStyle.opacity,
       }}
     >
       <div
         className="column-header-sticky"
         draggable
         onDragStart={(e) => {
+          didDragRef.current = true
           e.dataTransfer.setData('text/plain', String(group.id))
           e.dataTransfer.setData('groupdrag', 'true')
           e.dataTransfer.effectAllowed = 'move'
           onGroupDragStart?.(group.id)
         }}
-        onDragEnd={() => onGroupDragEnd?.()}
+        onDragEnd={() => {
+          setTimeout(() => {
+            didDragRef.current = false
+          }, 100)
+          onGroupDragEnd?.()
+        }}
         onContextMenu={(e) => onGroupContextMenu(e, group)}
+        onClick={(e) => {
+          if (didDragRef.current) return
+          if (editingName) return
+          if (e.target.closest('button') || e.target.closest('input')) return
+          onToggleFullscreen?.()
+        }}
         onMouseEnter={() => setHeaderHovered(true)}
         onMouseLeave={() => setHeaderHovered(false)}
+        title={isFullscreen ? "Ustunni avvalgi holatiga qaytarish (Esc)" : "Ustunni kengaytirish"}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -1969,7 +2128,7 @@ function NoteColumn({
           borderBottom: '1px solid var(--border)',
           borderTop: `3.5px solid ${color}`,
           borderRadius: shouldCollapse ? '12px' : '12px 12px 0 0',
-          cursor: 'grab',
+          cursor: isFullscreen ? 'pointer' : (headerHovered ? 'pointer' : 'default'),
           position: 'sticky',
           top: 'var(--topbar-height, 52px)',
           zIndex: 20,
@@ -2038,6 +2197,37 @@ function NoteColumn({
           </span>
         )}
         <div style={{ flex: 1 }} />
+
+        {isFullscreen && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleFullscreen?.()
+            }}
+            title="Kichraytirish (Esc)"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: '3px 8px',
+              borderRadius: 6,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 11,
+              fontWeight: 600,
+              marginRight: 4,
+              transition: 'background 0.15s, color 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.16)'; e.currentTarget.style.color = '#fff' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+          >
+            <Minimize2 size={13} />
+            <span>ESC</span>
+          </button>
+        )}
 
         <button
           onClick={onAdd}
@@ -2131,6 +2321,7 @@ function NoteColumn({
                     onTouchDragMove={(movie, x, y) => handleTouchDragMove(entry.item, x, y)}
                     onTouchDragEnd={(movie, x, y) => handleTouchDragEnd(entry.item, x, y)}
                     onOpenChronology={onOpenChronology}
+                    isFullscreenColumn={isFullscreen}
                   />
                 ) : (
                   <NoteItemCard

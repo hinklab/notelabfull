@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Tv, ChevronDown, ChevronUp, Layers, Star, Film } from 'lucide-react'
+import { Tv, ChevronDown, ChevronUp, Star, Film } from 'lucide-react'
 import MovieCard from './MovieCard.jsx'
 import { useLanguage } from '../../context/LanguageContext.jsx'
 
@@ -8,17 +8,6 @@ function formatVotes(n) {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
   if (n >= 1000) return `${(n / 1000).toFixed(0)}K`
   return String(n)
-}
-
-function formatSeasonRange(seasonNumbers) {
-  const nums = seasonNumbers.map(n => parseInt(n, 10)).filter(n => !isNaN(n)).sort((a, b) => a - b)
-  if (nums.length <= 1) return nums.map(n => `S${n}`).join(', ')
-  if (nums.length <= 3) return nums.map(n => `S${n}`).join(', ')
-  const isConsecutive = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1)
-  if (isConsecutive) {
-    return `S${nums[0]}–S${nums[nums.length - 1]}`
-  }
-  return `S${nums.slice(0, 2).join(', S')}...S${nums[nums.length - 1]}`
 }
 
 function getPosterUrl(posterPath) {
@@ -66,11 +55,6 @@ function SeriesGroupCard({
   const firstSeason = sortedSeasons[0]
   const firstMovie = firstSeason?._movie || firstSeason
   const firstSeasonId = firstSeason?.id
-
-  const seasonWord = language === 'en'
-    ? (seasons.length === 1 ? 'season' : 'seasons')
-    : (language === 'ru' ? 'сез.' : 'mavsum')
-  const seasonBadgeText = `${seasons.length} ${seasonWord} (${formatSeasonRange(seasonNumbers)})`
 
   return (
     <div
@@ -232,9 +216,9 @@ function SeriesGroupCard({
             )}
           </div>
 
-          {/* Middle: Rating + Season Badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            {firstMovie?.rating ? (
+          {/* Middle: Rating */}
+          {firstMovie?.rating ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{
                   background: '#f5c518',
@@ -260,27 +244,8 @@ function SeriesGroupCard({
                   </span>
                 ) : null}
               </div>
-            ) : null}
-
-            {/* Season Count Badge */}
-            <span
-              style={{
-                background: 'rgba(124, 58, 237, 0.12)',
-                border: '1px solid rgba(124, 58, 237, 0.3)',
-                color: 'var(--accent, #7c3aed)',
-                fontSize: 10.5,
-                fontWeight: 600,
-                padding: '1px 6px',
-                borderRadius: 5,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 3.5
-              }}
-            >
-              <Layers size={10} />
-              {seasonBadgeText}
-            </span>
-          </div>
+            </div>
+          ) : null}
 
           {/* Bottom: Season Chips (clickable / draggable) */}
           <div

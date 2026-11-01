@@ -2813,6 +2813,226 @@ const FRANCHISE_UNIVERSES = {
             "overview": "Humans and Transformers are at war. Optimus Prime is gone. The key to saving our future lies buried in the secrets of the past, in the hidden history of Transformers on Earth. Saving our world falls upon the shoulders of an unlikely alliance: Cade Yeager; Bumblebee; an English Lord; and an Oxford Professor."
         }
     ]
+},
+  "dexter": {
+    "name": "Dexter Universe",
+    "collection_ids": [],
+    "known_tmdb_ids": [
+        1405,
+        219937,
+        49530,
+        131927,
+        259909
+    ],
+    "chronological_order": [
+        {
+            "id": 219937,
+            "type": "tv",
+            "stage": 0,
+            "lane": 0,
+            "connects_to": [
+                49530,
+                "1405_s1"
+            ],
+            "title": "Dexter: Original Sin",
+            "release_date": "2024-12-15",
+            "release_year": "2024",
+            "rating": 8.1,
+            "vote_count": 516,
+            "poster_path": "https://image.tmdb.org/t/p/w500/j5bP7spdfS0NpDLKDlqJYyJPi1j.jpg",
+            "overview": "In 1991 Miami, Dexter Morgan transitions from student to avenging serial killer. When his bloodthirsty urges can't be ignored any longer, Dexter must learn to channel his inner darkness. With the guidance of his father, Harry, he adopts a Code designed to help him find and kill people who deserve to be eliminated from society without getting on law enforcements' radar. This is a particular challenge for young Dexter as he begins a forensics internship at the Miami Metro Police Department."
+        },
+        {
+            "id": 49530,
+            "type": "tv",
+            "stage": 1,
+            "lane": 1,
+            "connects_to": [
+                "1405_s1"
+            ],
+            "title": "Dexter: Early Cuts",
+            "release_date": "2009-10-26",
+            "release_year": "2009",
+            "rating": 7.4,
+            "vote_count": 27,
+            "poster_path": "https://image.tmdb.org/t/p/w500/zMfOoSAB7q3xclhUEavyv5MR5iU.jpg",
+            "overview": "Tales of vigilante serial killer Dexter Morgan’s earlier kills and how exactly the dark defender came to perfect his craft following the death of his adoptive father, Harry."
+        },
+        {
+            "id": "1405_s1",
+            "tmdb_id": 1405,
+            "season_number": 1,
+            "type": "tv",
+            "stage": 2,
+            "lane": 0,
+            "connects_to": [
+                "1405_s2"
+            ],
+            "title": "Dexter — Season 1",
+            "release_date": "2006-10-01",
+            "release_year": "2006",
+            "rating": 8.1,
+            "vote_count": 5893,
+            "poster_path": "https://image.tmdb.org/t/p/w500/rmhoMEHK3ZP2EAXX2VpxuKpW3Bf.jpg",
+            "overview": "By day, mild-mannered Dexter is a blood-spatter analyst for the Miami police. But at night, he is a serial killer who only targets other murderers."
+        },
+        {
+            "id": "1405_s2",
+            "tmdb_id": 1405,
+            "season_number": 2,
+            "type": "tv",
+            "stage": 3,
+            "lane": 0,
+            "connects_to": [
+                "1405_s3"
+            ],
+            "title": "Dexter — Season 2",
+            "release_date": "2007-09-30",
+            "release_year": "2007",
+            "rating": 8.2,
+            "vote_count": 5893,
+            "poster_path": "https://image.tmdb.org/t/p/w500/t8o6P0pTsnfgsUo6AXSuaiw9fgG.jpg",
+            "overview": "In season two, the bodies of Dexter's victims are uncovered and an investigation is launched in Dexter's own department to find the killer, dubbed the \"Bay Harbor Butcher.\" Debra struggles to recover, and Rita sends Dexter to Narcotics Anonymous meetings when she suspects that he has an addiction. Sergeant James Doakes, stalks Dexter, suspecting that he is connected with the \"Ice Truck Killer\" killings."
+        },
+        {
+            "id": "1405_s3",
+            "tmdb_id": 1405,
+            "season_number": 3,
+            "type": "tv",
+            "stage": 4,
+            "lane": 0,
+            "connects_to": [
+                "1405_s4"
+            ],
+            "title": "Dexter — Season 3",
+            "release_date": "2008-09-28",
+            "release_year": "2008",
+            "rating": 7.9,
+            "vote_count": 5893,
+            "poster_path": "https://image.tmdb.org/t/p/w500/8zyoh0AtArOyTq0F2USckRGzZEU.jpg",
+            "overview": "After a runin with a man, Dexter initiates a friendship with his brother, Assistant District Attorney Miguel Prado. In the meantime, Rita discovers that she is pregnant, and Debra investigates the murders of a new serial killer, called \"The Skinner,\" hoping to gain a promotion to detective."
+        },
+        {
+            "id": "1405_s4",
+            "tmdb_id": 1405,
+            "season_number": 4,
+            "type": "tv",
+            "stage": 5,
+            "lane": 0,
+            "connects_to": [
+                "1405_s5"
+            ],
+            "title": "Dexter — Season 4",
+            "release_date": "2009-09-27",
+            "release_year": "2009",
+            "rating": 8.4,
+            "vote_count": 5893,
+            "poster_path": "https://image.tmdb.org/t/p/w500/1Oh0QmXVTnyV9QqpDcEpvxtKYFw.jpg",
+            "overview": "Dexter as a father and husband struggles to figure out how to survive for years to come. He seeks to learn from Arthur Mitchell, a serial killer and family man, who has murdered for over thirty years without being discovered."
+        },
+        {
+            "id": "1405_s5",
+            "tmdb_id": 1405,
+            "season_number": 5,
+            "type": "tv",
+            "stage": 6,
+            "lane": 0,
+            "connects_to": [
+                "1405_s6"
+            ],
+            "title": "Dexter — Season 5",
+            "release_date": "2010-09-26",
+            "release_year": "2010",
+            "rating": 8.1,
+            "vote_count": 5893,
+            "poster_path": "https://image.tmdb.org/t/p/w500/sKDHRvdaHfhiYzCFCXQoo1TuHhb.jpg",
+            "overview": "In season five, Dexter comes to terms with the aftermath of the Season 4 finale, stopping a group of serial rapists and avoiding a corrupt cop who learns his deadly secret."
+        },
+        {
+            "id": "1405_s6",
+            "tmdb_id": 1405,
+            "season_number": 6,
+            "type": "tv",
+            "stage": 7,
+            "lane": 0,
+            "connects_to": [
+                "1405_s7"
+            ],
+            "title": "Dexter — Season 6",
+            "release_date": "2011-10-02",
+            "release_year": "2011",
+            "rating": 7.7,
+            "vote_count": 5893,
+            "poster_path": "https://image.tmdb.org/t/p/w500/yxylCqF28NttybWJvQtHztTdDKr.jpg",
+            "overview": "Season six follows Dexter's and Miami Metro's investigations into a string of bizarre ritualistic killings featuring overtly religious apocalyptic symbolism."
+        },
+        {
+            "id": "1405_s7",
+            "tmdb_id": 1405,
+            "season_number": 7,
+            "type": "tv",
+            "stage": 8,
+            "lane": 0,
+            "connects_to": [
+                "1405_s8"
+            ],
+            "title": "Dexter — Season 7",
+            "release_date": "2012-09-30",
+            "release_year": "2012",
+            "rating": 7.9,
+            "vote_count": 5893,
+            "poster_path": "https://image.tmdb.org/t/p/w500/lM4EY2L324exlZ1hF2YpBM0a97J.jpg",
+            "overview": "Season seven follows Dexter's tangles with a Ukrainian mob boss and introduces Hannah McKay, a mysterious widow with a green thumb and a checkered past."
+        },
+        {
+            "id": "1405_s8",
+            "tmdb_id": 1405,
+            "season_number": 8,
+            "type": "tv",
+            "stage": 9,
+            "lane": 0,
+            "connects_to": [
+                131927
+            ],
+            "title": "Dexter — Season 8",
+            "release_date": "2013-06-30",
+            "release_year": "2013",
+            "rating": 7,
+            "vote_count": 5893,
+            "poster_path": "https://image.tmdb.org/t/p/w500/q8dWfc4JwQuv3HayIZeO84jAXED.jpg",
+            "overview": "As Deb struggles to deal with the consequences of her actions, a mysterious woman comes to work with Miami Metro, offering first-hand information on Dexter's past."
+        },
+        {
+            "id": 131927,
+            "type": "tv",
+            "stage": 10,
+            "lane": 0,
+            "connects_to": [
+                259909
+            ],
+            "title": "Dexter: New Blood",
+            "release_date": "2021-11-07",
+            "release_year": "2021",
+            "rating": 7.9,
+            "vote_count": 1723,
+            "poster_path": "https://image.tmdb.org/t/p/w500/9EBKgrFIsCFSV1RZKWhYUdbtGiv.jpg",
+            "overview": "10 years after Dexter went missing in the eye of Hurricane Laura, we find him living under an assumed name in the small town of Iron Lake, New York.  Dexter may be embracing his new life, but in the wake of unexpected events in this close-knit community, his Dark Passenger beckons."
+        },
+        {
+            "id": 259909,
+            "type": "tv",
+            "stage": 11,
+            "lane": 0,
+            "connects_to": [],
+            "title": "Dexter: Resurrection",
+            "release_date": "2025-07-13",
+            "release_year": "2025",
+            "rating": 8.5,
+            "vote_count": 662,
+            "poster_path": "https://image.tmdb.org/t/p/w500/o2Oyi3boT100bY5kCP4MBiTeetO.jpg",
+            "overview": "Dexter Morgan awakens from a coma to find Harrison gone without a trace. Realizing the weight of what he put his son through, Dexter sets out for New York City, determined to find him and make things right. But closure won't come easy. When Miami Metro's Angel Batista arrives with questions, Dexter realizes his past is catching up to him fast. As father and son navigate their own darkness in the city that never sleeps, they soon find themselves deeper than they ever imagined - and that the only way out is together."
+        }
+    ]
 }
 };
 
@@ -3292,55 +3512,74 @@ module.exports = async (req, res) => {
     // ═══════════════════════════════════════
     if (path === 'groups' && req.method === 'GET') {
       let groups = [];
-      const targetNoteId = query.note_id ? Number(query.note_id) : null;
+      const parsedNoteId = (query.note_id && query.note_id !== 'null' && query.note_id !== 'undefined') ? Number(query.note_id) : null;
+      let targetNoteId = (!isNaN(parsedNoteId) && parsedNoteId > 0) ? parsedNoteId : null;
 
-      if (targetNoteId) {
-        // Query groups strictly for this note_id
-        const { data } = await supabase.from('note_groups').select('*').eq('user_id', userId).eq('note_id', targetNoteId).order('position');
-        groups = data || [];
-
-        // If no groups exist for this specific note_id, create the 4 standard defaults
-        if (groups.length === 0) {
-          const defaults = [
-            { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
-            { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
-            { name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
-            { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
-          ];
-          const { data: created } = await supabase.from('note_groups')
-            .insert(defaults.map(d => ({ ...d, user_id: userId, note_id: targetNoteId })))
-            .select();
-          groups = created || [];
-        }
-      } else {
-        const { data } = await supabase.from('note_groups').select('*').eq('user_id', userId).order('position');
-        groups = data || [];
+      if (!targetNoteId) {
+        const { data: movieNotes } = await supabase.from('notes').select('id').eq('user_id', userId).eq('type', 'movie').limit(1);
+        targetNoteId = (movieNotes && movieNotes.length > 0) ? movieNotes[0].id : 6;
       }
 
-      // STRICT DEDUPLICATION: Ensure no duplicate section_key is ever returned
-      const seenSectionKeys = new Set();
+      // Query groups strictly for targetNoteId
+      const { data } = await supabase.from('note_groups').select('*').eq('user_id', userId).eq('note_id', targetNoteId).order('position');
+      groups = data || [];
+
+      const canonicalSections = [
+        { name: 'Futured', section_key: 'futured', color: '#a78bfa', position: 0 },
+        { name: 'To Do', section_key: 'todo', color: '#fbbf24', position: 1 },
+        { name: 'Going', section_key: 'doing', color: '#34d399', position: 2 },
+        { name: 'Done', section_key: 'done', color: '#60a5fa', position: 3 },
+      ];
+
+      const canonicalMap = new Map();
       const duplicateIdsToDelete = [];
-      const deduped = [];
 
       for (const g of groups) {
-        const secKey = g.section_key;
-        if (secKey) {
-          if (seenSectionKeys.has(secKey)) {
-            duplicateIdsToDelete.push(g.id);
-            continue;
-          }
-          seenSectionKeys.add(secKey);
+        let secKey = g.section_key;
+        if (!secKey) {
+          const lowerName = (g.name || '').toLowerCase().trim();
+          if (lowerName === 'futured' || lowerName === 'future') secKey = 'futured';
+          else if (lowerName === 'to do' || lowerName === 'todo') secKey = 'todo';
+          else if (lowerName === 'going' || lowerName === 'doing') secKey = 'doing';
+          else if (lowerName === 'done') secKey = 'done';
         }
-        deduped.push(g);
+        if (secKey && ['futured', 'todo', 'doing', 'done'].includes(secKey)) {
+          if (!canonicalMap.has(secKey)) {
+            const canon = canonicalSections.find(c => c.section_key === secKey);
+            canonicalMap.set(secKey, {
+              ...g,
+              section_key: secKey,
+              name: canon.name,
+              color: canon.color,
+              position: canon.position,
+            });
+          } else {
+            duplicateIdsToDelete.push(g.id);
+          }
+        }
       }
 
-      // Clean up duplicate group rows in Supabase in background
+      for (const canon of canonicalSections) {
+        if (!canonicalMap.has(canon.section_key)) {
+          canonicalMap.set(canon.section_key, {
+            id: `g_${canon.section_key}`,
+            note_id: targetNoteId,
+            user_id: userId,
+            name: canon.name,
+            color: canon.color,
+            section_key: canon.section_key,
+            position: canon.position,
+          });
+        }
+      }
+
       if (duplicateIdsToDelete.length > 0) {
         try {
           await supabase.from('note_groups').delete().in('id', duplicateIdsToDelete);
         } catch (e) {}
       }
 
+      const deduped = Array.from(canonicalMap.values()).sort((a, b) => a.position - b.position);
       return res.status(200).json(deduped);
     }
 
@@ -4928,7 +5167,7 @@ module.exports = async (req, res) => {
             const baseTmdbId = (typeof item === 'object' && item.tmdb_id) ? item.tmdb_id : (isStringId ? parseInt(rawId.split('_s')[0], 10) : Number(rawId));
             const seasonNumber = (typeof item === 'object' && item.season_number) ? item.season_number : (isStringId ? parseInt(rawId.split('_s')[1], 10) : null);
             const itemType = (typeof item === 'object' && item.type) ? item.type : 'movie';
-            const boardStatus = checkBoardMatch(baseTmdbId);
+            const boardStatus = checkBoardMatch(baseTmdbId, seasonNumber);
 
             const stage = (typeof item === 'object' && item.stage !== undefined) ? item.stage : null;
             const lane = (typeof item === 'object' && item.lane !== undefined) ? item.lane : null;
@@ -5487,14 +5726,17 @@ module.exports = async (req, res) => {
       { id: 'resident_evil_gold', universe_key: 'resident_evil', universe_name: 'Resident Evil Universe', tier: 'gold', threshold: 100, title: 'Resident Evil: Umbrella Halokati', title_en: "Resident Evil: Umbrella's End", description: "Biohazard xavfi bartaraf etildi! Resident Evil koinotidagi barcha film va animatsiyalarni 100% to'liq ko'rdingiz!", icon: '🥇' },
       { id: 'transformers_bronze', universe_key: 'transformers', universe_name: 'Transformers Universe', tier: 'bronze', threshold: 25, title: 'Transformers: Autobot Yangi Askar', title_en: 'Transformers: Autobot Recruit', description: "Transformers olamidagi kamida 25% filmlarni tomosha qildingiz.", icon: '🥉' },
       { id: 'transformers_silver', universe_key: 'transformers', universe_name: 'Transformers Universe', tier: 'silver', threshold: 60, title: 'Transformers: AllSpark Himoyachisi', title_en: 'Transformers: AllSpark Guardian', description: "Transformers koinotidagi 60% dan ortiq filmlarni ko'rib chiqdingiz.", icon: '🥈' },
-      { id: 'transformers_gold', universe_key: 'transformers', universe_name: 'Transformers Universe', tier: 'gold', threshold: 100, title: 'Transformers: Prime Yetakchi', title_en: 'Transformers: Prime Leader', description: "Yetakchilik matritsasi sizda! Transformers olamidagi barcha filmlarni 100% to'liq tomosha qildingiz!", icon: '🥇' }
+      { id: 'transformers_gold', universe_key: 'transformers', universe_name: 'Transformers Universe', tier: 'gold', threshold: 100, title: 'Transformers: Prime Yetakchi', title_en: 'Transformers: Prime Leader', description: "Yetakchilik matritsasi sizda! Transformers olamidagi barcha filmlarni 100% to'liq tomosha qildingiz!", icon: '🥇' },
+      { id: 'dexter_bronze', universe_key: 'dexter', universe_name: 'Dexter Universe', tier: 'bronze', threshold: 25, title: "Dexter: Qorong'u Yo'lovchi", title_en: 'Dexter: Dark Passenger', description: "Dexter olamidagi kamida 25% qismlarini tomosha qildingiz.", icon: '🥉' },
+      { id: 'dexter_silver', universe_key: 'dexter', universe_name: 'Dexter Universe', tier: 'silver', threshold: 60, title: 'Dexter: Garri Kodi', title_en: 'Dexter: Code of Harry', description: "Dexter olamidagi 60% dan ortiq mavsum va loyihalarni ko'rib chiqdingiz.", icon: '🥈' },
+      { id: 'dexter_gold', universe_key: 'dexter', universe_name: 'Dexter Universe', tier: 'gold', threshold: 100, title: "Dexter: Qotillik San'ati", title_en: 'Dexter: Master of the Kill', description: "Barcha 12 ta mavsum va loyihalarni 100% to'liq ko'rib chiqdingiz!", icon: '🥇' }
     ];
 
     if ((path === 'gamification/progress' || path === 'gamification/badges') && req.method === 'GET') {
       const { data: userMovies } = await supabase.from('movies').select('*').eq('user_id', userId);
       const moviesList = userMovies || [];
 
-      const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil', 'transformers'];
+      const curatedKeys = ['mcu', 'dceu', 'star_wars', 'kurtlar_vadisi', 'dcu', 'resident_evil', 'transformers', 'dexter'];
       const progressMap = {};
 
       curatedKeys.forEach(uKey => {

@@ -68,7 +68,8 @@ const FRANCHISE_PATTERNS = [
   { key: 'divergent', regex: /^(Divergent|Insurgent|Allegiant)/i },
   { key: 'narnia', regex: /^(The Chronicles of Narnia|Narnia)/i },
   { key: 'jumanji', regex: /^Jumanji/i },
-  { key: 'mummy', regex: /^The Mummy/i }
+  { key: 'mummy', regex: /^The Mummy/i },
+  { key: 'dexter', regex: /^Dexter/i }
 ];
 
 export function getMovieFranchiseInfo(movie) {
