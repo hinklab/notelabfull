@@ -5,7 +5,6 @@ import { useLanguage } from '../../context/LanguageContext.jsx'
 import { getStoredUserLocation } from '../../services/geo.js'
 import { api } from '../../config/api.js'
 import CinemasModal from '../modals/CinemasModal.jsx'
-import { getMovieFranchiseInfo } from '../../config/chronologyData.js'
 
 function formatVotes(n) {
   if (!n) return null
@@ -95,53 +94,6 @@ function getReleaseCountdown(dateStr, language = 'uz') {
   } catch {
     return null
   }
-}
-
-function getCardFranchiseBrand(movie) {
-  if (!movie) return null
-  const info = getMovieFranchiseInfo(movie)
-  if (!info || !info.universe_key) return null
-  const key = String(info.universe_key).toLowerCase()
-
-  if (key === 'mcu') {
-    return { name: 'Marvel Studios', text: 'MCU', bg: '#ED1D24', color: '#ffffff' }
-  }
-  if (key === 'dcu' || key === 'dceu') {
-    return { name: 'DC Studios', text: 'DC', bg: '#0078f0', color: '#ffffff' }
-  }
-  if (key === 'star_wars') {
-    return { name: 'Star Wars', text: 'STAR WARS', bg: '#18181b', color: '#FFE81F', border: '1px solid rgba(255, 232, 31, 0.6)' }
-  }
-  if (key === 'avatar') {
-    return { name: 'Avatar', text: 'AVATAR', bg: '#0284c7', color: '#ffffff' }
-  }
-  if (key === 'dune') {
-    return { name: 'Dune Universe', text: 'DUNE', bg: '#d97706', color: '#ffffff' }
-  }
-  if (key === 'harry_potter') {
-    return { name: 'Wizarding World', text: 'HARRY POTTER', bg: '#4338ca', color: '#ffffff' }
-  }
-  if (key === 'john_wick') {
-    return { name: 'John Wick', text: 'JOHN WICK', bg: '#e11d48', color: '#ffffff' }
-  }
-  if (key === 'monsterverse') {
-    return { name: 'MonsterVerse', text: 'MONSTERVERSE', bg: '#059669', color: '#ffffff' }
-  }
-  if (key === 'transformers') {
-    return { name: 'Transformers', text: 'TRANSFORMERS', bg: '#4f46e5', color: '#ffffff' }
-  }
-  if (key === 'spider_man') {
-    return { name: 'Spider-Man', text: 'SPIDER-MAN', bg: '#dc2626', color: '#ffffff' }
-  }
-  if (key === 'batman') {
-    return { name: 'Batman', text: 'BATMAN', bg: '#27272a', color: '#e4e4e7', border: '1px solid #52525b' }
-  }
-  if (key === 'x_men') {
-    return { name: 'X-Men', text: 'X-MEN', bg: '#2563eb', color: '#ffffff' }
-  }
-
-  const formatted = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-  return { name: formatted, text: formatted.toUpperCase(), bg: 'rgba(124, 58, 237, 0.2)', color: '#c4b5fd', border: '1px solid rgba(167, 139, 250, 0.4)' }
 }
 
 function formatCardRuntime(str, language = 'uz') {
@@ -746,7 +698,6 @@ function MovieCard({
   const isTvSeries = movie?.media_type === 'tv' || Boolean(movie?.seasons && movie.seasons !== '-' && movie.seasons !== '—' && /season|ep/i.test(movie.seasons))
   const effectiveUserRating = userRating || movie?.user_rating || movie?.avg_user_rating
   const countdown = isFuture ? getReleaseCountdown(movie?.release_date, language) : null
-  const cardFranchise = getCardFranchiseBrand(movie)
   const posterSrc = !posterError ? getPosterUrl(movie?.poster_path) : null
 
   const handleToggleMute = (e) => {
@@ -1266,34 +1217,6 @@ function MovieCard({
               {movie.year && movie.year !== '—' && (
                 <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 5, fontSize: 12.5 }}>
                   ({movie.release_year || movie.year})
-                </span>
-              )}
-              {cardFranchise && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (onOpenChronology && movie?.tmdb_id) onOpenChronology(movie.tmdb_id, movie.media_type)
-                  }}
-                  title={`${cardFranchise.name} xronologiyasini ochish`}
-                  style={{
-                    marginLeft: 6,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 3,
-                    padding: '0px 5px',
-                    borderRadius: 4,
-                    background: cardFranchise.bg || '#7c3aed',
-                    color: cardFranchise.color || '#fff',
-                    border: cardFranchise.border || 'none',
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    verticalAlign: 'middle',
-                    lineHeight: '15px',
-                    letterSpacing: '0.3px'
-                  }}
-                >
-                  {cardFranchise.text}
                 </span>
               )}
             </div>
@@ -2204,6 +2127,7 @@ function areMovieCardPropsEqual(prev, next) {
   if (prev.isSeriesSeason !== next.isSeriesSeason) return false
   if (prev.sectionKey !== next.sectionKey) return false
   if (prev.noDrag !== next.noDrag) return false
+  if (prev.isFullscreenColumn !== next.isFullscreenColumn) return false
 
   const prevM = prev.movie
   const nextM = next.movie

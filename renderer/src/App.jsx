@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import GroupBoard from './components/layout/NoteBoard.jsx'
 import Topbar from './components/layout/Topbar.jsx'
-import Agelab from './components/agelab/Agelab.jsx'
 import SettingsModal from './components/modals/SettingsModal.jsx'
 import { useAuth } from './context/AuthContext.jsx'
 import LoginPage from './pages/LoginPage.jsx'

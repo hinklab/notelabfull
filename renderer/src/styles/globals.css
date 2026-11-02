@@ -253,10 +253,12 @@ input, textarea, [contenteditable="true"] {
 }
 
 .board .note-column {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 0%;
+  min-width: 280px;
   display: flex;
   flex-direction: column;
+  transition: flex 0.3s cubic-bezier(0.16, 1, 0.3, 1), min-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: flex, transform;
 }
 
 .board.board-has-fullscreen {
@@ -269,12 +271,16 @@ input, textarea, [contenteditable="true"] {
   flex: 0 0 0px !important;
   overflow: hidden !important;
   pointer-events: none !important;
+  opacity: 0 !important;
+  visibility: hidden;
 }
 
 .board .note-column.column-fullscreen {
   min-width: 0px !important;
   max-width: 100% !important;
   flex: 1 1 100% !important;
+  opacity: 1 !important;
+  visibility: visible;
 }
 
 /* Responsive mobile layout */

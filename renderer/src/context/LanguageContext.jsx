@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { translations } from '../i18n/translations';
 import api from '../config/api';
 
@@ -275,21 +275,23 @@ export function LanguageProvider({ children }) {
     return movie.director || '';
   };
 
+  const contextValue = useMemo(() => ({
+    language,
+    setLanguage,
+    t,
+    tmdbLocale: language === 'ru' ? 'ru-RU' : 'en-US',
+    movieTranslations,
+    movieTranslationsUz,
+    prefetchMovieTranslations,
+    fetchSingleMovieTranslation,
+    getMovieTitle,
+    getMovieOverview,
+    getMovieGenre,
+    getMovieDirector
+  }), [language, movieTranslations, movieTranslationsUz]);
+
   return (
-    <LanguageContext.Provider value={{
-      language,
-      setLanguage,
-      t,
-      tmdbLocale: language === 'ru' ? 'ru-RU' : 'en-US',
-      movieTranslations,
-      movieTranslationsUz,
-      prefetchMovieTranslations,
-      fetchSingleMovieTranslation,
-      getMovieTitle,
-      getMovieOverview,
-      getMovieGenre,
-      getMovieDirector
-    }}>
+    <LanguageContext.Provider value={contextValue}>
       {children}
     </LanguageContext.Provider>
   );

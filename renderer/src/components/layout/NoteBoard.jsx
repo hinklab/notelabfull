@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react'
 import ReactDOM from 'react-dom'
 import { Modal } from '../modals/SettingsModal.jsx'
-import MovieCard, { prefetchTrailer } from '../cards/MovieCard.jsx'
+import MovieCard from '../cards/MovieCard.jsx'
 import SeriesGroupCard from '../cards/SeriesGroupCard.jsx'
 import BadgeCelebrationModal from '../modals/BadgeCelebrationModal.jsx'
 import { Pencil, X, Plus, Scissors, Copy, Clipboard, ArrowRight, AlignJustify, Trash2, ImageOff, Check, Clock, ListTodo, Play, CheckCircle, Star, Search, Loader2, ChevronDown, ChevronUp, Clapperboard, ChevronLeft, ChevronRight, Minimize2 } from 'lucide-react'
 import { useLanguage } from '../../context/LanguageContext.jsx'
-import { getMovieFranchiseInfo } from '../../config/chronologyData.js'
 
 function getSeriesKey(movieOrItem) {
   const m = movieOrItem?._movie || movieOrItem
@@ -384,13 +383,11 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
   const [groupClipboard, setGroupClipboard] = useState(null)
   const [creatingGroup, setCreatingGroup] = useState(false)
   const [renameGroupId, setRenameGroupId] = useState(null)
-  const [draggingGroupId, setDraggingGroupId] = useState(null)
   const [ratePromptItem, setRatePromptItem] = useState(null)
   const [celebrationBadges, setCelebrationBadges] = useState(null)
   const [expandedMovieId, setExpandedMovieId] = useState(null)
   const [fullscreenColumnId, setFullscreenColumnId] = useState(null)
   const [toastMessage, setToastMessage] = useState(null)
-  const groupDragOver = useRef(null)
   const [confirmState, setConfirmState] = useState(null)
   const boardCardPositionsRef = useRef(new Map())
 
@@ -555,11 +552,6 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         setItemsByGroup(map)
         if (language === 'ru' && prefetchMovieTranslations && validMovies.length > 0) {
           prefetchMovieTranslations(validMovies)
-        }
-        if (validMovies.length > 0) {
-          setTimeout(() => {
-            validMovies.slice(0, 15).forEach(m => prefetchTrailer(m))
-          }, 800)
         }
       } else {
         const rawGroups = groups || []
@@ -1149,31 +1141,6 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     await loadGroups()
   }
 
-  const handleGroupDragStart = (groupId) => setDraggingGroupId(groupId)
-  const handleGroupDragEnd = () => { setDraggingGroupId(null); groupDragOver.current = null }
-  const handleGroupDragOverCol = (groupId) => {
-    if (!draggingGroupId || draggingGroupId === groupId) return
-    groupDragOver.current = groupId
-    const ids = groups.map(g => g.id)
-    const from = ids.indexOf(draggingGroupId)
-    const to = ids.indexOf(groupId)
-    if (from === -1 || to === -1) return
-    const reordered = [...ids]
-    reordered.splice(from, 1)
-    reordered.splice(to, 0, draggingGroupId)
-    setGroups(prev => {
-      const map = Object.fromEntries(prev.map(g => [g.id, g]))
-      return reordered.map(id => map[id]).filter(Boolean)
-    })
-  }
-  const handleGroupDrop = async () => {
-    if (!draggingGroupId) return
-    const ids = groups.map(g => g.id)
-    await window.api.reorderGroups(noteId, ids)
-    setDraggingGroupId(null)
-    groupDragOver.current = null
-  }
-
   const maxReached = groups.length >= 5
 
   // Responsive: detect mobile vertical vs horizontal/desktop mode
@@ -1336,6 +1303,53 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
     return max
   }, [groups, filteredItemsByGroup])
 
+  const handleToggleExpandMovie = useCallback((id) => {
+    setExpandedMovieId(prev => String(prev) === String(id) ? null : id)
+  }, [])
+
+  const handleAddItemGroup = useCallback((groupId) => {
+    setAddItemGroup(groupId)
+  }, [])
+
+  const handleRenameConsumed = useCallback(() => {
+    setRenameGroupId(null)
+  }, [])
+
+  const handleRenameGroupCallback = useCallback((groupId, name) => {
+    const group = groups.find(g => g.id === groupId)
+    if (group && name) handleRenameGroup(group, name)
+  }, [groups])
+
+  const handleDeleteGroupCallback = useCallback((group) => {
+    handleDeleteGroup(group)
+  }, [])
+
+  const handleItemContextMenuCallback = useCallback((e, item) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setItemContextMenu({ x: e.clientX, y: e.clientY, item })
+  }, [])
+
+  const handleItemClickCallback = useCallback((item) => {
+    setEditItem(item)
+  }, [])
+
+  const handleItemDeleteCallback = useCallback((item) => {
+    handleDeleteItem(item)
+  }, [])
+
+  const handleItemDragStart = useCallback((gId) => {
+    setDraggingFromGroupId(gId)
+  }, [])
+
+  const handleItemDragEnd = useCallback(() => {
+    setDraggingFromGroupId(null)
+  }, [])
+
+  const handleToggleFullscreenColumn = useCallback((groupId) => {
+    setFullscreenColumnId(prev => prev === groupId ? null : groupId)
+  }, [])
+
   const renderColumn = (group) => {
     const colIdx = groups.findIndex(g => g.id === group.id)
     const isColFullscreen = fullscreenColumnId === group.id
@@ -1351,30 +1365,25 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         boardCardPositionsRef={boardCardPositionsRef}
         itemClipboard={itemClipboard}
         expandedMovieId={expandedMovieId}
-        onToggleExpandMovie={(id) => setExpandedMovieId(prev => String(prev) === String(id) ? null : id)}
+        onToggleExpandMovie={handleToggleExpandMovie}
         onMoveMovieSection={handleMoveMovieSection}
-        onAdd={() => setAddItemGroup(group.id)}
+        onAdd={handleAddItemGroup}
         renameSignal={renameGroupId === group.id}
-        onRenameConsumed={() => setRenameGroupId(null)}
-        onRename={() => setRenameGroupId(group.id)}
-        onDelete={() => handleDeleteGroup(group)}
-        onItemContextMenu={(e, item) => { e.preventDefault(); e.stopPropagation(); setItemContextMenu({ x: e.clientX, y: e.clientY, item }) }}
-        onItemClick={(item) => setEditItem(item)}
-        onItemDelete={(item) => handleDeleteItem(item)}
+        onRenameConsumed={handleRenameConsumed}
+        onRename={handleRenameGroupCallback}
+        onDelete={handleDeleteGroupCallback}
+        onItemContextMenu={handleItemContextMenuCallback}
+        onItemClick={handleItemClickCallback}
+        onItemDelete={handleItemDeleteCallback}
         onMoveItem={handleMoveItem}
         onReorderItem={handleReorderItem}
         onSaveRating={handleSaveMovieRating}
         onOpenChronology={onOpenChronology}
-        isDragging={draggingGroupId === group.id}
-        onGroupDragStart={() => handleGroupDragStart(group.id)}
-        onGroupDragEnd={handleGroupDragEnd}
-        onGroupDragOver={() => handleGroupDragOverCol(group.id)}
-        onGroupDrop={handleGroupDrop}
         onDragHoverEdge={handleDragHoverEdge}
         onDragHoverEdgeEnd={clearEdgeHover}
         isColumnDraggingItem={draggingFromGroupId === group.id}
-        onItemDragStart={(gId) => setDraggingFromGroupId(gId)}
-        onItemDragEnd={() => setDraggingFromGroupId(null)}
+        onItemDragStart={handleItemDragStart}
+        onItemDragEnd={handleItemDragEnd}
         isMobileVertical={isMobileVertical}
         activeSection={activeSection}
         groups={groups}
@@ -1382,10 +1391,7 @@ export default function NoteBoard({ note, refreshTrigger, search = '', onSearch,
         isAnyColumnFullscreen={isAnyColFullscreen}
         columnIndex={colIdx}
         fullscreenColumnIndex={fullscreenColIdx}
-        onToggleFullscreen={() => {
-          if (isMobileVertical) return
-          setFullscreenColumnId(prev => prev === group.id ? null : group.id)
-        }}
+        onToggleFullscreen={handleToggleFullscreenColumn}
       />
     )
   }
@@ -1682,10 +1688,6 @@ function NoteColumn({
   onReorderItem,
   onSaveRating,
   onOpenChronology,
-  isDragging,
-  onGroupDragStart,
-  onGroupDragOver,
-  onGroupDragEnd,
   isMobileVertical,
   onDragHoverEdge,
   onDragHoverEdgeEnd,
@@ -1708,11 +1710,9 @@ function NoteColumn({
   const [isManuallyExpanded, setIsManuallyExpanded] = useState(false)
   const cardsRef = useRef(null)
   const rafRef = useRef(null)
-  const didDragRef = useRef(false)
 
   const columnEntries = useMemo(() => groupColumnItems(items, group?.id), [items, group?.id])
 
-  const [measuredHeight, setMeasuredHeight] = useState(null)
   const FOOTER_HEIGHT = 44
 
   const isDoneSection = group.section_key === 'done' || (group.name || '').toLowerCase() === 'done'
@@ -1720,7 +1720,7 @@ function NoteColumn({
   const visibleCardsTarget = Math.max(10, maxOtherCount || 0)
   const hiddenCardsCount = Math.max(1, columnEntries.length - visibleCardsTarget)
   const defaultCardsHeight = visibleCardsTarget * 126
-  const collapsedHeightNumber = Math.max(defaultCardsHeight, measuredHeight || defaultCardsHeight)
+  const collapsedHeightNumber = defaultCardsHeight
 
   const autoExpandedByCard = useMemo(() => {
     if (!isCollapseEligible || !expandedMovieId) return false
@@ -1737,67 +1737,6 @@ function NoteColumn({
 
   const isDoneExpanded = isManuallyExpanded || autoExpandedByCard || isFullscreen
   const shouldCollapse = isCollapseEligible && !isDoneExpanded
-
-  useEffect(() => {
-    if (!shouldCollapse || !cardsRef.current) {
-      setMeasuredHeight(null)
-      return
-    }
-
-    const myCol = cardsRef.current.closest('.note-column')
-    const boardEl = myCol?.closest('.board')
-    if (!boardEl) {
-      setMeasuredHeight(defaultCardsHeight)
-      return
-    }
-
-    let rafId = null
-    const updateHeight = () => {
-      if (rafId) cancelAnimationFrame(rafId)
-      rafId = requestAnimationFrame(() => {
-        if (!cardsRef.current) return
-        const currentMyCol = cardsRef.current.closest('.note-column')
-        if (!currentMyCol) return
-        const currentBoard = currentMyCol.closest('.board')
-        if (!currentBoard) return
-
-        const otherCols = Array.from(currentBoard.querySelectorAll('.note-column'))
-          .filter(col => col !== currentMyCol)
-
-        let maxOtherBottom = 0
-        const myColTop = currentMyCol.getBoundingClientRect().top
-
-        otherCols.forEach(col => {
-          const rect = col.getBoundingClientRect()
-          if (rect.bottom > maxOtherBottom) {
-            maxOtherBottom = rect.bottom
-          }
-        })
-
-        if (maxOtherBottom > myColTop) {
-          const desiredTotalColHeight = maxOtherBottom - myColTop
-          const headerEl = currentMyCol.querySelector('.column-header-sticky')
-          const headerH = headerEl ? headerEl.getBoundingClientRect().height : 42
-          const targetCardsH = Math.max(defaultCardsHeight, Math.round(desiredTotalColHeight - headerH - FOOTER_HEIGHT))
-          setMeasuredHeight(prev => prev === targetCardsH ? prev : targetCardsH)
-        } else {
-          setMeasuredHeight(prev => prev === defaultCardsHeight ? prev : defaultCardsHeight)
-        }
-      })
-    }
-
-    updateHeight()
-    const ro = new ResizeObserver(updateHeight)
-    const otherCols = Array.from(boardEl.querySelectorAll('.note-column'))
-      .filter(col => col !== myCol)
-    otherCols.forEach(col => ro.observe(col))
-
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId)
-      ro.disconnect()
-    }
-  }, [shouldCollapse, defaultCardsHeight, items?.length, maxOtherCount])
-
   const collapsedHeight = `${collapsedHeightNumber}px`
 
   const totalMinutes = useMemo(() => {
@@ -2067,54 +2006,19 @@ function NoteColumn({
     <div
       className={`note-column ${isFullscreen ? 'column-fullscreen' : (isAnyColumnFullscreen ? 'column-inactive' : '')}`}
       data-group-id={group.id}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('groupdrag')) {
-          e.preventDefault()
-          onGroupDragOver?.()
-        } else {
-          handleDragOver(e)
-        }
-      }}
-      onDragLeave={(e) => {
-        if (!e.dataTransfer.types.includes('groupdrag')) {
-          handleDragLeave(e)
-        }
-      }}
-      onDrop={(e) => {
-        if (e.dataTransfer.types.includes('groupdrag')) {
-          e.preventDefault()
-          onGroupDragEnd?.()
-        } else {
-          handleDrop(e)
-        }
-      }}
-      style={{
-        ...columnStyle,
-        opacity: isDragging ? 0.35 : columnStyle.opacity,
-      }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={columnStyle}
     >
       <div
         className="column-header-sticky"
-        draggable
-        onDragStart={(e) => {
-          didDragRef.current = true
-          e.dataTransfer.setData('text/plain', String(group.id))
-          e.dataTransfer.setData('groupdrag', 'true')
-          e.dataTransfer.effectAllowed = 'move'
-          onGroupDragStart?.(group.id)
-        }}
-        onDragEnd={() => {
-          setTimeout(() => {
-            didDragRef.current = false
-          }, 100)
-          onGroupDragEnd?.()
-        }}
         onContextMenu={(e) => onGroupContextMenu(e, group)}
         onClick={(e) => {
-          if (didDragRef.current) return
           if (editingName) return
           if (e.target.closest('button') || e.target.closest('input')) return
-          onToggleFullscreen?.()
+          if (isMobileVertical) return
+          onToggleFullscreen?.(group.id)
         }}
         onMouseEnter={() => setHeaderHovered(true)}
         onMouseLeave={() => setHeaderHovered(false)}
@@ -2128,18 +2032,12 @@ function NoteColumn({
           borderBottom: '1px solid var(--border)',
           borderTop: `3.5px solid ${color}`,
           borderRadius: shouldCollapse ? '12px' : '12px 12px 0 0',
-          cursor: isFullscreen ? 'pointer' : (headerHovered ? 'pointer' : 'default'),
+          cursor: 'pointer',
           position: 'sticky',
           top: 'var(--topbar-height, 52px)',
           zIndex: 20,
         }}
       >
-        <div
-          title="Ushlab siljiting"
-          style={{ cursor: 'grab', display: 'flex', flexDirection: 'column', gap: 2.5, padding: '4px 2px', flexShrink: 0, opacity: headerHovered ? 0.7 : 0.25, transition: 'opacity 0.15s' }}
-        >
-          {[0, 1, 2].map(i => <div key={i} style={{ width: 12, height: 2, background: color, borderRadius: 1 }} />)}
-        </div>
 
         {editingName ? (
           <input
@@ -2203,7 +2101,7 @@ function NoteColumn({
             type="button"
             onClick={(e) => {
               e.stopPropagation()
-              onToggleFullscreen?.()
+              onToggleFullscreen?.(group.id)
             }}
             title="Kichraytirish (Esc)"
             style={{
@@ -2230,7 +2128,7 @@ function NoteColumn({
         )}
 
         <button
-          onClick={onAdd}
+          onClick={() => onAdd?.(group.id)}
           title={t('board.addMovie')}
           style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         ><Plus size={16} /></button>
@@ -2248,7 +2146,7 @@ function NoteColumn({
           borderRadius: shouldCollapse ? '0' : '0 0 12px 12px',
           outline: isDragOverColumn ? `2px dashed ${color}` : 'none',
           transition: 'max-height 0.38s cubic-bezier(0.16, 1, 0.3, 1), outline 0.1s ease',
-          maxHeight: shouldCollapse ? collapsedHeight : (cardsRef.current ? `${cardsRef.current.scrollHeight + 300}px` : '30000px'),
+          maxHeight: shouldCollapse ? collapsedHeight : 'none',
           overflow: shouldCollapse ? 'hidden' : 'visible',
           position: 'relative',
           maskImage: shouldCollapse ? 'linear-gradient(to bottom, black calc(100% - 75px), transparent 100%)' : 'none',
@@ -2285,7 +2183,8 @@ function NoteColumn({
                   width: '100%',
                   maxWidth: '100%',
                   boxSizing: 'border-box',
-                  transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+                  contentVisibility: isFullscreen ? 'visible' : 'auto',
+                  containIntrinsicSize: '0 116px',
                 }}
               >
                 {isSeries ? (
@@ -2440,7 +2339,24 @@ function NoteColumn({
   )
 }
 
-const MemoNoteColumn = React.memo(NoteColumn)
+function areNoteColumnPropsEqual(prev, next) {
+  if (prev.isFullscreen !== next.isFullscreen) return false
+  if (prev.isAnyColumnFullscreen !== next.isAnyColumnFullscreen) return false
+  if (prev.columnIndex !== next.columnIndex) return false
+  if (prev.fullscreenColumnIndex !== next.fullscreenColumnIndex) return false
+  if (prev.items !== next.items) return false
+  if (prev.expandedMovieId !== next.expandedMovieId) return false
+  if (prev.renameSignal !== next.renameSignal) return false
+  if (prev.maxOtherCount !== next.maxOtherCount) return false
+  if (prev.isMobileVertical !== next.isMobileVertical) return false
+  if (prev.activeSection !== next.activeSection) return false
+  if (prev.isColumnDraggingItem !== next.isColumnDraggingItem) return false
+  if (prev.group?.name !== next.group?.name) return false
+  if (prev.group?.color !== next.group?.color) return false
+  return true
+}
+
+const MemoNoteColumn = React.memo(NoteColumn, areNoteColumnPropsEqual)
 
 function NoteItemCard({ item, groupId, accentColor, onClick, onContextMenu, onTouchDragStart, onTouchDragMove, onTouchDragEnd }) {
   const [isTouchDragging, setIsTouchDragging] = useState(false)
